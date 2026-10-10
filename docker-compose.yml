@@ -1,0 +1,19 @@
+services:
+  # FreqUI 生产看盘前端容器
+  frequi-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: frequi-dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:80" # 映射到服务器公网或宿主机的 3000 端口
+    environment:
+      - TZ=Asia/Shanghai
+    # 如果 Freqtrade 机器人也在同一个机器上且处于同一 Docker 网络，可以直接连通
+    # networks:
+    #   - freqtrade-network
+
+# networks:
+#   freqtrade-network:
+#     external: true
