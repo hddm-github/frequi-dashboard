@@ -76,6 +76,10 @@ export class FreqtradeClient {
     return {};
   }
 
+  clearInFlightRequests() {
+    this.inFlightRequests.clear();
+  }
+
   private async request<T>(
     endpoint: string,
     params?: Record<string, string | number | boolean | undefined | null>
@@ -93,14 +97,14 @@ export class FreqtradeClient {
       url += `?${q.toString()}`;
     }
 
-    // In-flight request deduplication: if exact same GET is already ongoing, reuse the promise
-    const cacheKey = `${url}`;
+    const rawApiUrl = (this.config.apiUrl || '').trim().replace(/\/dashboard\/?$/, '').replace(/\/+$/, '');
+
+    // In-flight request deduplication: scoped by target bot apiUrl so different bots never collide
+    const cacheKey = `${rawApiUrl}::${url}`;
     const existing = this.inFlightRequests.get(cacheKey);
     if (existing) {
       return existing as Promise<T>;
     }
-
-    const rawApiUrl = (this.config.apiUrl || '').trim().replace(/\/dashboard\/?$/, '').replace(/\/+$/, '');
     const headers: Record<string, string> = {
       Accept: 'application/json',
       ...this.getAuthHeader(),
@@ -269,7 +273,7 @@ export class FreqtradeClient {
           stake_currency?: string;
           max_open_trades?: number;
           stake_amount?: number | string;
-        }>('show_config'),
+        }>('show_config').catch(() => ({} as any)),
         this.request<{ total: number; free?: number }>('balance').catch(() => ({ total: 0, free: 0 })),
         this.request<{ whitelist: string[] }>('whitelist').catch(() => ({ whitelist: [] })),
       ]);

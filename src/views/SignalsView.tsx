@@ -4,13 +4,13 @@ import { Flame, Trophy, BookOpen, Layers } from 'lucide-react';
 import { SignalBadge } from '../components/SignalBadge';
 
 const SIGNAL_CATEGORIES = [
-  { range: '1 ~ 13', name: '趋势波段多头', desc: '大级别均线顺势做多，稳定捕捉趋势波段', color: 'border-emerald-300 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10' },
-  { range: '21 ~ 26', name: '放量拉升追多', desc: '成交量异动放大、动量爆发追强', color: 'border-cyan-300 dark:border-cyan-500/40 text-cyan-800 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-500/10' },
-  { range: '41 ~ 53', name: '超跌快速反弹', desc: '极端下挫超卖形态快速抢超短反弹', color: 'border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10' },
-  { range: '61 ~ 68', name: '回调低吸加仓', desc: '稳健支撑均线回踩企稳低吸做多', color: 'border-blue-300 dark:border-blue-500/40 text-blue-800 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10' },
-  { range: '141 ~ 145', name: '头部主流大币', desc: 'BTC / ETH 等主流高市值币种专属多头体系', color: 'border-purple-300 dark:border-purple-500/40 text-purple-800 dark:text-purple-400 bg-purple-50 dark:bg-purple-500/10' },
-  { range: '161 ~ 173', name: '高频超短头皮', desc: '微观结构快速进出剥头皮套利', color: 'border-pink-300 dark:border-pink-500/40 text-pink-800 dark:text-pink-400 bg-pink-50 dark:bg-pink-500/10' },
-  { range: '500+', name: '做空信号体系', desc: '高位滞涨顶背离与反转做空体系', color: 'border-rose-300 dark:border-rose-500/40 text-rose-800 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10' },
+  { range: '1 ~ 13', name: '趋势波段多头', desc: '大级别均线顺势做多，稳定捕捉趋势波段', color: 'border-emerald-300 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/15' },
+  { range: '21 ~ 26', name: '放量拉升追多', desc: '成交量异动放大、动量爆发追强', color: 'border-cyan-300 dark:border-cyan-500/40 text-cyan-800 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-500/15' },
+  { range: '41 ~ 53', name: '超跌快速反弹', desc: '极端下挫超卖形态快速抢超短反弹', color: 'border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/15' },
+  { range: '61 ~ 68', name: '回调低吸加仓', desc: '稳健支撑均线回踩企稳低吸做多', color: 'border-blue-300 dark:border-blue-500/40 text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/15' },
+  { range: '141 ~ 145', name: '头部主流大币', desc: 'BTC / ETH 等主流高市值币种专属多头体系', color: 'border-purple-300 dark:border-purple-500/40 text-purple-800 dark:text-purple-300 bg-purple-50 dark:bg-purple-500/15' },
+  { range: '161 ~ 173', name: '高频超短头皮', desc: '微观结构快速进出剥头皮套利', color: 'border-pink-300 dark:border-pink-500/40 text-pink-800 dark:text-pink-300 bg-pink-50 dark:bg-pink-500/15' },
+  { range: '500+', name: '做空信号体系', desc: '高位滞涨顶背离与反转做空体系', color: 'border-rose-300 dark:border-rose-500/40 text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/15' },
 ];
 
 export function SignalsView() {

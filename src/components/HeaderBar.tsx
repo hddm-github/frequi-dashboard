@@ -115,7 +115,7 @@ export function HeaderBar() {
               FreqUI
             </span>
             {isReadOnly && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1" title="实盘观摩只读">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 flex items-center gap-1" title="实盘观摩只读">
                 <ShieldCheck className="w-3 h-3 shrink-0" />
                 <span className="hidden sm:inline">实盘观摩只读</span>
                 <span className="sm:hidden inline">只读</span>

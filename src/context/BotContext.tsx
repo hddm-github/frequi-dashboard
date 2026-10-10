@@ -355,10 +355,24 @@ export function BotProvider({ children }: { children: ReactNode }) {
   }, [activeProfile]);
 
   const [client, setClient] = useState<FreqtradeClient>(() => new FreqtradeClient(config));
+  const clientRef = useRef<FreqtradeClient>(client);
+  const activeBotIdRef = useRef<string | null>(activeBotId);
+  const activeRequestIdRef = useRef<number>(0);
+  const lastLoadedBotIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    clientRef.current = client;
+  }, [client]);
+
+  useEffect(() => {
+    activeBotIdRef.current = activeBotId;
+  }, [activeBotId]);
 
   // Update client when active profile / config changes
   useEffect(() => {
-    setClient(new FreqtradeClient(config));
+    const nextClient = new FreqtradeClient(config);
+    clientRef.current = nextClient;
+    setClient(nextClient);
   }, [config]);
 
   // Branch 'hide-operation-buttons': Default to Read-Only mode to hide all dangerous operation buttons
@@ -559,25 +573,30 @@ export function BotProvider({ children }: { children: ReactNode }) {
    * 分级刷新机制：
    * Tier 1 (轻量高频 6~8s): getBotState, getActiveTrades
    * Tier 2 (中频或事件驱动 60s+ 或持仓数量变化时): getProfitSummary, getClosedTrades, getDailyPerformance
-   * Tier 3 (按需/低频 90s+): getSignalStats, getLogs
+   * Tier 3 (按需/低频 60s+): getSignalStats, getLogs
    */
   const refreshData = useCallback(async (overrideClient?: FreqtradeClient, forceAll: boolean = false) => {
-    const targetClient = overrideClient || client;
+    const targetClient = overrideClient || clientRef.current;
     const currentConfig = targetClient.getConfig();
     if (!currentConfig.apiUrl) return;
 
-    // Mutex Lock: 如果前一次请求还在处理中，直接跳过本次，绝不并发重叠！
-    if (isRefreshingRef.current) {
+    // Mutex Lock: 如果已有非强制请求在处理中，跳过本次。若是 forceAll (如切换机器人或手动强制刷新)，则立刻抢占执行！
+    if (isRefreshingRef.current && !forceAll) {
       return;
     }
 
     isRefreshingRef.current = true;
+    const currentReqId = ++activeRequestIdRef.current;
+    const currentActiveBotId = activeBotIdRef.current;
     setRefreshCountdown(6);
 
     try {
       // ── Tier 1: 核心轻量数据（串行微步执行，单次只占用 1 个连接）──
       const state = await targetClient.getBotState();
+      if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
+
       const active = await targetClient.getActiveTrades();
+      if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
 
       setBotState(state);
       setActiveTrades(active);
@@ -617,10 +636,12 @@ export function BotProvider({ children }: { children: ReactNode }) {
 
         // 串行执行重度数据库查询，让 SQLite / SQLAlchemy 连接池有充裕时间释放
         const summary = await targetClient.getProfitSummary().catch(() => null);
+        if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
         if (summary) setProfitSummary(summary);
 
         // 获取最新 100 笔已平仓订单 (order_by_id: false 保证最新成交优先排在最前)
         const closed = await targetClient.getClosedTrades(100, false).catch(() => null);
+        if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
         if (closed) {
           setClosedTrades(closed);
           closedTradesRef.current = closed;
@@ -628,36 +649,55 @@ export function BotProvider({ children }: { children: ReactNode }) {
 
         // 获取近 30 日每日表现，覆盖跨月统计
         const daily = await targetClient.getDailyPerformance(30).catch(() => null);
+        if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
         if (daily) setDailyRecords(daily);
 
-        // Tier 3: 日志与信号统计更低频（仅在 forceAll 或间隔 90s 以上）
-        if (forceAll || timeSinceLastSecondary > 90000 || lastSecondaryFetchTimeRef.current === now) {
+        // Tier 3: 日志与信号统计
+        if (forceAll || timeSinceLastSecondary > 60000 || lastSecondaryFetchTimeRef.current === now) {
           const sigs = await targetClient.getSignalStats().catch(() => null);
+          if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
           if (sigs) setSignals(sigs);
 
           const logList = await targetClient.getLogs(60).catch(() => null);
+          if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
           if (logList) setLogs(logList);
         }
       }
     } catch (err: any) {
-      console.warn('Refresh data failed:', err);
-      setIsConnected(false);
-      setLastError(err?.message || '获取数据失败');
+      if (activeRequestIdRef.current === currentReqId && activeBotIdRef.current === currentActiveBotId) {
+        console.warn('Refresh data failed:', err);
+        setIsConnected(false);
+        setLastError(err?.message || '获取数据失败');
+      }
     } finally {
-      isRefreshingRef.current = false;
+      if (activeRequestIdRef.current === currentReqId) {
+        isRefreshingRef.current = false;
+      }
     }
-  }, [client]);
+  }, []);
 
   // Switch to a specific bot
   const switchBot = useCallback(async (id: string): Promise<boolean> => {
     const target = profiles.find((p) => p.id === id);
     if (!target) return false;
 
+    // 立即注销上一机器人的所有在途请求并重置互斥锁
+    const myReqId = ++activeRequestIdRef.current;
+    activeBotIdRef.current = id;
+    lastLoadedBotIdRef.current = id;
+    isRefreshingRef.current = false;
+    lastSecondaryFetchTimeRef.current = 0;
+    prevActiveTradeCountRef.current = -1;
+    prevActiveTradeIdsRef.current = '';
+
     setIsConnecting(true);
     setLastError(null);
 
-    // Immediately purge previous bot's state so stale data is never shown
-    setBotState(EMPTY_BOT_STATE);
+    // 立即清空历史策略数据并给出友好过渡提示，杜绝旧策略残影
+    setBotState({
+      ...EMPTY_BOT_STATE,
+      strategy: '正在连接策略...',
+    });
     setActiveTrades([]);
     setClosedTrades([]);
     closedTradesRef.current = [];
@@ -675,14 +715,19 @@ export function BotProvider({ children }: { children: ReactNode }) {
       username: target.username,
       password: target.password,
     });
+    newClient.clearInFlightRequests();
+    clientRef.current = newClient;
     setClient(newClient);
 
     const ok = await newClient.ping();
+    if (activeRequestIdRef.current !== myReqId) return false;
+
     setIsConnecting(false);
 
     if (ok) {
       setIsConnected(true);
       setLastError(null);
+      // 切换成功后立即全量同步新机器人的策略与全层数据
       await refreshData(newClient, true);
       setIsSelectingBot(false);
       return true;
@@ -824,7 +869,8 @@ export function BotProvider({ children }: { children: ReactNode }) {
 
   // Initial load: 进来后直接强制全量拉取一次手动同步接口(包含平仓历史与收益)
   useEffect(() => {
-    if (activeProfile) {
+    if (activeProfile && lastLoadedBotIdRef.current !== activeProfile.id) {
+      lastLoadedBotIdRef.current = activeProfile.id;
       refreshData(undefined, true);
     }
   }, [activeProfile, refreshData]);

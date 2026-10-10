@@ -3,13 +3,19 @@ export interface NfiSignalInfo {
   category: string;
   description: string;
   isShort: boolean;
-  bgLight: string;
-  textLight: string;
-  borderLight: string;
-  bgDark: string;
-  textDark: string;
-  borderDark: string;
+  colorClasses: string;
 }
+
+export const SIGNAL_COLOR_STYLES = {
+  rose: 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/30',
+  purple: 'bg-purple-50 text-purple-800 border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30',
+  amber: 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30',
+  blue: 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30',
+  emerald: 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30',
+  cyan: 'bg-cyan-50 text-cyan-800 border-cyan-200 dark:bg-cyan-500/15 dark:text-cyan-300 dark:border-cyan-500/30',
+  pink: 'bg-pink-50 text-pink-800 border-pink-200 dark:bg-pink-500/15 dark:text-pink-300 dark:border-pink-500/30',
+  slate: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700',
+};
 
 /**
  * 📖 NFI / E0V1E / 通用策略入场信号智能解析速查字典：
@@ -29,12 +35,7 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
       category: '常规入场',
       description: '常规或手动交易，无特定信号标签',
       isShort: false,
-      bgLight: 'bg-slate-100',
-      textLight: 'text-slate-600',
-      borderLight: 'border-slate-200',
-      bgDark: 'bg-slate-800/80',
-      textDark: 'text-slate-400',
-      borderDark: 'border-slate-700',
+      colorClasses: SIGNAL_COLOR_STYLES.slate,
     };
   }
 
@@ -55,21 +56,11 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
     const code = rawPrefix || category;
     const isShort = cleanTag.toLowerCase().includes('short') || cleanTag.includes('做空');
 
-    // 智能语义配色
-    let bgLight = 'bg-cyan-50';
-    let textLight = 'text-cyan-700';
-    let borderLight = 'border-cyan-200';
-    let bgDark = 'bg-cyan-950/50';
-    let textDark = 'text-cyan-400';
-    let borderDark = 'border-cyan-800/60';
+    // 智能语义配色（静态 Tailwind 兼容类，暗黑模式采用高对比度 15% 透光背景与亮色字）
+    let colorClasses = SIGNAL_COLOR_STYLES.cyan;
 
     if (isShort) {
-      bgLight = 'bg-rose-50';
-      textLight = 'text-rose-700';
-      borderLight = 'border-rose-200';
-      bgDark = 'bg-rose-950/50';
-      textDark = 'text-rose-400';
-      borderDark = 'border-rose-800/60';
+      colorClasses = SIGNAL_COLOR_STYLES.rose;
     } else if (
       cleanTag.includes('插针') ||
       cleanTag.includes('头皮') ||
@@ -77,12 +68,7 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
       cleanTag.toLowerCase().includes('scalp') ||
       cleanTag.toLowerCase().includes('pin')
     ) {
-      bgLight = 'bg-purple-50';
-      textLight = 'text-purple-700';
-      borderLight = 'border-purple-200';
-      bgDark = 'bg-purple-950/50';
-      textDark = 'text-purple-400';
-      borderDark = 'border-purple-800/60';
+      colorClasses = SIGNAL_COLOR_STYLES.purple;
     } else if (
       cleanTag.includes('重挫') ||
       cleanTag.includes('超跌') ||
@@ -91,24 +77,14 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
       cleanTag.toLowerCase().includes('dip') ||
       cleanTag.toLowerCase().includes('oversold')
     ) {
-      bgLight = 'bg-amber-50';
-      textLight = 'text-amber-700';
-      borderLight = 'border-amber-200';
-      bgDark = 'bg-amber-950/50';
-      textDark = 'text-amber-400';
-      borderDark = 'border-amber-800/60';
+      colorClasses = SIGNAL_COLOR_STYLES.amber;
     } else if (
       cleanTag.includes('低吸') ||
       cleanTag.includes('回调') ||
       cleanTag.includes('支撑') ||
       cleanTag.toLowerCase().includes('pullback')
     ) {
-      bgLight = 'bg-blue-50';
-      textLight = 'text-blue-700';
-      borderLight = 'border-blue-200';
-      bgDark = 'bg-blue-950/50';
-      textDark = 'text-blue-400';
-      borderDark = 'border-blue-800/60';
+      colorClasses = SIGNAL_COLOR_STYLES.blue;
     } else if (
       cleanTag.includes('突破') ||
       cleanTag.includes('追多') ||
@@ -116,12 +92,7 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
       cleanTag.includes('拉升') ||
       cleanTag.toLowerCase().includes('breakout')
     ) {
-      bgLight = 'bg-emerald-50';
-      textLight = 'text-emerald-700';
-      borderLight = 'border-emerald-200';
-      bgDark = 'bg-emerald-950/50';
-      textDark = 'text-emerald-400';
-      borderDark = 'border-emerald-800/60';
+      colorClasses = SIGNAL_COLOR_STYLES.emerald;
     }
 
     return {
@@ -129,12 +100,7 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
       category,
       description: cleanTag,
       isShort,
-      bgLight,
-      textLight,
-      borderLight,
-      bgDark,
-      textDark,
-      borderDark,
+      colorClasses,
     };
   }
 
@@ -150,12 +116,7 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
         category: '做空信号体系',
         description: '高位顶背离与反转做空信号体系',
         isShort: true,
-        bgLight: 'bg-rose-50',
-        textLight: 'text-rose-700',
-        borderLight: 'border-rose-200',
-        bgDark: 'bg-rose-950/50',
-        textDark: 'text-rose-400',
-        borderDark: 'border-rose-800/60',
+        colorClasses: SIGNAL_COLOR_STYLES.rose,
       };
     }
 
@@ -166,12 +127,7 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
         category: '高频超短头皮',
         description: '微观结构快速剥头皮套利',
         isShort: false,
-        bgLight: 'bg-pink-50',
-        textLight: 'text-pink-700',
-        borderLight: 'border-pink-200',
-        bgDark: 'bg-pink-950/50',
-        textDark: 'text-pink-400',
-        borderDark: 'border-pink-800/60',
+        colorClasses: SIGNAL_COLOR_STYLES.pink,
       };
     }
 
@@ -182,12 +138,7 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
         category: '头部主流大币',
         description: 'BTC/ETH 主流核心资产专属做多信号',
         isShort: false,
-        bgLight: 'bg-purple-50',
-        textLight: 'text-purple-700',
-        borderLight: 'border-purple-200',
-        bgDark: 'bg-purple-950/50',
-        textDark: 'text-purple-400',
-        borderDark: 'border-purple-800/60',
+        colorClasses: SIGNAL_COLOR_STYLES.purple,
       };
     }
 
@@ -198,12 +149,7 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
         category: '趋势波段多头',
         description: '大级别均线顺势波段多头',
         isShort: false,
-        bgLight: 'bg-emerald-50',
-        textLight: 'text-emerald-700',
-        borderLight: 'border-emerald-200',
-        bgDark: 'bg-emerald-950/50',
-        textDark: 'text-emerald-400',
-        borderDark: 'border-emerald-800/60',
+        colorClasses: SIGNAL_COLOR_STYLES.emerald,
       };
     }
 
@@ -214,12 +160,7 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
         category: '放量拉升追多',
         description: '成交量异动放大与突破追强',
         isShort: false,
-        bgLight: 'bg-cyan-50',
-        textLight: 'text-cyan-700',
-        borderLight: 'border-cyan-200',
-        bgDark: 'bg-cyan-950/50',
-        textDark: 'text-cyan-400',
-        borderDark: 'border-cyan-800/60',
+        colorClasses: SIGNAL_COLOR_STYLES.cyan,
       };
     }
 
@@ -230,12 +171,7 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
         category: '超跌快速反弹',
         description: '极端下挫超卖快速抢反弹',
         isShort: false,
-        bgLight: 'bg-amber-50',
-        textLight: 'text-amber-700',
-        borderLight: 'border-amber-200',
-        bgDark: 'bg-amber-950/50',
-        textDark: 'text-amber-400',
-        borderDark: 'border-amber-800/60',
+        colorClasses: SIGNAL_COLOR_STYLES.amber,
       };
     }
 
@@ -246,12 +182,7 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
         category: '回调低吸加仓',
         description: '稳健支撑均线回踩低吸',
         isShort: false,
-        bgLight: 'bg-blue-50',
-        textLight: 'text-blue-700',
-        borderLight: 'border-blue-200',
-        bgDark: 'bg-blue-950/50',
-        textDark: 'text-blue-400',
-        borderDark: 'border-blue-800/60',
+        colorClasses: SIGNAL_COLOR_STYLES.blue,
       };
     }
   }
@@ -263,17 +194,13 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
     category: '策略信号',
     description: `策略入场信号: ${cleanTag}`,
     isShort,
-    bgLight: isShort ? 'bg-rose-50' : 'bg-cyan-50',
-    textLight: isShort ? 'text-rose-700' : 'text-cyan-700',
-    borderLight: isShort ? 'border-rose-200' : 'border-cyan-200',
-    bgDark: isShort ? 'bg-rose-950/50' : 'bg-cyan-950/50',
-    textDark: isShort ? 'text-rose-400' : 'text-cyan-400',
-    borderDark: isShort ? 'border-rose-800/60' : 'border-cyan-800/60',
+    colorClasses: isShort ? SIGNAL_COLOR_STYLES.rose : SIGNAL_COLOR_STYLES.cyan,
   };
 }
 
 /**
- * Checks if the current bot strategy is NostalgiaForInfinity (NFI) / E0V1E
+ * Checks if the current bot strategy is NostalgiaForInfinity (NFI)
+ * Note: E0V1E is its own distinct strategy and does not use NFI numeric manual.
  */
 export function isNfiStrategy(strategyName?: string | null): boolean {
   if (!strategyName) return false;
@@ -282,8 +209,6 @@ export function isNfiStrategy(strategyName?: string | null): boolean {
     s.startsWith('nostalgia') ||
     s.startsWith('nfi') ||
     s.includes('nostalgiaforinfinity') ||
-    s.includes('nfix') ||
-    s.startsWith('e0v1') ||
-    s.startsWith('e0v')
+    s.includes('nfix')
   );
 }

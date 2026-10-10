@@ -97,7 +97,7 @@ function DashboardWorkspace() {
 
           <ViewType
             id="signals"
-            title={() => (isNfiStrategy(botState.strategy) ? 'NFI 策略信号排行榜' : '策略信号收益排行')}
+            title={() => (isNfiStrategy(botState.strategy) ? 'NFI 策略信号排行榜' : '策略信号排行榜')}
             singleton
           >
             <SignalsView />
