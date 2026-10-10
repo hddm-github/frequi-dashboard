@@ -27,10 +27,33 @@ export function normalizeApiUrl(url: string): string {
   let cleaned = (url || '').trim().replace(/\/dashboard\/?$/, '').replace(/\/+$/, '');
   if (!cleaned) return '';
   if (cleaned.startsWith('/')) return cleaned;
-  if (!/^https?:\/\//i.test(cleaned)) {
+  if (!/^https?:\/\/\//i.test(cleaned)) {
     cleaned = `http://${cleaned}`;
   }
   return cleaned;
+}
+
+function mapOrders(rawOrders?: any[]): any[] | undefined {
+  if (!Array.isArray(rawOrders)) return undefined;
+  return rawOrders.map((o) => ({
+    order_id: o.order_id,
+    pair: o.pair,
+    status: o.status,
+    ft_order_side: o.ft_order_side,
+    ft_is_entry: o.ft_is_entry,
+    ft_order_tag: o.ft_order_tag,
+    amount: o.amount,
+    filled: o.filled,
+    price: o.price,
+    safe_price: o.safe_price,
+    average: o.average,
+    cost: o.cost,
+    order_timestamp: o.order_timestamp,
+    order_date: o.order_date,
+    order_filled_timestamp: o.order_filled_timestamp,
+    order_filled_date: o.order_filled_date,
+    is_open: o.is_open,
+  }));
 }
 
 export class FreqtradeClient {
@@ -71,7 +94,7 @@ export class FreqtradeClient {
     }
     if (this.config.username || this.config.password) {
       const token = btoa(`${this.config.username || ''}:${this.config.password || ''}`);
-      return { Authorization: `Basic ${token}` };
+      return { Authorization: 'Basic ' + token };
     }
     return {};
   }
@@ -267,6 +290,7 @@ export class FreqtradeClient {
         this.request<{ version: string }>('version').catch(() => ({ version: 'Freqtrade' })),
         this.request<{
           strategy?: string;
+          strategy_version?: string;
           timeframe?: string;
           state?: 'running' | 'stopped';
           dry_run?: boolean;
@@ -281,6 +305,7 @@ export class FreqtradeClient {
       return {
         version: versionData.version || 'Freqtrade',
         strategy: configData.strategy || 'FreqtradeStrategy',
+        strategy_version: configData.strategy_version || '',
         timeframe: configData.timeframe || '5m',
         state: configData.state || 'running',
         dry_run: configData.dry_run ?? true,
@@ -324,6 +349,7 @@ export class FreqtradeClient {
         stop_loss_abs: item.stop_loss_abs,
         enter_tag: item.enter_tag,
         timeframe: item.timeframe,
+        orders: mapOrders(item.orders),
       }));
     } catch (err) {
       console.warn('Real API getActiveTrades failed:', err);
@@ -414,6 +440,7 @@ export class FreqtradeClient {
           enter_tag: t.enter_tag,
           exit_tag: t.exit_tag,
           exit_reason: t.exit_reason,
+          orders: mapOrders(t.orders),
         }));
 
       // Strictly sort newest trades first (latest close_date / close_timestamp)

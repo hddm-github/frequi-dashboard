@@ -1,3 +1,23 @@
+export interface Order {
+  order_id?: string;
+  pair?: string;
+  status?: string;
+  ft_order_side?: string;
+  ft_is_entry?: boolean;
+  ft_order_tag?: string;
+  amount?: number;
+  filled?: number;
+  price?: number;
+  safe_price?: number;
+  average?: number;
+  cost?: number;
+  order_timestamp?: number;
+  order_date?: string;
+  order_filled_timestamp?: number;
+  order_filled_date?: string;
+  is_open?: boolean;
+}
+
 export interface Trade {
   trade_id: number;
   pair: string;
@@ -22,14 +42,7 @@ export interface Trade {
   exit_tag?: string;
   exit_reason?: string;
   timeframe?: string;
-  orders?: Array<{
-    order_id?: string;
-    ft_order_side?: string;
-    ft_is_entry?: boolean;
-    filled?: number;
-    cost?: number;
-    funding_fee?: number;
-  }>;
+  orders?: Order[];
 }
 
 export interface ProfitSummary {
@@ -108,6 +121,7 @@ export interface BotConfig {
 export interface BotState {
   version: string;
   strategy: string;
+  strategy_version?: string;
   timeframe: string;
   state: 'running' | 'stopped' | 'reload';
   dry_run: boolean;
