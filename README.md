@@ -132,7 +132,7 @@ node server.js
 2. If this is your first visit, the connection dialog will appear automatically. You can also click the bot selector in the top bar to **"Add / Connect Bot"**.
 3. Enter your Freqtrade API information:
    - **Bot Alias**: Custom name (e.g., `NFIX8-Production`)
-   - **Base URL**: Freqtrade API address (e.g., `http://43.156.122.228:8989`)
+   - **Base URL**: Freqtrade API address (e.g., `http://127.0.0.1:8080` or `http://YOUR_SERVER_IP:8080`)
    - **API Username**: Freqtrade API username
    - **API Password**: Freqtrade API password
 4. Click **"Save & Connect"**.
@@ -282,7 +282,7 @@ dashboard/
 
 ### Q1: "Disallowed CORS origin" or "Failed to fetch"
 - **Cause**: Freqtrade rejected requests from your dashboard's IP/port.
-- **Fix**: Open Freqtrade's `config.json`, add your dashboard origin (e.g., `"http://43.156.122.228:22222"`) to `"api_server.CORS_origins"`, and restart the bot.
+- **Fix**: Open Freqtrade's `config.json`, add your dashboard origin (e.g., `"http://YOUR_SERVER_IP:3000"`) to `"api_server.CORS_origins"`, and restart the bot.
 
 ### Q2: "Cannot read properties of undefined (reading 'writeText')"
 - **Cause**: Modern browsers disable `navigator.clipboard` on insecure HTTP non-localhost origins.
@@ -380,7 +380,7 @@ node server.js
 2. 首次进入将弹出连接引导，或点击顶部机器人菜单选择 **「添加 / 连接新机器人」**；
 3. 输入你的 Freqtrade 配置：
    - **机器人备注名**：自定义别名（例如 `NFIX8-实盘1号`）
-   - **API 节点地址**：Freqtrade 访问地址（例如 `http://43.156.122.228:8989`）
+   - **API 节点地址**：Freqtrade 访问地址（例如 `http://127.0.0.1:8080` 或 `http://你的服务器IP:8080`）
    - **API 账号**：Freqtrade 的 username
    - **API 密码**：Freqtrade 的 password
 4. 点击 **「保存并连接」**。
@@ -532,7 +532,7 @@ dashboard/
 
 ### 1. 控制台报错 `Disallowed CORS origin` 或 `Failed to fetch`
 - **原因**：Freqtrade 拒绝了来自你当前看板地址的跨域请求。
-- **解决**：在服务器的 Freqtrade `config.json` 中，找到 `api_server.CORS_origins`，加入你的看板实际访问地址（例如 `"http://43.156.122.228:22222"`），保存后**重启机器人进程**。
+- **解决**：在服务器的 Freqtrade `config.json` 中，找到 `api_server.CORS_origins`，加入你的看板实际访问地址（例如 `"http://你的服务器IP:3000"`），保存后**重启机器人进程**。
 
 ### 2. 点击复制只读链接报错 `writeText of undefined`
 - **原因**：现代浏览器出于安全策略，仅允许在 HTTPS 域名或 localhost 环境下使用原生 `navigator.clipboard`。
