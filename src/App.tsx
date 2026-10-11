@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import {
   WorkspaceProvider,
   Workspace,
@@ -12,17 +12,23 @@ import { BotProvider, useBot } from './context/BotContext';
 import { HeaderBar } from './components/HeaderBar';
 import { MobileWorkspace } from './components/MobileWorkspace';
 import { FreqUIDashboardView } from './views/FreqUIDashboardView';
-import { CandleChartView } from './views/CandleChartView';
 import { ActiveTradesView } from './views/ActiveTradesView';
-import { ClosedTradesView } from './views/ClosedTradesView';
-import { SignalsView } from './views/SignalsView';
 import { BotControlView } from './views/BotControlView';
-import { BotLogsView } from './views/BotLogsView';
-import { EquityCurveView } from './views/EquityCurveView';
 import { LoginGateView } from './views/LoginGateView';
 import { BotSelectView } from './views/BotSelectView';
 import { isNfiStrategy } from './utils/nfiSignals';
 import { LocaleProvider, useT } from './i18n/LocaleContext';
+
+// ── Code-split heavy views for faster initial bundle ──
+const CandleChartView = lazy(() => import('./views/CandleChartView').then(m => ({ default: m.CandleChartView })));
+const SignalsView = lazy(() => import('./views/SignalsView').then(m => ({ default: m.SignalsView })));
+const ClosedTradesView = lazy(() => import('./views/ClosedTradesView').then(m => ({ default: m.ClosedTradesView })));
+const BotLogsView = lazy(() => import('./views/BotLogsView').then(m => ({ default: m.BotLogsView })));
+const EquityCurveView = lazy(() => import('./views/EquityCurveView').then(m => ({ default: m.EquityCurveView })));
+
+const LazyFallback = () => (
+  <div className="flex items-center justify-center h-full opacity-40 text-xs">Loading…</div>
+);
 
 const translateMenuLabel = (label: string): string => {
   if (!label) return label;
@@ -94,7 +100,7 @@ function DashboardWorkspace() {
             title={(v) => (v.params?.pair ? `${t('view.candle_chart')} - ${v.params.pair}` : t('view.candle_chart'))}
             singleton
           >
-            <CandleChartView />
+            <Suspense fallback={<LazyFallback />}><CandleChartView /></Suspense>
           </ViewType>
 
           <ViewType
@@ -102,7 +108,7 @@ function DashboardWorkspace() {
             title={() => (isNfiStrategy(botState.strategy) ? 'NFI Strategy Signal Rankings' : 'Strategy Signal Performance')}
             singleton
           >
-            <SignalsView />
+            <Suspense fallback={<LazyFallback />}><SignalsView /></Suspense>
           </ViewType>
 
           <ViewType
@@ -126,7 +132,7 @@ function DashboardWorkspace() {
             title={t('view.closed_trades')}
             singleton
           >
-            <ClosedTradesView />
+            <Suspense fallback={<LazyFallback />}><ClosedTradesView /></Suspense>
           </ViewType>
 
           <ViewType
@@ -134,7 +140,7 @@ function DashboardWorkspace() {
             title={t('view.bot_logs')}
             singleton
           >
-            <BotLogsView />
+            <Suspense fallback={<LazyFallback />}><BotLogsView /></Suspense>
           </ViewType>
 
           <ViewType
@@ -142,7 +148,7 @@ function DashboardWorkspace() {
             title={t('view.equity_curve')}
             singleton
           >
-            <EquityCurveView />
+            <Suspense fallback={<LazyFallback />}><EquityCurveView /></Suspense>
           </ViewType>
 
           {/* FreqUI Standard + Trellis Docking Layout */}

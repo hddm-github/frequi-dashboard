@@ -1,14 +1,9 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useBot } from '../context/BotContext';
 import { HeaderBar } from './HeaderBar';
 import { FreqUIDashboardView } from '../views/FreqUIDashboardView';
-import { CandleChartView } from '../views/CandleChartView';
 import { ActiveTradesView } from '../views/ActiveTradesView';
-import { ClosedTradesView } from '../views/ClosedTradesView';
-import { SignalsView } from '../views/SignalsView';
 import { BotControlView } from '../views/BotControlView';
-import { BotLogsView } from '../views/BotLogsView';
-import { EquityCurveView } from '../views/EquityCurveView';
 import {
   BarChart3,
   CandlestickChart,
@@ -26,6 +21,17 @@ import {
 import { isNfiStrategy } from '../utils/nfiSignals';
 import { ConnectModal } from './ConnectModal';
 import { useT } from '../i18n/LocaleContext';
+
+// ── Code-split heavy views (shared chunks with App.tsx) ──
+const CandleChartView = lazy(() => import('../views/CandleChartView').then(m => ({ default: m.CandleChartView })));
+const ClosedTradesView = lazy(() => import('../views/ClosedTradesView').then(m => ({ default: m.ClosedTradesView })));
+const SignalsView = lazy(() => import('../views/SignalsView').then(m => ({ default: m.SignalsView })));
+const BotLogsView = lazy(() => import('../views/BotLogsView').then(m => ({ default: m.BotLogsView })));
+const EquityCurveView = lazy(() => import('../views/EquityCurveView').then(m => ({ default: m.EquityCurveView })));
+
+const LazyFallback = () => (
+  <div className="flex items-center justify-center h-full opacity-40 text-xs">Loading…</div>
+);
 
 export function MobileWorkspace() {
   const { theme, mobileTab, setMobileTab, activeTrades, botState, setIsSelectingBot, isConnecting } = useBot();
@@ -47,17 +53,17 @@ export function MobileWorkspace() {
       case 'frequi_dashboard':
         return <FreqUIDashboardView />;
       case 'chart':
-        return <CandleChartView />;
+        return <Suspense fallback={<LazyFallback />}><CandleChartView /></Suspense>;
       case 'active_trades':
         return <ActiveTradesView />;
       case 'closed_trades':
-        return <ClosedTradesView />;
+        return <Suspense fallback={<LazyFallback />}><ClosedTradesView /></Suspense>;
       case 'equity_curve':
-        return <EquityCurveView />;
+        return <Suspense fallback={<LazyFallback />}><EquityCurveView /></Suspense>;
       case 'signals':
-        return <SignalsView />;
+        return <Suspense fallback={<LazyFallback />}><SignalsView /></Suspense>;
       case 'logs':
-        return <BotLogsView />;
+        return <Suspense fallback={<LazyFallback />}><BotLogsView /></Suspense>;
       case 'bot_control':
         return <BotControlView />;
       default:
