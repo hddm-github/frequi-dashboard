@@ -28,7 +28,7 @@ import { ConnectModal } from './ConnectModal';
 import { useT } from '../i18n/LocaleContext';
 
 export function MobileWorkspace() {
-  const { theme, mobileTab, setMobileTab, activeTrades, botState, setIsSelectingBot } = useBot();
+  const { theme, mobileTab, setMobileTab, activeTrades, botState, setIsSelectingBot, isConnecting } = useBot();
   const t = useT();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -88,6 +88,15 @@ export function MobileWorkspace() {
     >
       {/* Top Header */}
       <HeaderBar />
+
+      {isConnecting && (
+        <div className={`shrink-0 flex items-center justify-center gap-2 px-3 py-1 text-[11px] border-b ${
+          isDark ? 'bg-[#10192b] border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-600'
+        }`} role="status" aria-live="polite">
+          <span className="w-2.5 h-2.5 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin" />
+          <span>{t('login.connecting')}</span>
+        </div>
+      )}
 
       {/* Sub-header for secondary pages */}
       {isSecondaryView && (

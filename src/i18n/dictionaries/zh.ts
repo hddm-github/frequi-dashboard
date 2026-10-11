@@ -336,6 +336,8 @@ export const zh: Record<string, string> = {
   'candle.hide': '隐藏',
   'candle.trade_history_title': '查看该交易对的开仓和平仓交易',
   'candle.trade_history_btn': '交易历史',
+  'candle.market_data': '市场数据',
+  'candle.market_data_title': '显示或隐藏K线市场数据',
   'candle.no_pair_trades': '此交易对暂无开仓或平仓交易',
   'candle.order_history': '订单执行历史',
   'candle.trade_details': '交易详情',

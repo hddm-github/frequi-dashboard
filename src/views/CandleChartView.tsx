@@ -172,6 +172,7 @@ export function CandleChartView() {
   const [empty, setEmpty] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showMarkers, setShowMarkers] = useState(true);
+  const [showCandleInfo, setShowCandleInfo] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [showTradeDropdown, setShowTradeDropdown] = useState(false);
 
@@ -827,7 +828,7 @@ export function CandleChartView() {
             {/* Dropdown Menu */}
             {showTradeDropdown && (
               <div
-                className={`absolute top-full left-1/2 -translate-x-1/2 right-auto mt-1.5 w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:left-0 sm:translate-x-0 sm:right-auto sm:w-80 sm:max-w-sm max-h-80 overflow-x-hidden overflow-y-auto rounded-xl shadow-2xl border z-50 p-2 text-xs font-sans ${
+                className={`fixed inset-x-2 bottom-16 max-h-[min(68dvh,32rem)] overflow-x-hidden overflow-y-auto rounded-2xl shadow-2xl border z-[70] p-3 text-xs font-sans sm:absolute sm:inset-x-auto sm:top-full sm:bottom-auto sm:left-0 sm:mt-1.5 sm:w-80 sm:max-w-sm sm:max-h-80 sm:rounded-xl ${
                   isDark ? 'bg-[#131b2e] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
                 }`}
               >
@@ -950,6 +951,22 @@ export function CandleChartView() {
             )}
           </div>
         </div>
+
+        <button
+          onClick={() => setShowCandleInfo((visible) => !visible)}
+          className={`px-2 py-0.5 rounded text-[11px] font-medium border flex items-center gap-1 transition-colors cursor-pointer ${
+            showCandleInfo
+              ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+              : isDark
+              ? 'bg-[#1a233a] text-slate-300 border-slate-700 hover:bg-[#202b46]'
+              : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+          }`}
+          title={t('candle.market_data_title')}
+          aria-pressed={showCandleInfo}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <span>{t('candle.market_data')}</span>
+        </button>
 
         {/* Trade Information Pill */}
         <div className="flex items-center gap-2">
@@ -1173,7 +1190,7 @@ export function CandleChartView() {
       {/* Chart Canvas Area with Floating HUD Legend */}
       <div className="relative flex-1 w-full min-h-0 overflow-hidden">
         {/* Floating Top Legend HUD (OHLCV & Trade Markers) */}
-        {displayBar && (
+        {showCandleInfo && displayBar && (
           <div className="absolute top-2 left-3 right-3 z-20 pointer-events-none flex flex-col gap-1.5">
             {/* Row 1: OHLCV Bar */}
             <div

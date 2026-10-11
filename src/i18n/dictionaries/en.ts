@@ -343,6 +343,8 @@ export const en: Record<string, string> = {
   'candle.hide': 'Hide',
   'candle.trade_history_title': 'View open and closed trades for this pair',
   'candle.trade_history_btn': 'Trade history',
+  'candle.market_data': 'Market data',
+  'candle.market_data_title': 'Show or hide candle market data',
   'candle.no_pair_trades': 'No open or closed trades for this pair',
   'candle.entry_price': 'Entry price',
   'candle.unrealized_pnl': 'Unrealized P&L',
