@@ -322,6 +322,32 @@ export class FreqtradeClient {
     }
   }
 
+  /**
+   * Fetch strategy source code from Freqtrade REST API.
+   * Used by StrategyBlueprintModal to extract live numeric parameters
+   * (grinding stakes, profit thresholds, derisk levels, mode tags) so the
+   * modal reflects whatever version of the strategy is currently running.
+   *
+   * Endpoint: GET /api/v1/strategy/{strategy_name}
+   * Returns: { strategy, timeframe, params, code }
+   */
+  async getStrategySource(strategyName: string): Promise<{ code: string; params: Record<string, any>; timeframe?: string } | null> {
+    try {
+      const data = await this.request<{ strategy: string; timeframe?: string; params?: any; code?: string }>(
+        `strategy/${encodeURIComponent(strategyName)}`
+      );
+      if (!data || !data.code) return null;
+      return {
+        code: data.code,
+        params: data.params || {},
+        timeframe: data.timeframe,
+      };
+    } catch (err: any) {
+      console.warn('getStrategySource failed:', err);
+      return null;
+    }
+  }
+
   async getActiveTrades(): Promise<Trade[]> {
     try {
       const data = await this.request<any[]>('status');
