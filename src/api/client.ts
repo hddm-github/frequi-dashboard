@@ -505,9 +505,9 @@ export class FreqtradeClient {
     }
   }
 
-  async getSignalStats(): Promise<SignalStat[]> {
+  async getSignalStats(closedTrades?: Trade[]): Promise<SignalStat[]> {
     try {
-      const closed = await this.getClosedTrades(200, false);
+      const closed = closedTrades || (await this.getClosedTrades(200, false));
       if (closed.length === 0) return [];
 
       const map = new Map<string, { total: number; wins: number; loss: number; profits: number[] }>();

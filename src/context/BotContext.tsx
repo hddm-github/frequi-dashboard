@@ -606,11 +606,11 @@ export function BotProvider({ children }: { children: ReactNode }) {
     setRefreshCountdown(6);
 
     try {
-      // ── Tier 1: 核心轻量数据（串行微步执行，单次只占用 1 个连接）──
-      const state = await targetClient.getBotState();
-      if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
-
-      const active = await targetClient.getActiveTrades();
+      // ── Tier 1: 核心数据并行获取，first paint 不等待历史统计 ──
+      const [state, active] = await Promise.all([
+        targetClient.getBotState(),
+        targetClient.getActiveTrades(),
+      ]);
       if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
 
       setBotState(state);
@@ -628,7 +628,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
       setIsConnected(true);
       setLastError(null);
 
-      // ── Tier 2 & 3: 统计与历史数据（按需、低频、或持仓变动时立即触发）──
+      // ── Tier 2 & 3: 历史数据在核心 UI 已可用后后台同步 ──
       const now = Date.now();
       const timeSinceLastSecondary = now - lastSecondaryFetchTimeRef.current;
       const currentTradeIds = active.map((t) => t.trade_id).sort().join(',');
@@ -637,7 +637,6 @@ export function BotProvider({ children }: { children: ReactNode }) {
       prevActiveTradeCountRef.current = active.length;
       prevActiveTradeIdsRef.current = currentTradeIds;
 
-      // 首次加载、手动强制刷新、平仓历史仍为空(尚未同步成功)、平仓/开仓(数量或ID变动)、或距上次拉取超过 30 秒且页面可见时触发
       const shouldFetchSecondary =
         forceAll ||
         lastSecondaryFetchTimeRef.current === 0 ||
@@ -648,13 +647,13 @@ export function BotProvider({ children }: { children: ReactNode }) {
 
       if (shouldFetchSecondary) {
         lastSecondaryFetchTimeRef.current = now;
+        const fetchTier3 = forceAll || timeSinceLastSecondary > 60000 || timeSinceLastSecondary === 0;
 
-        // 串行执行重度数据库查询，让 SQLite / SQLAlchemy 连接池有充裕时间释放
+        // Core state is committed above first. Keep heavy DB queries serial to protect SQLite.
         const summary = await targetClient.getProfitSummary().catch(() => null);
         if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
         if (summary) setProfitSummary(summary);
 
-        // 获取最新 100 笔已平仓订单 (order_by_id: false 保证最新成交优先排在最前)
         const closed = await targetClient.getClosedTrades(100, false).catch(() => null);
         if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
         if (closed) {
@@ -662,14 +661,12 @@ export function BotProvider({ children }: { children: ReactNode }) {
           closedTradesRef.current = closed;
         }
 
-        // 获取近 30 日每日表现，覆盖跨月统计
         const daily = await targetClient.getDailyPerformance(30).catch(() => null);
         if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
         if (daily) setDailyRecords(daily);
 
-        // Tier 3: 日志与信号统计
-        if (forceAll || timeSinceLastSecondary > 60000 || lastSecondaryFetchTimeRef.current === now) {
-          const sigs = await targetClient.getSignalStats().catch(() => null);
+        if (fetchTier3) {
+          const sigs = await targetClient.getSignalStats(closed || undefined).catch(() => null);
           if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
           if (sigs) setSignals(sigs);
 

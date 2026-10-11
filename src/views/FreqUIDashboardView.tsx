@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useBot } from '../context/BotContext';
 import {
   DollarSign,
@@ -131,13 +131,6 @@ export function FreqUIDashboardView() {
       setIsRefreshingHistory(false);
     }
   };
-
-  // 进来之后如果No closed trade history，自动请求一次全Volume手动Sync接口
-  useEffect(() => {
-    if (closedTrades.length === 0) {
-      handleRefreshHistory();
-    }
-  }, []);
 
   return (
     <div
