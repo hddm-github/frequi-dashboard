@@ -21,11 +21,13 @@ import {
   WifiOff,
   TrendingUp,
   ShieldCheck,
+  Globe,
 } from 'lucide-react';
 import { ConnectModal } from './ConnectModal';
 import { EditBotModal } from './EditBotModal';
 import type { BotProfile } from '../types';
 import { isNfiStrategy } from '../utils/nfiSignals';
+import { useLocale } from '../i18n/LocaleContext';
 
 export function HeaderBar() {
   const {
@@ -91,6 +93,7 @@ export function HeaderBar() {
   };
 
   const isDark = theme === 'dark';
+  const { locale, toggleLocale, t } = useLocale();
 
   return (
     <>
@@ -292,6 +295,22 @@ export function HeaderBar() {
             <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${refreshing ? 'animate-spin text-emerald-500' : ''}`} />
             <span className="font-mono text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 min-w-[15px] text-center">
               {refreshing ? '···' : `${refreshCountdown}s`}
+            </span>
+          </button>
+
+          {/* Language Toggle (EN / 中文) */}
+          <button
+            onClick={toggleLocale}
+            className={`px-2 py-1.5 rounded-lg border text-xs flex items-center gap-1.5 transition-colors cursor-pointer font-medium ${
+              isDark
+                ? 'border-slate-700 bg-[#1a233a] hover:bg-[#222e4c] text-cyan-400'
+                : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-cyan-700'
+            }`}
+            title={t('header.language_toggle')}
+          >
+            <Globe className="w-3.5 h-3.5 shrink-0" />
+            <span className="font-mono text-[11px] font-bold">
+              {locale === 'zh' ? '中文' : 'EN'}
             </span>
           </button>
 

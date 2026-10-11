@@ -48,6 +48,8 @@ interface BotContextValue {
   setCustomRate: (unit: CurrencyUnit, rate: number) => void;
   fetchLiveRates: () => Promise<void>;
   formatCurrency: (val: number, options?: { showSign?: boolean; decimals?: number }) => string;
+  hideBalances: boolean;
+  toggleHideBalances: () => void;
   initialCapital: number;
   setInitialCapital: (val: number) => void;
   isManualCapital: boolean;
@@ -444,8 +446,21 @@ export function BotProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const [hideBalances, setHideBalances] = useState<boolean>(() => {
+    try { return localStorage.getItem('frequi_hide_balances') === 'true'; } catch { return false; }
+  });
+
+  const toggleHideBalances = useCallback(() => {
+    setHideBalances((current) => {
+      const next = !current;
+      localStorage.setItem('frequi_hide_balances', String(next));
+      return next;
+    });
+  }, []);
+
   // Universal Dynamic Currency Formatter
   const formatCurrency = useCallback((val: number, options?: { showSign?: boolean; decimals?: number }): string => {
+    if (hideBalances) return '••••••';
     const decimals = options?.decimals ?? 2;
     let rate = 1;
     let symbol = 'USDT';
@@ -474,7 +489,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
       return `${sign}${formattedNum} USDT`;
     }
     return `${sign}${symbol}${formattedNum}`;
-  }, [currencyUnit, exchangeRates]);
+  }, [currencyUnit, exchangeRates, hideBalances]);
 
   // Operational state
   const [botState, setBotState] = useState<BotState>(EMPTY_BOT_STATE);
@@ -939,6 +954,8 @@ export function BotProvider({ children }: { children: ReactNode }) {
         setCustomRate,
         fetchLiveRates,
         formatCurrency,
+        hideBalances,
+        toggleHideBalances,
         initialCapital,
         setInitialCapital,
         isManualCapital,

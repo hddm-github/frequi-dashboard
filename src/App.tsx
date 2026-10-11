@@ -22,26 +22,27 @@ import { EquityCurveView } from './views/EquityCurveView';
 import { LoginGateView } from './views/LoginGateView';
 import { BotSelectView } from './views/BotSelectView';
 import { isNfiStrategy } from './utils/nfiSignals';
+import { LocaleProvider, useT } from './i18n/LocaleContext';
 
 const translateMenuLabel = (label: string): string => {
   if (!label) return label;
-  if (label === 'Restore size') return '恢复默认大小';
-  if (label === 'Maximize') return '最大化当前窗口';
-  if (label === 'Float') return '悬浮独立窗口';
-  if (label === 'Dock') return '停靠回工作区';
-  if (label === 'Dock beside stage') return '停靠在主看板旁';
+  if (label === 'Restore size') return 'Restore default size';
+  if (label === 'Maximize') return 'Maximize current window';
+  if (label === 'Float') return 'Float as separate window';
+  if (label === 'Dock') return 'Dock back to workspace';
+  if (label === 'Dock beside stage') return 'Dock beside dashboard';
   if (label.startsWith('Move ') && label.endsWith(' to')) {
     const title = label.slice(5, -3);
-    return `移动「${title}」至`;
+    return `Move "${title}" to`;
   }
-  if (label === 'New split right') return '向右拆分新建面板';
-  if (label === 'New split below') return '向下拆分新建面板';
-  if (label === 'Hide') return '隐藏当前面板';
+  if (label === 'New split right') return 'Create split panel to the right';
+  if (label === 'New split below') return 'Create split panel below';
+  if (label === 'Hide') return 'Hide current panel';
   if (label.startsWith('Close ')) {
     const title = label.slice(6);
-    return `关闭「${title}」`;
+    return `Close "${title}"`;
   }
-  if (label === 'Close other tabs') return '关闭其他标签页';
+  if (label === 'Close other tabs') return 'Close other tabs';
   return label;
 };
 
@@ -61,6 +62,7 @@ const localizeTrellisMenu = (entries: any[]): any[] => {
 
 function DashboardWorkspace() {
   const { theme, botState } = useBot();
+  const t = useT();
 
   return (
     <div
@@ -80,7 +82,7 @@ function DashboardWorkspace() {
           {/* Register all View Types */}
           <ViewType
             id="frequi_dashboard"
-            title="FreqUI 主运行看板"
+            title={t('view.frequi_dashboard')}
             placement="stage"
             singleton
           >
@@ -89,7 +91,7 @@ function DashboardWorkspace() {
 
           <ViewType
             id="chart"
-            title={(v) => (v.params?.pair ? `K线 - ${v.params.pair}` : 'K线行情')}
+            title={(v) => (v.params?.pair ? `${t('view.candle_chart')} - ${v.params.pair}` : t('view.candle_chart'))}
             singleton
           >
             <CandleChartView />
@@ -97,7 +99,7 @@ function DashboardWorkspace() {
 
           <ViewType
             id="signals"
-            title={() => (isNfiStrategy(botState.strategy) ? 'NFI 策略信号排行榜' : '策略信号排行榜')}
+            title={() => (isNfiStrategy(botState.strategy) ? 'NFI Strategy Signal Rankings' : 'Strategy Signal Performance')}
             singleton
           >
             <SignalsView />
@@ -105,7 +107,7 @@ function DashboardWorkspace() {
 
           <ViewType
             id="active_trades"
-            title="活跃持仓监控"
+            title={t('view.active_trades')}
             singleton
           >
             <ActiveTradesView />
@@ -113,7 +115,7 @@ function DashboardWorkspace() {
 
           <ViewType
             id="bot_control"
-            title="端点配置 & 机器人控制"
+            title={t('view.bot_control')}
             singleton
           >
             <BotControlView />
@@ -121,7 +123,7 @@ function DashboardWorkspace() {
 
           <ViewType
             id="closed_trades"
-            title="历史成交流水"
+            title={t('view.closed_trades')}
             singleton
           >
             <ClosedTradesView />
@@ -129,7 +131,7 @@ function DashboardWorkspace() {
 
           <ViewType
             id="logs"
-            title="机器人运行日志"
+            title={t('view.bot_logs')}
             singleton
           >
             <BotLogsView />
@@ -137,7 +139,7 @@ function DashboardWorkspace() {
 
           <ViewType
             id="equity_curve"
-            title="资产净值收益曲线"
+            title={t('view.equity_curve')}
             singleton
           >
             <EquityCurveView />
@@ -219,9 +221,11 @@ function AppRoot() {
 
 export function App() {
   return (
-    <BotProvider>
-      <AppRoot />
-    </BotProvider>
+    <LocaleProvider>
+      <BotProvider>
+        <AppRoot />
+      </BotProvider>
+    </LocaleProvider>
   );
 }
 

@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useBot } from '../context/BotContext';
-import { Terminal, Filter, RefreshCw } from 'lucide-react';
+import { Terminal, Filter, RefreshCw, ArrowDown } from 'lucide-react';
 import { formatUtc8 } from '../utils/dateUtils';
+import { useT } from '../i18n/LocaleContext';
 
 export function BotLogsView() {
   const { logs, refreshData, theme } = useBot();
+  const t = useT();
   const [filterLevel, setFilterLevel] = useState<string>('ALL');
+  const [autoScroll, setAutoScroll] = useState<boolean>(true);
   const isDark = theme === 'dark';
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -15,10 +18,10 @@ export function BotLogsView() {
   });
 
   useEffect(() => {
-    if (scrollRef.current) {
+    if (autoScroll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [filteredLogs]);
+  }, [filteredLogs, autoScroll]);
 
   return (
     <div
@@ -38,6 +41,31 @@ export function BotLogsView() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Auto-scroll toggle */}
+          <button
+            type="button"
+            onClick={() => {
+              const next = !autoScroll;
+              setAutoScroll(next);
+              if (next && scrollRef.current) {
+                scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+              }
+            }}
+            className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-sans transition-colors cursor-pointer border ${
+              autoScroll
+                ? isDark
+                  ? 'bg-cyan-950/60 border-cyan-700/80 text-cyan-300'
+                  : 'bg-cyan-50 border-cyan-300 text-cyan-700 font-medium'
+                : isDark
+                ? 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-300'
+                : 'bg-slate-100 border-slate-300 text-slate-500 hover:text-slate-700'
+            }`}
+            title={t('logs.autoscroll_title')}
+          >
+            <ArrowDown className={`w-3 h-3 ${autoScroll ? 'text-cyan-400' : 'text-slate-400 opacity-60'}`} />
+            <span>{autoScroll ? t('logs.autoscroll_on') : t('logs.autoscroll_off')}</span>
+          </button>
+
           <button
             onClick={() => refreshData()}
             className={`p-1 rounded transition-colors cursor-pointer ${
