@@ -31,21 +31,7 @@ const LocaleContext = createContext<LocaleContextValue | null>(null);
 const STORAGE_KEY = 'frequi.locale';
 
 function resolveInitialLocale(): Locale {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === 'en' || saved === 'zh') {
-      return saved;
-    }
-  } catch {
-    // localStorage unavailable
-  }
-
-  if (typeof navigator !== 'undefined' && navigator.language) {
-    if (navigator.language.toLowerCase().startsWith('zh')) {
-      return 'zh';
-    }
-  }
-
+  // English is the product default. User can switch to 中文 with toggle.
   return 'en';
 }
 
@@ -78,10 +64,6 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       const dict = DICTIONARIES[locale] || DICTIONARIES.en;
       if (dict && dict[key]) {
         return dict[key];
-      }
-      const zhDict = DICTIONARIES.zh;
-      if (zhDict && zhDict[key]) {
-        return zhDict[key];
       }
       return fallback !== undefined ? fallback : key;
     },
