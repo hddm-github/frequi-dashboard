@@ -118,9 +118,9 @@ export function HeaderBar() {
               FreqUI
             </span>
             {isReadOnly && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1" title="Live read-only view" aria-label="Live read-only view">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1" title={t('ui.live_readonly')} aria-label={t('ui.live_readonly')}>
                 <ShieldCheck className="w-3 h-3 shrink-0" />
-                <span className="hidden sm:inline">Live read-only view</span>
+                <span className="hidden sm:inline">{t('ui.live_readonly')}</span>
               </span>
             )}
           </div>
@@ -148,7 +148,7 @@ export function HeaderBar() {
               />
               <Cpu className="w-3.5 h-3.5 shrink-0 sm:hidden" />
               <span className="hidden sm:inline truncate max-w-[130px] font-semibold">
-                {activeProfile?.name || 'Select bot'}
+                {activeProfile?.name || t('ui.select_bot')}
               </span>
               <ChevronDown className="w-3.5 h-3.5 opacity-60 shrink-0" />
             </button>
@@ -161,7 +161,7 @@ export function HeaderBar() {
                   ? 'border-slate-700 bg-[#1a233a] hover:bg-[#222e4c] text-emerald-400 hover:text-emerald-300'
                   : 'border-slate-300 bg-slate-50 hover:bg-slate-100 text-emerald-600 hover:text-emerald-700'
               }`}
-              title="Connect new bot (add another node)"
+              title={t('ui.connect_bot')}
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -183,17 +183,17 @@ export function HeaderBar() {
                   }`}
                 >
                   <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <span>Switch bot ({profiles.length})</span>
+                    <span>{t('ui.switch_manage_bots')} ({profiles.length})</span>
                     <button
                       onClick={() => {
                         setShowBotDropdown(false);
                         setShowAddModal(true);
                       }}
                       className="text-emerald-500 hover:text-emerald-400 font-bold flex items-center gap-0.5 cursor-pointer text-[10px]"
-                      title="Add new bot"
+                      title={t('ui.add_bot')}
                     >
                       <Plus className="w-3 h-3" />
-                      <span>Add</span>
+                      <span>{t('ui.add_bot')}</span>
                     </button>
                   </div>
 
@@ -224,7 +224,7 @@ export function HeaderBar() {
                           >
                             <div className="truncate text-xs font-semibold">{p.name}</div>
                             <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate">
-                              {isReadOnly || p.isShared || p.id?.startsWith('bot-url-') ? '●●●●●● [Protected]' : p.apiUrl}
+                              {isReadOnly || p.isShared || p.id?.startsWith('bot-url-') ? `●●●●●● ${t('ui.protected')}` : p.apiUrl}
                             </div>
                           </button>
 
@@ -239,7 +239,7 @@ export function HeaderBar() {
                             className={`p-1 rounded text-slate-400 hover:text-emerald-500 transition-colors cursor-pointer ${
                               isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-200'
                             }`}
-                            title="Edit bot name"
+                            title={t('ui.edit_bot')}
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
@@ -263,7 +263,7 @@ export function HeaderBar() {
                     }`}
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Connect new bot...</span>
+                    <span>{t('ui.connect_bot')}...</span>
                   </button>
 
                   <button
@@ -278,7 +278,7 @@ export function HeaderBar() {
                     }`}
                   >
                     <LogOut className="w-3.5 h-3.5" />
-                    <span>Bot management</span>
+                    <span>{t('ui.switch_manage_bots')}</span>
                   </button>
                 </div>
               </div>
@@ -331,7 +331,7 @@ export function HeaderBar() {
                 ? 'border-slate-700 bg-[#1a233a] hover:bg-[#222e4c] text-amber-400'
                 : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
             }`}
-            title={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+            title={isDark ? t('ui.switch_light') : t('ui.switch_dark')}
           >
             {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
           </button>
@@ -344,7 +344,7 @@ export function HeaderBar() {
                 ? 'border-slate-700 bg-[#1a233a] hover:bg-[#222e4c] text-slate-400 hover:text-slate-200'
                 : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-800'
             }`}
-            title="Reset Trellis workspace layout"
+            title={t('ui.reset_layout')}
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
