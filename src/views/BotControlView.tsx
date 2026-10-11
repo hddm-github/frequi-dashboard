@@ -12,8 +12,10 @@ import {
   Radio,
   ExternalLink,
   Edit3,
+  BookOpen,
 } from 'lucide-react';
 import { EditBotModal } from '../components/EditBotModal';
+import { StrategyBlueprintModal } from '../components/StrategyBlueprintModal';
 
 export function BotControlView() {
   const {
@@ -43,6 +45,7 @@ export function BotControlView() {
   const [operating, setOperating] = useState(false);
   const [opMessage, setOpMessage] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showBlueprint, setShowBlueprint] = useState(false);
 
   const isDark = theme === 'dark';
 
@@ -229,13 +232,16 @@ export function BotControlView() {
 
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs font-mono">
           <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 min-w-0 flex flex-col justify-center">
-            <span className="text-[10px] text-slate-500 block font-sans mb-1">运行策略</span>
-            <span
-              className="font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm block truncate font-mono"
-              title={botState.strategy}
+            <span className="text-[10px] text-slate-500 block font-sans mb-1">Running strategy</span>
+            <button
+              type="button"
+              onClick={() => setShowBlueprint(true)}
+              className="group inline-flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm truncate font-mono text-left hover:text-emerald-500 dark:hover:text-emerald-300 hover:underline underline-offset-2 decoration-dotted transition-colors"
+              title={`Open blueprint ${botState.strategy}`}
             >
-              {botState.strategy}
-            </span>
+              <BookOpen className="w-3.5 h-3.5 shrink-0 opacity-70 group-hover:opacity-100" />
+              <span className="truncate">{botState.strategy}</span>
+            </button>
           </div>
 
           <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 min-w-0 flex flex-col justify-center">
@@ -330,6 +336,15 @@ export function BotControlView() {
         bot={activeProfile}
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
+      />
+
+      {/* Strategy Blueprint Modal */}
+      <StrategyBlueprintModal
+        open={showBlueprint}
+        onClose={() => setShowBlueprint(false)}
+        strategyName={botState.strategy}
+        strategyVersion={botState.strategy_version}
+        botState={botState as any}
       />
     </div>
   );
