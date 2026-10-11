@@ -99,8 +99,8 @@ export function FreqUIDashboardView() {
   const dailyStats = useMemo(() => {
     const totalProfit = sortedDaily.reduce((sum, d) => sum + (d.abs_profit || 0), 0);
     const totalTrades = sortedDaily.reduce((sum, d) => sum + (d.trade_count || 0), 0);
-    const winDays = sortedDaily.filter((d) => d.abs_profit > 0).length;
-    const lossDays = sortedDaily.filter((d) => d.abs_profit < 0).length;
+    const winDays = sortedDaily.filter((d) => (d.trade_count || 0) > 0 && d.abs_profit >= 0).length;
+    const lossDays = sortedDaily.filter((d) => (d.trade_count || 0) > 0 && d.abs_profit < 0).length;
     return { totalProfit, totalTrades, winDays, lossDays };
   }, [sortedDaily]);
 
@@ -448,6 +448,7 @@ export function FreqUIDashboardView() {
               sortedDaily.map((d) => {
                 const isPos = d.abs_profit >= 0;
                 const absVal = Math.abs(d.abs_profit);
+                const hasTrade = (d.trade_count && d.trade_count > 0) || absVal > 0;
                 let heightPct: number;
 
                 if (isLogScale) {
@@ -462,18 +463,24 @@ export function FreqUIDashboardView() {
 
                 return (
                   <div key={d.date} className="flex-1 flex flex-col items-center h-full justify-end group min-w-[24px] max-w-[48px]">
-                    <div className="text-[10px] text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1 font-mono text-center whitespace-nowrap z-10 bg-black/70 text-white px-1.5 py-0.5 rounded shadow pointer-events-none shrink-0">
-                      {formatCurrency(d.abs_profit, { showSign: true })} ({d.trade_count}单)
-                    </div>
+{hasTrade && (
+                      <div className="text-[10px] text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1 font-mono text-center whitespace-nowrap z-10 bg-black/70 text-white px-1.5 py-0.5 rounded shadow pointer-events-none shrink-0">
+                        {formatCurrency(d.abs_profit, { showSign: true })} ({d.trade_count} trades)
+                      </div>
+                    )}
                     <div className="flex-1 w-full flex items-end justify-center">
-                      <div
-                        className={`w-full max-w-[32px] rounded-t transition-all ${
-                          isPos
-                            ? 'bg-emerald-500 hover:bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
-                            : 'bg-rose-500 hover:bg-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
-                        }`}
-                        style={{ height: `${heightPct}%` }}
-                      />
+                      {hasTrade ? (
+                        <div
+                          className={`w-full max-w-[32px] rounded-t transition-all ${
+                            isPos
+                              ? 'bg-emerald-500 hover:bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
+                              : 'bg-rose-500 hover:bg-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
+                          }`}
+                          style={{ height: `${heightPct}%` }}
+                        />
+                      ) : (
+                        <div className="w-full max-w-[32px] h-0" />
+                      )}
                     </div>
                     <span className="text-[10px] text-slate-500 mt-1 font-mono shrink-0">{d.date.slice(5)}</span>
                   </div>
@@ -502,13 +509,13 @@ export function FreqUIDashboardView() {
               </div>
               <div>
                 <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  {dailyStats.winDays} 赢
+{dailyStats.winDays} Win Days
                 </span>{' '}
                 /{' '}
                 <span className="text-rose-600 dark:text-rose-400 font-medium">
-                  {dailyStats.lossDays} 输
+                  {dailyStats.lossDays} Loss Days
                 </span>{' '}
-                · 共 {dailyStats.totalTrades} 笔
+                · {dailyStats.totalTrades} total trades
               </div>
             </div>
           )}

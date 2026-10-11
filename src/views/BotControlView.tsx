@@ -69,7 +69,7 @@ export function BotControlView() {
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-50 text-slate-800'
       }`}
     >
-      {/* 1. Current Active Bot Profile Banner */}
+{/* 1. Current Active Bot Profile Banner */}
       <div
         className={`p-4 rounded-xl border shadow-xs transition-colors ${
           isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
@@ -214,7 +214,7 @@ export function BotControlView() {
         )}
       </div>
 
-      {/* 3. Runtime Strategy Parameters */}
+      {/* 2. Runtime Strategy Parameters */}
       <div
         className={`p-4 rounded-xl border shadow-xs transition-colors ${
           isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
@@ -261,7 +261,14 @@ export function BotControlView() {
           </div>
 
           <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 min-w-0 flex flex-col justify-center">
-            <span className="text-[10px] text-slate-500 block font-sans mb-1">基准质押货币</span>
+            <span className="text-[10px] text-slate-500 block font-sans mb-1">Strategy Version</span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm truncate font-mono">
+              {botState.strategy_version || 'unknown'}
+            </span>
+          </div>
+
+          <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 min-w-0 flex flex-col justify-center">
+            <span className="text-[10px] text-slate-500 block font-sans mb-1">Stake Currency</span>
             <span className="font-bold text-slate-800 dark:text-slate-100 text-xs sm:text-sm">
               {botState.stake_currency}
             </span>
@@ -286,7 +293,7 @@ export function BotControlView() {
         </div>
       </div>
 
-      {/* 4. Whitelist Pairs */}
+      {/* 3. Whitelist Pairs */}
       <div
         className={`p-4 rounded-xl border shadow-xs transition-colors ${
           isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
@@ -323,6 +330,60 @@ export function BotControlView() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* 4. Current Active Bot Profile Banner */}
+      <div
+        className={`p-4 rounded-xl border shadow-xs transition-colors ${
+          isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
+        }`}
+      >
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Server className="w-4 h-4 text-emerald-500" />
+            <span className="font-bold text-xs uppercase tracking-wide">Connected strategy bot</span>
+          </div>
+
+          {!isReadOnly && (
+            <button
+              onClick={() => setIsSelectingBot(true)}
+              className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer flex items-center gap-1 font-medium"
+            >
+              <span>Switch / manage bots</span>
+              <ExternalLink className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
+          <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div className="truncate pr-1">
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">Node name</span>
+              <span className="font-bold text-slate-900 dark:text-slate-100 truncate block">
+                {activeProfile?.name || '-'}
+              </span>
+            </div>
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:text-emerald-500 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer shrink-0"
+              title="Edit bot name"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">Endpoint (Base URL)</span>
+            <span className="font-bold text-slate-900 dark:text-slate-100 truncate block">
+              {isReadOnly || activeProfile?.isShared || activeProfile?.id?.startsWith('bot-url-') ? '●●●●●● [Protected]' : activeProfile?.apiUrl || '-'}
+            </span>
+          </div>
+          <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">API identity</span>
+            <span className="font-bold text-slate-900 dark:text-slate-100 block">
+              {isReadOnly || activeProfile?.isShared || activeProfile?.id?.startsWith('bot-url-') ? 'Read-only guest mode' : activeProfile?.username || '-'}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Edit Bot Modal */}

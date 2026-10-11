@@ -88,22 +88,27 @@ export function OverviewView() {
         <div className="h-32 flex items-end gap-2 pt-4 px-1">
           {sortedDaily.map((d) => {
             const isPos = d.abs_profit >= 0;
+            const hasTrade = (d.trade_count && d.trade_count > 0) || d.abs_profit !== 0;
             const maxVal = Math.max(...sortedDaily.map((r) => Math.abs(r.abs_profit)), 100);
             const heightPct = Math.min(Math.round((Math.abs(d.abs_profit) / maxVal) * 80), 95);
 
             return (
               <div key={d.date} className="flex-1 flex flex-col items-center h-full justify-end group">
                 <span className="text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity mb-1 font-mono">
-                  {formatCurrency(d.abs_profit, { showSign: true })}
+                  {hasTrade ? formatCurrency(d.abs_profit, { showSign: true }) : ''}
                 </span>
-                <div
-                  className={`w-full rounded-t transition-all ${
-                    isPos
-                      ? 'bg-emerald-500/80 hover:bg-emerald-400'
-                      : 'bg-rose-500/80 hover:bg-rose-400'
-                  }`}
-                  style={{ height: `${Math.max(heightPct, 6)}%` }}
-                />
+                {hasTrade ? (
+                  <div
+                    className={`w-full rounded-t transition-all ${
+                      isPos
+                        ? 'bg-emerald-500/80 hover:bg-emerald-400'
+                        : 'bg-rose-500/80 hover:bg-rose-400'
+                    }`}
+                    style={{ height: `${Math.max(heightPct, 6)}%` }}
+                  />
+                ) : (
+                  <div className="w-full h-0" />
+                )}
                 <span className="text-[10px] text-slate-500 mt-1 font-mono">
                   {d.date.slice(5)}
                 </span>

@@ -825,7 +825,7 @@ export function CandleChartView() {
             {/* Dropdown Menu */}
             {showTradeDropdown && (
               <div
-                className={`absolute top-full left-0 mt-1.5 w-80 max-h-80 overflow-y-auto rounded-xl shadow-2xl border z-50 p-2 text-xs font-sans ${
+                className={`absolute top-full right-0 sm:right-auto sm:left-0 mt-1.5 w-[calc(100vw-2rem)] sm:w-80 max-w-xs sm:max-w-sm max-h-80 overflow-y-auto rounded-xl shadow-2xl border z-50 p-2 text-xs font-sans ${
                   isDark ? 'bg-[#131b2e] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
                 }`}
               >
@@ -846,9 +846,10 @@ export function CandleChartView() {
                     当前币对暂无开仓或平仓记录
                   </div>
                 ) : (
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     {pairTrades.map((t) => {
                       const isProfit = (t.profit_pct ?? 0) >= 0;
+                      const hasOrders = Array.isArray(t.orders) && t.orders.length > 0;
                       return (
                         <div
                           key={t.trade_id}
@@ -891,11 +892,53 @@ export function CandleChartView() {
                             </span>
                           </div>
 
-                          <div className="text-[10px] text-slate-400 flex items-center justify-between font-mono">
-                            <span>开: {t.open_rate}</span>
-                            {t.close_rate && <span>平: {t.close_rate}</span>}
-                            <span>{t.enter_tag || t.exit_reason || '信号'}</span>
+<div className="text-[10px] text-slate-400 flex items-center justify-between font-mono mb-1">
+                            <span>Open: {t.open_rate}</span>
+                            {t.close_rate && <span>Close: {t.close_rate}</span>}
+                            <span className="text-cyan-400 font-semibold">{t.enter_tag || t.exit_reason || 'Signal'}</span>
                           </div>
+
+                          {/* Orders breakdown (Grinding / Rebuy / Derisk / Exit orders) */}
+                          {hasOrders && (
+                            <div className="mt-1.5 pt-1.5 border-t border-slate-700/40 space-y-1">
+                              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                                <span>Order Execution History ({t.orders!.length})</span>
+                              </div>
+                              {t.orders!.map((ord, idx) => {
+                                const isBuy = ord.ft_order_side === 'buy';
+                                const tag = ord.ft_order_tag || (isBuy ? 'Entry' : 'Exit');
+                                const isGrind = tag.includes('grind');
+                                const isRebuy = tag.includes('rebuy') || tag === 'r';
+                                const isDerisk = tag.includes('derisk');
+
+                                let badgeColor = 'bg-slate-700/50 text-slate-300';
+                                if (isGrind) badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
+                                else if (isRebuy) badgeColor = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
+                                else if (isDerisk) badgeColor = 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
+                                else if (isBuy) badgeColor = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+
+                                return (
+                                  <div
+                                    key={ord.order_id || idx}
+                                    className="text-[9.5px] font-mono flex items-center justify-between bg-slate-900/40 px-1.5 py-0.5 rounded gap-1 min-w-0"
+                                  >
+                                    <div className="flex items-center gap-1.5 truncate min-w-0">
+                                      <span className={`px-1 py-0.2 rounded text-[8.5px] font-bold shrink-0 ${badgeColor}`}>
+                                        {isBuy ? 'BUY' : 'SELL'}
+                                      </span>
+                                      <span className="text-slate-300 font-medium truncate shrink min-w-0" title={tag}>
+                                        {tag}
+                                      </span>
+                                    </div>
+                                    <div className="text-slate-400 shrink-0 text-right">
+                                      @{ord.safe_price || ord.price || ord.average || 0}{' '}
+                                      <span className="text-slate-500">({ord.filled || ord.amount || 0})</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -969,7 +1012,7 @@ export function CandleChartView() {
       {/* Selected Trade Detail Floating Inspector */}
       {selectedTrade && (
         <div
-          className={`absolute top-12 right-4 z-30 w-80 rounded-xl shadow-2xl border p-3.5 text-xs backdrop-blur-md transition-all ${
+          className={`absolute top-12 left-2 right-2 sm:left-auto sm:right-4 z-30 w-auto sm:w-80 max-w-sm rounded-xl shadow-2xl border p-3.5 text-xs backdrop-blur-md transition-all ${
             isDark ? 'bg-[#131b2e]/95 border-slate-700/80 text-slate-200 shadow-2xl' : 'bg-white/95 border-slate-300 text-slate-800 shadow-xl'
           }`}
         >

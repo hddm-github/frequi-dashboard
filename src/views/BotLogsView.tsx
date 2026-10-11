@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useBot } from '../context/BotContext';
 import { Terminal, Filter, RefreshCw } from 'lucide-react';
 import { formatUtc8 } from '../utils/dateUtils';
@@ -7,11 +7,18 @@ export function BotLogsView() {
   const { logs, refreshData, theme } = useBot();
   const [filterLevel, setFilterLevel] = useState<string>('ALL');
   const isDark = theme === 'dark';
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const filteredLogs = logs.filter((log) => {
     if (filterLevel === 'ALL') return true;
     return log.level === filterLevel;
   });
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [filteredLogs]);
 
   return (
     <div
@@ -60,7 +67,7 @@ export function BotLogsView() {
       </div>
 
       {/* Log list */}
-      <div className="flex-1 overflow-y-auto p-2.5 space-y-1 select-text">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-2.5 space-y-1 select-text">
         {filteredLogs.length === 0 ? (
           <div className="text-center text-xs text-slate-400 py-10">暂无日志流或等待刷新中...</div>
         ) : (
