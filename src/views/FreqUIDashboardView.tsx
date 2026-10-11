@@ -293,13 +293,13 @@ export function FreqUIDashboardView() {
                       : 'border-slate-200 text-slate-500 bg-slate-50/60'
                   }`}
                 >
-                  <th className="py-2 px-3 whitespace-nowrap">Pair / Open time</th>
-                  <th className="py-2 px-3 whitespace-nowrap">Open price / Current price</th>
-                  <th className="py-2 px-3 whitespace-nowrap">Unrealized P&L</th>
-                  <th className="py-2 px-3 whitespace-nowrap">Stake amount</th>
-                  <th className="py-2 px-3 whitespace-nowrap">Stop-loss</th>
-                  <th className="py-2 px-3 whitespace-nowrap">Entry strategy signal</th>
-                  <th className="py-2 px-3 text-right whitespace-nowrap">Actions</th>
+                  <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.pair_open_time')}</th>
+                  <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.open_current_price')}</th>
+                  <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.unrealized')}</th>
+                  <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.stake_amount')}</th>
+                  <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.stop_loss')}</th>
+                  <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.entry_signal')}</th>
+                  <th className="py-2 px-3 text-right whitespace-nowrap">{t('dashboard.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60">
@@ -460,7 +460,7 @@ export function FreqUIDashboardView() {
             }`}
           >
             {sortedDaily.length === 0 ? (
-              <div className="w-full text-center text-xs text-slate-400 my-auto py-4">No recent performance data</div>
+              <div className="w-full text-center text-xs text-slate-400 my-auto py-4">{t('dashboard.no_performance')}</div>
             ) : (
               sortedDaily.map((d) => {
                 const isPos = d.abs_profit >= 0;
@@ -566,7 +566,7 @@ export function FreqUIDashboardView() {
 
           <div className="space-y-1.5 flex-1 min-h-0 overflow-y-auto pr-1 font-mono text-xs">
             {recentClosed.length === 0 ? (
-              <div className="text-center text-xs text-slate-400 my-auto py-6">No closed trade history</div>
+              <div className="text-center text-xs text-slate-400 my-auto py-6">{t('dashboard.no_closed')}</div>
             ) : (
               recentClosed.map((t) => {
                 const isProfit = t.profit_pct >= 0;

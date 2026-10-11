@@ -356,7 +356,7 @@ export function HeaderBar() {
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
             >
               <PlusCircle className="w-3.5 h-3.5" />
-              <span>New view</span>
+              <span>{t('ui.new_view')}</span>
             </button>
 
             {showAddViewMenu && (
@@ -383,7 +383,7 @@ export function HeaderBar() {
                   }`}
                 >
                   <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Equity Curve</span>
+                  <span>{t('ui.equity_curve')}</span>
                 </button>
                 <button
                   onClick={() => handleOpenView('chart', { pair: 'BTC/USDT:USDT' })}
@@ -392,7 +392,7 @@ export function HeaderBar() {
                   }`}
                 >
                   <CandlestickChart className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Candle chart</span>
+                  <span>{t('ui.candle_chart')}</span>
                 </button>
                 <button
                   onClick={() => handleOpenView('active_trades')}
@@ -419,7 +419,7 @@ export function HeaderBar() {
                   }`}
                 >
                   <Cpu className="w-3.5 h-3.5 text-purple-500" />
-                  <span>Bot Console</span>
+                  <span>{t('ui.bot_console')}</span>
                 </button>
                 <button
                   onClick={() => handleOpenView('logs')}
@@ -428,7 +428,7 @@ export function HeaderBar() {
                   }`}
                 >
                   <Terminal className="w-3.5 h-3.5 text-cyan-500" />
-                  <span>Bot logs</span>
+                  <span>{t('ui.bot_logs')}</span>
                 </button>
               </div>
             )}
