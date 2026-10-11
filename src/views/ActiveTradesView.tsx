@@ -20,7 +20,7 @@ export function ActiveTradesView() {
   };
 
   const handleExit = async (tradeId: number, pair: string) => {
-    if (!confirm(`Close current positions at market price #${tradeId} (${pair}) 吗？`)) return;
+    if (!confirm(`${t('trade.force_exit')} #${tradeId} (${pair})?`)) return;
     setExitingId(tradeId);
     try {
       await forceExitTrade(tradeId);

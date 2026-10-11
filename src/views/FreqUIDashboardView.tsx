@@ -227,8 +227,8 @@ export function FreqUIDashboardView() {
                 type="button"
                 onClick={toggleHideBalances}
                 className="p-1 rounded-md text-slate-400 hover:text-purple-500 hover:bg-purple-500/10 transition-colors cursor-pointer"
-                title={hideBalances ? 'Show balances and monetary values' : 'Hide balances and monetary values'}
-                aria-label={hideBalances ? 'Show balances and monetary values' : 'Hide balances and monetary values'}
+                title={hideBalances ? t('ui.show_balances') : t('ui.hide_balances')}
+                aria-label={hideBalances ? t('ui.show_balances') : t('ui.hide_balances')}
               >
                 {hideBalances ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>

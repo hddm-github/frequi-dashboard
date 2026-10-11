@@ -152,6 +152,8 @@ export const zh: Record<string, string> = {
   'ui.endpoint_base_url': '地址（Base URL）',
   'ui.api_identity': 'API 身份',
   'ui.readonly_guest': '只读访客模式',
+  'ui.show_balances': '显示余额与金额',
+  'ui.hide_balances': '隐藏余额与金额',
   'signals.reference': 'NFI 策略入场信号参考',
   'signals.current_strategy': '当前策略',
   'signals.generic_strategy': '通用策略',

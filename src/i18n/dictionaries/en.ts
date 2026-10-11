@@ -159,6 +159,8 @@ export const en: Record<string, string> = {
   'ui.endpoint_base_url': 'Endpoint (Base URL)',
   'ui.api_identity': 'API identity',
   'ui.readonly_guest': 'Read-only guest mode',
+  'ui.show_balances': 'Show balances and monetary values',
+  'ui.hide_balances': 'Hide balances and monetary values',
   'signals.reference': 'NFI Strategy entry signal reference',
   'signals.current_strategy': 'Current strategy',
   'signals.generic_strategy': 'Generic strategy',

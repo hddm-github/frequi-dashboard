@@ -220,7 +220,7 @@ export function ClosedTradesView() {
                         title={translate('ui.open_candle_chart')}
                       >
                         <CandlestickChart className="w-3.5 h-3.5" />
-                        <span>View chart</span>
+                        <span>{translate('trade.view_chart')}</span>
                       </button>
                     </td>
                   </tr>
