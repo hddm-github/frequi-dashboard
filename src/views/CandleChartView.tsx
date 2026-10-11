@@ -9,6 +9,7 @@ import {
   type ISeriesApi,
 } from 'lightweight-charts';
 import { useBot } from '../context/BotContext';
+import { useT } from '../i18n/LocaleContext';
 import { useOptionalView } from '@danfessler/trellis-react';
 import {
   CandlestickChart,
@@ -97,9 +98,9 @@ function formatDuration(openDate?: string, closeDate?: string): string {
   const m = Math.floor((diffSec % 3600) / 60);
   if (h >= 24) {
     const d = Math.floor(h / 24);
-    return `${d}天 ${h % 24}时 ${m}分`;
+    return `${d} days ${h % 24} hours ${m} min`;
   }
-  return `${h}时 ${m}分`;
+  return `${h} hours ${m} min`;
 }
 
 function findTradesForCandle(
@@ -146,6 +147,7 @@ function findTradesForCandle(
 
 export function CandleChartView() {
   const { client, botState, selectedPair, setSelectedPair, activeTrades, closedTrades, theme, formatCurrency } = useBot();
+  const t = useT();
   const view = useOptionalView();
   const viewPair = (view?.params as Record<string, any> | undefined)?.pair;
 
@@ -243,7 +245,7 @@ export function CandleChartView() {
   const activeTrade = activeTrades.find((t) => t.pair === selectedPair);
   const isDark = theme === 'dark';
 
-  // 1. Calculate trade markers on candlestick chart for selectedPair (开仓与平仓标记)
+  // 1. Calculate trade markers on candlestick chart for selectedPair (Open与Close标记)
   const tradeMarkers = useMemo(() => {
     if (!showMarkers || candles.length === 0 || !selectedPair) return [];
 
@@ -287,7 +289,7 @@ export function CandleChartView() {
             color: trade.is_short
               ? (isDark ? '#f43f5e' : '#dc2626')
               : (isDark ? '#10b981' : '#047857'),
-            text: `#${trade.trade_id} 开仓 @${trade.open_rate} [${trade.enter_tag || '买入'}]`,
+            text: `#${trade.trade_id} Entry @${trade.open_rate} [${trade.enter_tag || 'Buy'}]`,
             size: 2,
           });
         }
@@ -307,7 +309,7 @@ export function CandleChartView() {
               color: trade.is_short
                 ? (isDark ? '#fb7185' : '#e11d48')
                 : (isDark ? '#34d399' : '#047857'),
-              text: `#${trade.trade_id} 开仓 @${trade.open_rate} [${trade.enter_tag || ''}]`,
+              text: `#${trade.trade_id} Entry @${trade.open_rate} [${trade.enter_tag || ''}]`,
               size: 1.5,
             });
           }
@@ -324,7 +326,7 @@ export function CandleChartView() {
               color: isProfit
                 ? (isDark ? '#10b981' : '#047857')
                 : (isDark ? '#ef4444' : '#dc2626'),
-              text: `#${trade.trade_id} 平仓 @${trade.close_rate} (${isProfit ? '+' : ''}${trade.profit_pct}% ${trade.exit_reason || ''})`,
+              text: `#${trade.trade_id} Close @${trade.close_rate} (${isProfit ? '+' : ''}${trade.profit_pct}% ${trade.exit_reason || ''})`,
               size: 2,
             });
           }
@@ -341,7 +343,7 @@ export function CandleChartView() {
     }
   }, [tradeMarkers]);
 
-  // 2. Fetch older historical candles when scrolling/panning left (往前翻自动加载数据)
+  // 2. Fetch older historical candles when scrolling/panning left (往前翻自动Loaddata)
   const handleLoadOlderCandles = useCallback(async () => {
     const pair = selectedPairRef.current;
     const tf = timeframeRef.current || '5m';
@@ -703,7 +705,7 @@ export function CandleChartView() {
       }
     } catch (err: any) {
       console.error('Failed to load candles', err);
-      setErrorMsg(err?.message || '获取 K 线数据失败');
+      setErrorMsg(err?.message || 'Failed to load candle data');
       setEmpty(true);
     } finally {
       setLoading(false);
@@ -739,7 +741,7 @@ export function CandleChartView() {
           >
             {availablePairs.map((pair) => (
               <option key={pair} value={pair}>
-                {pair} {activeTrades.some((t) => t.pair === pair) ? '★ (持仓中)' : ''}
+                {pair} {activeTrades.some((t) => t.pair === pair) ? '★ (Open)' : ''}
               </option>
             ))}
           </select>
@@ -759,10 +761,10 @@ export function CandleChartView() {
                       ? 'text-slate-400 hover:text-slate-200 hover:bg-[#1a233a]'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
                   }`}
-                  title={isStrategyTf ? '策略原生运行周期' : `行情周期 ${tf}`}
+                  title={isStrategyTf ? t('candle.native_timeframe') : `${t('candle.market_timeframe')} ${tf}`}
                 >
                   <span>{tf}</span>
-                  {isStrategyTf && <span className="text-[9px] opacity-75">策略</span>}
+                  {isStrategyTf && <span className="text-[9px] opacity-75">Strategy</span>}
                 </button>
               );
             })}
@@ -779,14 +781,14 @@ export function CandleChartView() {
                 ? 'border-slate-700 bg-[#1a233a] text-slate-300 hover:text-slate-100 hover:bg-[#202b46]'
                 : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
             }`}
-            title="向前翻页加载更早的历史K线数据"
+            title={t('candle.load_older_title')}
           >
             {loadingOlder ? (
               <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
             ) : (
               <History className="w-3 h-3" />
             )}
-            <span>加载更早历史 ({candles.length})</span>
+            <span>{t('candle.load_older_btn')} ({candles.length})</span>
           </button>
 
           {/* Trade Markers Toggle Button */}
@@ -799,10 +801,10 @@ export function CandleChartView() {
                 ? 'bg-[#1a233a] text-slate-400 border-slate-700'
                 : 'bg-slate-100 text-slate-600 border-slate-300'
             }`}
-            title="在 K 线上直观显示开仓和平仓标记"
+            title={t('candle.markers_title')}
           >
             <Bookmark className="w-3 h-3" />
-            <span>开平仓标记: {showMarkers ? '显示' : '隐藏'} ({tradeMarkers.length})</span>
+            <span>{t('candle.markers_label')}: {showMarkers ? t('candle.show') : t('candle.hide')} ({tradeMarkers.length})</span>
           </button>
 
           {/* Pair Trades List Dropdown */}
@@ -816,9 +818,9 @@ export function CandleChartView() {
                   ? 'bg-[#1a233a] text-slate-300 border-slate-700 hover:bg-[#202b46]'
                   : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
               }`}
-              title="查看当前币对的开仓与平仓交易记录"
+              title={t('candle.trade_history_title')}
             >
-              <span>交易记录 ({pairTrades.length})</span>
+              <span>{t('candle.trade_history_btn')} ({pairTrades.length})</span>
               <ChevronDown className="w-3 h-3" />
             </button>
 
@@ -831,7 +833,7 @@ export function CandleChartView() {
               >
                 <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-700/50">
                   <span className="font-bold text-[11px] text-slate-400 uppercase tracking-wider">
-                    {selectedPair} 交易流水 ({pairTrades.length})
+                    {selectedPair} {t('candle.trade_history_btn')} ({pairTrades.length})
                   </span>
                   <button
                     onClick={() => setShowTradeDropdown(false)}
@@ -843,7 +845,7 @@ export function CandleChartView() {
 
                 {pairTrades.length === 0 ? (
                   <div className="py-4 text-center text-slate-500 text-xs">
-                    当前币对暂无开仓或平仓记录
+                    {t('candle.no_pair_trades')}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -870,7 +872,7 @@ export function CandleChartView() {
                                     : 'bg-emerald-500/20 text-emerald-400'
                                 }`}
                               >
-                                {t.is_short ? '做空' : '做多'}
+                                {t.is_short ? 'Short' : 'Long'}
                               </span>
                               <span
                                 className={`text-[10px] px-1 py-0.2 rounded ${
@@ -879,7 +881,7 @@ export function CandleChartView() {
                                     : 'bg-slate-600/30 text-slate-400'
                                 }`}
                               >
-                                {t.is_open ? '持仓中' : '已平仓'}
+                                {t.is_open ? 'Open' : 'Closed'}
                               </span>
                             </span>
                             <span
@@ -892,7 +894,7 @@ export function CandleChartView() {
                             </span>
                           </div>
 
-<div className="text-[10px] text-slate-400 flex items-center justify-between font-mono mb-1">
+                          <div className="text-[10px] text-slate-400 flex items-center justify-between font-mono mb-1">
                             <span>Open: {t.open_rate}</span>
                             {t.close_rate && <span>Close: {t.close_rate}</span>}
                             <span className="text-cyan-400 font-semibold">{t.enter_tag || t.exit_reason || 'Signal'}</span>
@@ -957,9 +959,9 @@ export function CandleChartView() {
                 isDark ? 'bg-[#1a233a] border-slate-700 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'
               }`}
             >
-              <span className="text-slate-500 dark:text-slate-400">入场价:</span>
+              <span className="text-slate-500 dark:text-slate-400">Entry price:</span>
               <span className="font-semibold text-slate-900 dark:text-slate-100">{activeTrade.open_rate}</span>
-              <span className="text-slate-500 dark:text-slate-400">浮盈:</span>
+              <span className="text-slate-500 dark:text-slate-400">Unrealized P&L:</span>
               <span
                 className={`font-bold ${
                   activeTrade.profit_pct >= 0
@@ -979,7 +981,7 @@ export function CandleChartView() {
               </span>
               {activeTrade.stop_loss_abs && (
                 <>
-                  <span className="text-slate-500 dark:text-slate-400">止损:</span>
+                  <span className="text-slate-500 dark:text-slate-400">Stop-loss:</span>
                   <span className="text-rose-600 dark:text-rose-400 font-semibold">{activeTrade.stop_loss_abs}</span>
                 </>
               )}
@@ -994,7 +996,7 @@ export function CandleChartView() {
                 ? 'border-slate-700 bg-[#1a233a] hover:bg-[#202b46] text-slate-300'
                 : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600'
             }`}
-            title="刷新 K 线"
+            title="Refresh candles"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-500' : ''}`} />
           </button>
@@ -1005,7 +1007,7 @@ export function CandleChartView() {
       {loadingOlder && (
         <div className="absolute top-12 left-4 z-20 px-2.5 py-1 rounded-lg bg-black/75 border border-emerald-500/40 text-emerald-400 text-xs flex items-center gap-1.5 shadow-lg backdrop-blur-xs animate-pulse">
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          <span>正在向前加载历史蜡烛...</span>
+          <span>Loading earlier candles...</span>
         </div>
       )}
 
@@ -1019,7 +1021,7 @@ export function CandleChartView() {
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-700/40">
             <div className="flex items-center gap-1.5 font-bold font-mono">
               <Crosshair className="w-3.5 h-3.5 text-emerald-400" />
-              <span>交易详情 #{selectedTrade.trade_id}</span>
+              <span>Trade details #{selectedTrade.trade_id}</span>
               <span
                 className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${
                   selectedTrade.is_short
@@ -1027,7 +1029,7 @@ export function CandleChartView() {
                     : 'bg-emerald-500/20 text-emerald-400'
                 }`}
               >
-                {selectedTrade.is_short ? '空 Short' : '多 Long'}
+                {selectedTrade.is_short ? 'Short' : 'Long'}
               </span>
             </div>
             <button
@@ -1040,46 +1042,46 @@ export function CandleChartView() {
 
           <div className="space-y-1.5 font-mono text-[11px]">
             <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">交易状态:</span>
+              <span className="text-slate-500 dark:text-slate-400">Trade status:</span>
               <span className={selectedTrade.is_open ? 'text-amber-500 font-bold' : 'text-slate-700 dark:text-slate-300'}>
-                {selectedTrade.is_open ? '● 正在持仓' : '已平仓离场'}
+                {selectedTrade.is_open ? '● Open position' : 'Closed position'}
               </span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">交易币对:</span>
+              <span className="text-slate-500 dark:text-slate-400">Trading pair:</span>
               <span className="text-slate-900 dark:text-slate-100 font-bold">{selectedTrade.pair}</span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">持仓历时:</span>
+              <span className="text-slate-500 dark:text-slate-400">Position duration:</span>
               <span className="text-slate-700 dark:text-slate-300">
                 {formatDuration(selectedTrade.open_date, selectedTrade.close_date)}
               </span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">开仓时间:</span>
+              <span className="text-slate-500 dark:text-slate-400">Open time:</span>
               <span className="text-slate-700 dark:text-slate-300">
                 {selectedTrade.open_date ? formatUtc8(selectedTrade.open_timestamp || selectedTrade.open_date, 'YYYY-MM-DD HH:mm:ss') : '-'}
               </span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">开仓均价:</span>
+              <span className="text-slate-500 dark:text-slate-400">Average open price:</span>
               <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatPrice(selectedTrade.open_rate)}</span>
             </div>
 
             {selectedTrade.close_rate && (
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">平仓均价:</span>
+                <span className="text-slate-500 dark:text-slate-400">Average close price:</span>
                 <span className="font-semibold text-slate-900 dark:text-slate-100">{formatPrice(selectedTrade.close_rate)}</span>
               </div>
             )}
 
             {selectedTrade.close_date && (
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">平仓时间:</span>
+                <span className="text-slate-500 dark:text-slate-400">Close time:</span>
                 <span className="text-slate-700 dark:text-slate-300">
                   {formatUtc8(selectedTrade.close_timestamp || selectedTrade.close_date, 'YYYY-MM-DD HH:mm:ss')}
                 </span>
@@ -1087,7 +1089,7 @@ export function CandleChartView() {
             )}
 
             <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">盈亏比例:</span>
+              <span className="text-slate-500 dark:text-slate-400">Profit ratio:</span>
               <span
                 className={`font-bold ${
                   (selectedTrade.profit_pct ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
@@ -1106,7 +1108,7 @@ export function CandleChartView() {
 
             {selectedTrade.stake_amount !== undefined && (
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">保证金投入:</span>
+                <span className="text-slate-500 dark:text-slate-400">Margin used:</span>
                 <span className="text-slate-800 dark:text-slate-200">
                   {selectedTrade.stake_amount} {botState.stake_currency || 'USDT'}
                 </span>
@@ -1115,7 +1117,7 @@ export function CandleChartView() {
 
             {selectedTrade.stop_loss_abs && (
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">止损保护:</span>
+                <span className="text-slate-500 dark:text-slate-400">Stop-loss protection:</span>
                 <span className="text-rose-600 dark:text-rose-400 font-semibold">
                   {formatPrice(selectedTrade.stop_loss_abs)}
                   {selectedTrade.stop_loss_pct !== undefined && ` (${selectedTrade.stop_loss_pct}%)`}
@@ -1125,7 +1127,7 @@ export function CandleChartView() {
 
             {selectedTrade.enter_tag && (
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">入场信号:</span>
+                <span className="text-slate-500 dark:text-slate-400">Entry signal:</span>
                 <span className="text-cyan-700 dark:text-cyan-400 font-semibold">
                   {selectedTrade.enter_tag}
                   {isNfiStrategy(botState.strategy) && (
@@ -1139,7 +1141,7 @@ export function CandleChartView() {
 
             {selectedTrade.exit_reason && (
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">退出原因:</span>
+                <span className="text-slate-500 dark:text-slate-400">Exit reason:</span>
                 <span className="text-amber-700 dark:text-amber-400 font-semibold">{selectedTrade.exit_reason}</span>
               </div>
             )}
@@ -1156,7 +1158,7 @@ export function CandleChartView() {
             onClick={loadCandles}
             className="mt-3 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-medium cursor-pointer"
           >
-            重试
+            Retry
           </button>
         </div>
       )}
@@ -1164,7 +1166,7 @@ export function CandleChartView() {
       {empty && !loading && !errorMsg && (
         <div className="absolute inset-0 top-11 flex flex-col items-center justify-center p-6 text-xs text-slate-400 z-10 pointer-events-none">
           <TrendingUp className="w-8 h-8 mb-2 opacity-30 text-emerald-500" />
-          <p>当前币对暂无该周期 K 线数据</p>
+          <p>No candle data for this timeframe</p>
         </div>
       )}
 
@@ -1192,12 +1194,12 @@ export function CandleChartView() {
                 {isHovering ? (
                   <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-cyan-50 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 border border-cyan-300 dark:border-cyan-500/30 flex items-center gap-1">
                     <Crosshair className="w-3 h-3" />
-                    <span>十字星定位</span>
+                    <span>Crosshair position</span>
                   </span>
                 ) : (
                   <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/30 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-                    <span>最新行情</span>
+                    <span>Latest market data</span>
                   </span>
                 )}
               </div>
@@ -1207,28 +1209,28 @@ export function CandleChartView() {
 
               {/* OHLC Values */}
               <div className="flex items-center gap-1">
-                <span className="text-slate-500 dark:text-slate-400">开:</span>
+                <span className="text-slate-500 dark:text-slate-400">Open:</span>
                 <span className="font-semibold text-slate-900 dark:text-slate-100">
                   {formatPrice(displayBar.open)}
                 </span>
               </div>
 
               <div className="flex items-center gap-1">
-                <span className="text-slate-500 dark:text-slate-400">高:</span>
+                <span className="text-slate-500 dark:text-slate-400">High:</span>
                 <span className="font-semibold text-slate-900 dark:text-slate-100">
                   {formatPrice(displayBar.high)}
                 </span>
               </div>
 
               <div className="flex items-center gap-1">
-                <span className="text-slate-500 dark:text-slate-400">低:</span>
+                <span className="text-slate-500 dark:text-slate-400">Low:</span>
                 <span className="font-semibold text-slate-900 dark:text-slate-100">
                   {formatPrice(displayBar.low)}
                 </span>
               </div>
 
               <div className="flex items-center gap-1">
-                <span className="text-slate-500 dark:text-slate-400">收:</span>
+                <span className="text-slate-500 dark:text-slate-400">Close:</span>
                 <span
                   className={`font-bold ${
                     displayBar.isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
@@ -1240,7 +1242,7 @@ export function CandleChartView() {
 
               {/* Change Pct & Val */}
               <div className="flex items-center gap-1">
-                <span className="text-slate-500 dark:text-slate-400">涨跌:</span>
+                <span className="text-slate-500 dark:text-slate-400">Change:</span>
                 <span
                   className={`font-bold ${
                     displayBar.isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
@@ -1255,7 +1257,7 @@ export function CandleChartView() {
 
               {/* Amplitude */}
               <div className="flex items-center gap-1">
-                <span className="text-slate-500 dark:text-slate-400">振幅:</span>
+                <span className="text-slate-500 dark:text-slate-400">Range:</span>
                 <span className="text-slate-800 dark:text-slate-300 font-medium">
                   {displayBar.amplitudePct.toFixed(2)}%
                 </span>
@@ -1263,7 +1265,7 @@ export function CandleChartView() {
 
               {/* Volume */}
               <div className="flex items-center gap-1">
-                <span className="text-slate-500 dark:text-slate-400">量:</span>
+                <span className="text-slate-500 dark:text-slate-400">Volume:</span>
                 <span className="font-semibold text-slate-900 dark:text-slate-100">
                   {formatVolume(displayBar.volume)}
                 </span>
@@ -1272,7 +1274,7 @@ export function CandleChartView() {
               {/* If candle has trade operations */}
               {isHovering && hoveredTrades.length > 0 && (
                 <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 dark:bg-amber-500/20 text-amber-800 dark:text-amber-400 border border-amber-300 dark:border-amber-500/40 animate-pulse font-sans">
-                  ★ 该根蜡烛包含交易 ({hoveredTrades.length})
+                  ★ This candle contains trades ({hoveredTrades.length})
                 </span>
               )}
             </div>
@@ -1298,7 +1300,7 @@ export function CandleChartView() {
                           ? 'bg-emerald-50 border-emerald-300 text-emerald-950 hover:bg-emerald-100 dark:bg-emerald-950/90 dark:border-emerald-500/60 dark:text-emerald-100 dark:hover:bg-emerald-900/90'
                           : 'bg-rose-50 border-rose-300 text-rose-950 hover:bg-rose-100 dark:bg-rose-950/90 dark:border-rose-500/60 dark:text-rose-100 dark:hover:bg-rose-900/90'
                       }`}
-                      title="点击展开完整交易详情与订单分析"
+                      title="Click to expand full trade details and order analysis"
                     >
                       {/* Trade Badge */}
                       <span className="font-bold flex items-center gap-1.5 font-mono">
@@ -1315,9 +1317,9 @@ export function CandleChartView() {
                         >
                           {type === 'open'
                             ? trade.is_short
-                              ? '开仓做空 (Short Entry)'
-                              : '开仓做多 (Long Entry)'
-                            : '平仓离场 (Close Exit)'}
+                              ? 'Short entry'
+                              : 'Long entry'
+                            : 'Closed exit (Close Exit)'}
                         </span>
                       </span>
 
@@ -1325,11 +1327,11 @@ export function CandleChartView() {
                       <span className="font-mono">
                         {type === 'open' ? (
                           <span>
-                            开仓价: <strong>{formatPrice(trade.open_rate)}</strong>
+                            Open price: <strong>{formatPrice(trade.open_rate)}</strong>
                           </span>
                         ) : (
                           <span>
-                            开仓: <strong>{formatPrice(trade.open_rate)}</strong> → 平仓:{' '}
+                            Open: <strong>{formatPrice(trade.open_rate)}</strong> → Close:{' '}
                             <strong>{formatPrice(trade.close_rate || 0)}</strong>
                           </span>
                         )}
@@ -1338,7 +1340,7 @@ export function CandleChartView() {
                       {/* Profit for Close */}
                       {type === 'close' && (
                         <span className="font-mono font-bold">
-                          盈亏:{' '}
+                          P&L:{' '}
                           <span className={isProfit ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}>
                             {isProfit ? '+' : ''}
                             {trade.profit_pct}%
@@ -1355,8 +1357,8 @@ export function CandleChartView() {
                       {/* Signal Tag */}
                       {trade.enter_tag && (
                         <span className="px-1.5 py-0.5 rounded bg-cyan-100/80 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-500/30 font-mono text-[11px]">
-                          信号: {trade.enter_tag}
-                          {nfiSignal && nfiSignal.category !== '常规入场' && (
+                          Signal: {trade.enter_tag}
+                          {nfiSignal && nfiSignal.category !== 'Standard entry' && (
                             <span className="ml-1 font-sans text-[10px] opacity-90 font-normal">
                               ({nfiSignal.category})
                             </span>
@@ -1367,12 +1369,12 @@ export function CandleChartView() {
                       {/* Exit Reason */}
                       {type === 'close' && (trade.exit_reason || trade.exit_tag) && (
                         <span className="px-1.5 py-0.5 rounded bg-amber-100/80 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 font-mono text-[11px]">
-                          原因: {trade.exit_reason || trade.exit_tag}
+                          Reason: {trade.exit_reason || trade.exit_tag}
                         </span>
                       )}
 
                       <span className="text-[10px] opacity-75 ml-auto font-sans">
-                        [点击查看完整详情]
+                        [Click to view full details]
                       </span>
                     </div>
                   );

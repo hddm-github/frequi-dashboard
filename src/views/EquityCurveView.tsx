@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useBot } from '../context/BotContext';
+import { useT } from '../i18n/LocaleContext';
 import {
   TrendingUp,
   DollarSign,
@@ -27,6 +28,7 @@ export function EquityCurveView() {
   } = useBot();
 
   const isDark = theme === 'dark';
+  const t = useT();
   const [viewMode, setViewMode] = useState<'balance' | 'pnl' | 'pct'>('balance');
   const [showConfig, setShowConfig] = useState(false);
   const [tempCapital, setTempCapital] = useState(String(initialCapital));
@@ -45,8 +47,8 @@ export function EquityCurveView() {
     if (!dailyRecords || dailyRecords.length === 0) {
       // Fallback: at least show initial and current
       return [
-        { date: '初始起点', value: initialCapital, pnl: 0, pct: 0 },
-        { date: '当前实时', value: currentEquity, pnl: totalNetProfit, pct: totalReturnPct },
+        { date: 'Initial point', value: initialCapital, pnl: 0, pct: 0 },
+        { date: 'Current live', value: currentEquity, pnl: totalNetProfit, pct: totalReturnPct },
       ];
     }
 
@@ -55,7 +57,7 @@ export function EquityCurveView() {
 
     let runningEquity = initialCapital;
     const points = [
-      { date: '开始', value: runningEquity, pnl: 0, pct: 0 },
+      { date: 'Start', value: runningEquity, pnl: 0, pct: 0 },
     ];
 
     sorted.forEach((d) => {
@@ -122,14 +124,14 @@ export function EquityCurveView() {
           }`}
         >
           <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-            <span className="font-medium">初始启动本金</span>
+            <span className="font-medium">{t('equity.initial_capital')}</span>
             <button
               onClick={() => {
                 setTempCapital(String(initialCapital));
                 setShowConfig(!showConfig);
               }}
               className="p-1 rounded text-slate-400 hover:text-emerald-500 transition-colors cursor-pointer"
-              title="调整初始本金基准"
+              title={t('equity.adjust_baseline')}
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
             </button>
@@ -139,15 +141,15 @@ export function EquityCurveView() {
           </div>
           <div className="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
             <span className="truncate">
-              {isManualCapital ? '手动指定基准' : '自动读取 / 默认 2000'}
+              {isManualCapital ? t('equity.manual_baseline') : t('equity.auto_default')}
             </span>
             {isManualCapital && (
               <button
                 onClick={() => resetInitialCapitalToAuto()}
                 className="text-[10px] text-cyan-500 hover:underline cursor-pointer shrink-0 ml-1"
-                title="恢复系统自动推算 (默认 2000 USDT)"
+                title={t('equity.restore_auto_tooltip')}
               >
-                恢复自动
+                {t('equity.restore')}
               </button>
             )}
           </div>
@@ -160,16 +162,16 @@ export function EquityCurveView() {
           }`}
         >
           <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-            <span className="font-medium">当前总资产权益</span>
+            <span className="font-medium">{t('equity.current_total')}</span>
             <Layers className="w-3.5 h-3.5 text-purple-500" />
           </div>
           <div className="text-xl font-bold font-mono text-purple-600 dark:text-purple-400 truncate">
             {formatCurrency(currentEquity)}
           </div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-            <span>现金: {formatCurrency(botState.balance)}</span>
+            <span>{t('equity.cash')}: {formatCurrency(botState.balance)}</span>
             <span className={totalUnrealized >= 0 ? 'text-emerald-500' : 'text-rose-500'}>
-              浮盈: {formatCurrency(totalUnrealized, { showSign: true })}
+              {t('overview.unrealized_pnl')}: {formatCurrency(totalUnrealized, { showSign: true })}
             </span>
           </div>
         </div>
@@ -181,7 +183,7 @@ export function EquityCurveView() {
           }`}
         >
           <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-            <span className="font-medium">累计绝对净收益</span>
+            <span className="font-medium">{t('equity.cumulative_profit')}</span>
             <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
           </div>
           <div
@@ -208,19 +210,19 @@ export function EquityCurveView() {
           }`}
         >
           <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-            <span className="font-medium">综合胜率 / 最大回撤</span>
+            <span className="font-medium">{t('equity.win_drawdown')}</span>
             <ShieldAlert className="w-3.5 h-3.5 text-blue-500" />
           </div>
           <div className="text-xl font-bold font-mono text-blue-600 dark:text-blue-400 truncate">
             {winRate}%{' '}
             <span className="text-xs font-normal text-slate-400">
-              ({profitSummary?.closed_trade_count || 0} 笔)
+              ({profitSummary?.closed_trade_count || 0} {t('ui.trades')})
             </span>
           </div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-            <span>盈: {profitSummary?.winning_trades || 0} / 亏: {profitSummary?.losing_trades || 0}</span>
+            <span>{t('equity.wins')}: {profitSummary?.winning_trades || 0} / {t('equity.losses')}: {profitSummary?.losing_trades || 0}</span>
             <span className="text-rose-500 font-mono">
-              回撤: {profitSummary?.max_drawdown_pct ? `${profitSummary.max_drawdown_pct.toFixed(2)}%` : '< 2.5%'}
+              {t('equity.drawdown')}: {profitSummary?.max_drawdown_pct ? `${profitSummary.max_drawdown_pct.toFixed(2)}%` : '< 2.5%'}
             </span>
           </div>
         </div>
@@ -235,7 +237,7 @@ export function EquityCurveView() {
         >
           <div className="flex items-center gap-2 flex-wrap">
             <Sparkles className="w-4 h-4 text-emerald-500 shrink-0" />
-            <span className="font-medium whitespace-nowrap">初始本金基准金额:</span>
+            <span className="font-medium whitespace-nowrap">Initial capital baseline:</span>
             <input
               type="number"
               value={tempCapital}
@@ -246,7 +248,7 @@ export function EquityCurveView() {
             />
             <span className="text-slate-400 font-mono">{botState.stake_currency || 'USDT'}</span>
             <span className="text-[11px] text-slate-400 ml-1">
-              (系统已自动读取推导，默认 2000 USDT)
+              ({t('equity.auto_default')})
             </span>
           </div>
           <div className="flex gap-2">
@@ -258,21 +260,21 @@ export function EquityCurveView() {
                 }}
                 className="px-2.5 py-1 rounded text-cyan-500 hover:text-cyan-400 cursor-pointer"
               >
-                恢复自动推导
+                {t('equity.restore_auto_btn')}
               </button>
             )}
             <button
               onClick={() => setShowConfig(false)}
               className="px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 cursor-pointer"
             >
-              取消
+              {t('connect.cancel')}
             </button>
             <button
               onClick={handleSaveCapital}
               className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold flex items-center gap-1 cursor-pointer"
             >
               <Check className="w-3.5 h-3.5" />
-              <span>保存</span>
+              <span>{t('equity.save')}</span>
             </button>
           </div>
         </div>
@@ -288,7 +290,7 @@ export function EquityCurveView() {
         <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-emerald-500" />
-            <span className="font-bold text-sm">账户资金净值曲线 (Equity & PnL Curve)</span>
+            <span className="font-bold text-sm">{t('equity.title')}</span>
           </div>
 
           <div
@@ -304,7 +306,7 @@ export function EquityCurveView() {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              资产总额
+              {t('equity.total')}
             </button>
             <button
               onClick={() => setViewMode('pnl')}
@@ -314,7 +316,7 @@ export function EquityCurveView() {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              累计净利
+              {t('equity.profit')}
             </button>
             <button
               onClick={() => setViewMode('pct')}
@@ -324,7 +326,7 @@ export function EquityCurveView() {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              收益率 %
+              {t('equity.return')}
             </button>
           </div>
         </div>
@@ -346,15 +348,15 @@ export function EquityCurveView() {
               }}
             >
               <div className="flex items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-1 mb-1.5 text-[11px]">
-                <span className="font-sans font-medium text-slate-400">📅 记录节点</span>
+                <span className="font-sans font-medium text-slate-400">📅 {t('equity.data_point')}</span>
                 <span className="font-bold text-slate-200">{coords[hoveredIdx].point.date}</span>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
-                <div className="text-slate-400">资产总额:</div>
+                <div className="text-slate-400">{t('equity.total')}:</div>
                 <div className="font-bold text-right text-purple-400">
                   {formatCurrency(coords[hoveredIdx].point.value)}
                 </div>
-                <div className="text-slate-400">累计净利:</div>
+                <div className="text-slate-400">{t('equity.profit')}:</div>
                 <div
                   className={`font-bold text-right ${
                     coords[hoveredIdx].point.pnl >= 0 ? 'text-emerald-500' : 'text-rose-500'
@@ -362,7 +364,7 @@ export function EquityCurveView() {
                 >
                   {formatCurrency(coords[hoveredIdx].point.pnl, { showSign: true })}
                 </div>
-                <div className="text-slate-400">净收益率:</div>
+                <div className="text-slate-400">{t('equity.net_return')}:</div>
                 <div
                   className={`font-bold text-right ${
                     coords[hoveredIdx].point.pct >= 0 ? 'text-emerald-500' : 'text-rose-500'
@@ -484,19 +486,19 @@ export function EquityCurveView() {
         {/* Bottom Legend and Axis Marks */}
         <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800">
           <div>
-            资金起点:{' '}
+            Starting capital:{' '}
             <span className="text-slate-700 dark:text-slate-300 font-semibold">
               {viewMode === 'pct' ? '0.00%' : viewMode === 'pnl' ? formatCurrency(0) : formatCurrency(initialCapital)}
             </span>
           </div>
           <div>
-            峰值最高:{' '}
+            Peak:{' '}
             <span className="text-emerald-500 font-semibold">
               {viewMode === 'pct' ? `+${maxVal.toFixed(2)}%` : viewMode === 'pnl' ? formatCurrency(maxVal, { showSign: true }) : formatCurrency(maxVal)}
             </span>
           </div>
           <div>
-            当前最新:{' '}
+            Current:{' '}
             <span className="text-purple-500 dark:text-purple-400 font-semibold">
               {viewMode === 'pct' ? `${totalReturnPct >= 0 ? '+' : ''}${totalReturnPct.toFixed(2)}%` : viewMode === 'pnl' ? formatCurrency(totalNetProfit, { showSign: true }) : formatCurrency(currentEquity)}
             </span>
