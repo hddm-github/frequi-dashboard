@@ -25,9 +25,11 @@ import {
 } from 'lucide-react';
 import { isNfiStrategy } from '../utils/nfiSignals';
 import { ConnectModal } from './ConnectModal';
+import { useT } from '../i18n/LocaleContext';
 
 export function MobileWorkspace() {
   const { theme, mobileTab, setMobileTab, activeTrades, botState, setIsSelectingBot } = useBot();
+  const t = useT();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -66,13 +68,13 @@ export function MobileWorkspace() {
   const getSecondaryTitle = () => {
     switch (mobileTab) {
       case 'equity_curve':
-        return '资产净值收益曲线';
+        return t('mobile.equity');
       case 'signals':
-        return isNfiStrategy(botState.strategy) ? 'NFI 策略信号榜' : '策略信号收益榜';
+        return isNfiStrategy(botState.strategy) ? t('mobile.signals') : t('mobile.signals');
       case 'logs':
-        return '机器人运行日志';
+        return t('mobile.logs');
       case 'bot_control':
-        return '机器人控制台';
+        return t('mobile.control');
       default:
         return '';
     }
@@ -80,7 +82,7 @@ export function MobileWorkspace() {
 
   return (
     <div
-      className={`flex flex-col w-screen h-[100dvh] overflow-hidden font-sans transition-colors ${
+      className={`flex flex-col w-full h-[100dvh] overflow-hidden font-sans transition-colors ${
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-100 text-slate-900'
       }`}
     >
@@ -102,7 +104,7 @@ export function MobileWorkspace() {
             className="flex items-center gap-1 text-emerald-500 hover:text-emerald-400 cursor-pointer"
           >
             <ChevronLeft className="w-4 h-4" />
-            <span>返回功能列表</span>
+            <span>{t('mobile.back')}</span>
           </button>
           <span className="text-slate-400 font-medium">{getSecondaryTitle()}</span>
         </div>
@@ -126,7 +128,7 @@ export function MobileWorkspace() {
             >
               <div className="w-10 h-1 bg-slate-400/30 rounded-full mx-auto mb-3" />
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">
-                更多应用与分析
+                {t('mobile.more')}
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
@@ -145,8 +147,8 @@ export function MobileWorkspace() {
                 >
                   <TrendingUp className="w-5 h-5 text-emerald-500 shrink-0" />
                   <div className="min-w-0">
-                    <div className="text-xs font-bold truncate">净值收益曲线</div>
-                    <div className="text-[10px] text-slate-500 truncate">复利收益与回撤</div>
+                    <div className="text-xs font-bold truncate">{t('mobile.equity')}</div>
+                    <div className="text-[10px] text-slate-500 truncate">{t('mobile.equity_desc')}</div>
                   </div>
                 </button>
 
@@ -165,8 +167,8 @@ export function MobileWorkspace() {
                 >
                   <Trophy className="w-5 h-5 text-amber-500 shrink-0" />
                   <div className="min-w-0">
-                    <div className="text-xs font-bold truncate">策略信号榜</div>
-                    <div className="text-[10px] text-slate-500 truncate">各买入标签胜率</div>
+                    <div className="text-xs font-bold truncate">{t('mobile.signals')}</div>
+                    <div className="text-[10px] text-slate-500 truncate">{t('mobile.signals_desc')}</div>
                   </div>
                 </button>
 
@@ -185,8 +187,8 @@ export function MobileWorkspace() {
                 >
                   <Terminal className="w-5 h-5 text-cyan-500 shrink-0" />
                   <div className="min-w-0">
-                    <div className="text-xs font-bold truncate">运行日志</div>
-                    <div className="text-[10px] text-slate-500 truncate">实时执行与告警</div>
+                    <div className="text-xs font-bold truncate">{t('mobile.logs')}</div>
+                    <div className="text-[10px] text-slate-500 truncate">{t('mobile.logs_desc')}</div>
                   </div>
                 </button>
 
@@ -205,8 +207,8 @@ export function MobileWorkspace() {
                 >
                   <Cpu className="w-5 h-5 text-purple-500 shrink-0" />
                   <div className="min-w-0">
-                    <div className="text-xs font-bold truncate">控制台</div>
-                    <div className="text-[10px] text-slate-500 truncate">启停与重载配置</div>
+                    <div className="text-xs font-bold truncate">{t('mobile.control')}</div>
+                    <div className="text-[10px] text-slate-500 truncate">{t('mobile.control_desc')}</div>
                   </div>
                 </button>
               </div>
@@ -221,7 +223,7 @@ export function MobileWorkspace() {
                   className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>接入新机器人</span>
+                  <span>{t('mobile.connect')}</span>
                 </button>
 
                 <button
@@ -236,7 +238,7 @@ export function MobileWorkspace() {
                   }`}
                 >
                   <Server className="w-4 h-4 text-cyan-500" />
-                  <span>节点列表</span>
+                  <span>{t('mobile.nodes')}</span>
                 </button>
               </div>
 
@@ -246,7 +248,7 @@ export function MobileWorkspace() {
                   isDark ? 'border-slate-700 bg-slate-800/80 text-slate-300' : 'border-slate-200 bg-slate-100 text-slate-700'
                 }`}
               >
-                取消
+                Cancel
               </button>
             </div>
           </div>
@@ -256,7 +258,7 @@ export function MobileWorkspace() {
         <ConnectModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />
       </main>
 
-      {/* Mobile Bottom Navigation Bar (安全区吸底，单手触控秒切) */}
+      {/* Mobile Bottom Navigation Bar (safe-area bottom navigation) */}
       <nav
         className={`shrink-0 border-t z-30 pt-1.5 pb-[max(env(safe-area-inset-bottom),8px)] px-1 flex items-center justify-around transition-colors ${
           isDark
@@ -264,7 +266,7 @@ export function MobileWorkspace() {
             : 'bg-white/95 border-slate-200 text-slate-500 backdrop-blur-md shadow-lg'
         }`}
       >
-        {/* Tab 1: 看板 */}
+        {/* Tab 1: Dashboard */}
         <button
           onClick={() => {
             setShowMoreMenu(false);
@@ -277,10 +279,10 @@ export function MobileWorkspace() {
           }`}
         >
           <BarChart3 className="w-5 h-5 shrink-0" />
-          <span>看板</span>
+          <span>{t('mobile.dashboard')}</span>
         </button>
 
-        {/* Tab 2: K线 */}
+        {/* Tab 2: Candles */}
         <button
           onClick={() => {
             setShowMoreMenu(false);
@@ -293,10 +295,10 @@ export function MobileWorkspace() {
           }`}
         >
           <CandlestickChart className="w-5 h-5 shrink-0" />
-          <span>K线</span>
+          <span>{t('mobile.candles')}</span>
         </button>
 
-        {/* Tab 3: 持仓 */}
+        {/* Tab 3: Positions */}
         <button
           onClick={() => {
             setShowMoreMenu(false);
@@ -316,10 +318,10 @@ export function MobileWorkspace() {
               </span>
             )}
           </div>
-          <span>持仓</span>
+          <span>{t('mobile.positions')}</span>
         </button>
 
-        {/* Tab 4: 平仓 */}
+        {/* Tab 4: Close */}
         <button
           onClick={() => {
             setShowMoreMenu(false);
@@ -332,10 +334,10 @@ export function MobileWorkspace() {
           }`}
         >
           <History className="w-5 h-5 shrink-0" />
-          <span>平仓</span>
+          <span>{t('mobile.closed')}</span>
         </button>
 
-        {/* Tab 5: 更多 */}
+        {/* Tab 5: More */}
         <button
           onClick={() => setShowMoreMenu(true)}
           className={`flex-1 flex flex-col items-center gap-0.5 py-1 text-[10px] font-medium transition-all cursor-pointer ${
@@ -345,7 +347,7 @@ export function MobileWorkspace() {
           }`}
         >
           <MoreHorizontal className="w-5 h-5 shrink-0" />
-          <span>更多</span>
+          <span>{t('mobile.more_short')}</span>
         </button>
       </nav>
     </div>

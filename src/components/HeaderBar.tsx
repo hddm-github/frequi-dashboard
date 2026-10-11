@@ -107,26 +107,25 @@ export function HeaderBar() {
         {/* Left Section: Brand & Multi-Bot Switcher */}
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-emerald-600 to-cyan-500 flex items-center justify-center font-bold text-xs text-white shadow-xs">
+            <div className="hidden sm:flex w-6 h-6 rounded-lg bg-gradient-to-tr from-emerald-600 to-cyan-500 items-center justify-center font-bold text-xs text-white shadow-xs">
               F
             </div>
             <span
-              className={`font-bold text-sm tracking-tight ${
+              className={`hidden sm:inline font-bold text-sm tracking-tight ${
                 isDark ? 'text-slate-100' : 'text-slate-900'
               }`}
             >
               FreqUI
             </span>
             {isReadOnly && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1" title="Live read-only view">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1" title="Live read-only view" aria-label="Live read-only view">
                 <ShieldCheck className="w-3 h-3 shrink-0" />
                 <span className="hidden sm:inline">Live read-only view</span>
-                <span className="sm:hidden inline">Read-only</span>
               </span>
             )}
           </div>
 
-          <div className={`h-4 w-px mx-0.5 ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
+          <div className={`hidden sm:block h-4 w-px mx-0.5 ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
 
           {/* Bot Switcher Dropdown (left bot switcher) */}
           <div className="relative flex items-center gap-1" ref={dropdownRef}>
@@ -147,7 +146,8 @@ export function HeaderBar() {
                     : 'bg-rose-500'
                 }`}
               />
-              <span className="truncate max-w-[80px] sm:max-w-[130px] font-semibold">
+              <Cpu className="w-3.5 h-3.5 shrink-0 sm:hidden" />
+              <span className="hidden sm:inline truncate max-w-[130px] font-semibold">
                 {activeProfile?.name || 'Select bot'}
               </span>
               <ChevronDown className="w-3.5 h-3.5 opacity-60 shrink-0" />

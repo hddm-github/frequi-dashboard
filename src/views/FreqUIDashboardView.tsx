@@ -24,6 +24,7 @@ import { copyToClipboard } from '../utils/clipboard';
 import { formatUtc8 } from '../utils/dateUtils';
 
 import { useOptionalWorkspace } from '@danfessler/trellis-react';
+import { useT } from '../i18n/LocaleContext';
 
 export function FreqUIDashboardView() {
   const {
@@ -50,6 +51,7 @@ export function FreqUIDashboardView() {
   } = useBot();
 
   const ws = useOptionalWorkspace();
+  const t = useT();
   const [copiedShare, setCopiedShare] = useState(false);
   const [isLogScale, setIsLogScale] = useState(true);
 
@@ -151,14 +153,14 @@ export function FreqUIDashboardView() {
           }`}
         >
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-0.5 gap-1">
-            <span className="font-medium truncate">Realized profit</span>
+            <span className="font-medium truncate">{t('dashboard.realized_profit')}</span>
             <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
           </div>
           <div className="text-lg sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight whitespace-nowrap truncate">
             {formatCurrency(profitSummary?.profit_closed_coin || 0, { showSign: true })}
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 flex items-center gap-1 font-mono whitespace-nowrap truncate">
-            <span>Return:</span>
+            <span>{t('dashboard.return')}:</span>
             <span className="text-emerald-600 dark:text-emerald-400 font-bold">
               +{((profitSummary?.profit_closed_ratio || 0) * 100).toFixed(2)}%
             </span>
@@ -171,7 +173,7 @@ export function FreqUIDashboardView() {
           }`}
         >
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-0.5 gap-1">
-            <span className="font-medium truncate">Win rate</span>
+            <span className="font-medium truncate">{t('dashboard.win_rate')}</span>
             <Award className="w-3.5 h-3.5 text-blue-500 shrink-0" />
           </div>
           <div className="text-lg sm:text-2xl font-bold font-mono text-blue-600 dark:text-blue-400 tracking-tight whitespace-nowrap truncate">
@@ -194,7 +196,7 @@ export function FreqUIDashboardView() {
           }`}
         >
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-0.5 gap-1">
-            <span className="font-medium truncate">Unrealized P&L</span>
+            <span className="font-medium truncate">{t('dashboard.unrealized')}</span>
             <Activity className="w-3.5 h-3.5 text-amber-500 shrink-0" />
           </div>
           <div
@@ -215,7 +217,7 @@ export function FreqUIDashboardView() {
               / {botState.max_open_trades}
             </span>
             <span className="text-[10px] sm:text-[11px] text-cyan-600 dark:text-cyan-400 font-mono font-medium">
-              Used: {formatCurrency(totalStake)}
+              {t('dashboard.used')}: {formatCurrency(totalStake)}
             </span>
           </div>
         </div>
@@ -226,7 +228,7 @@ export function FreqUIDashboardView() {
           }`}
         >
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-0.5 gap-1">
-            <span className="font-medium truncate">Account balance</span>
+            <span className="font-medium truncate">{t('dashboard.balance')}</span>
             <div className="flex items-center gap-1 shrink-0">
               <button
                 type="button"
@@ -244,7 +246,7 @@ export function FreqUIDashboardView() {
             {formatCurrency(botState.balance)}
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 font-mono whitespace-nowrap truncate">
-            Available:{' '}
+            {t('dashboard.available')}:{' '}
             <span className="text-slate-700 dark:text-slate-200 font-semibold">
               {formatCurrency(botState.free_balance ?? botState.balance)}
             </span>{' '}
@@ -379,7 +381,7 @@ export function FreqUIDashboardView() {
                             title="Open this pair in the candle chart"
                           >
                             <CandlestickChart className="w-3 h-3" />
-                            <span>View chart</span>
+                            <span>{t('dashboard.view_chart')}</span>
                           </button>
                           {!isReadOnly && (
                             <button
@@ -392,7 +394,7 @@ export function FreqUIDashboardView() {
                               title="Force market exit"
                             >
                               <XCircle className="w-3 h-3" />
-                              <span>Close</span>
+                              <span>{t('dashboard.close')}</span>
                             </button>
                           )}
                         </div>

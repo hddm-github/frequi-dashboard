@@ -37,7 +37,7 @@ export function BotLogsView() {
       >
         <div className="flex items-center gap-1.5 text-slate-500">
           <Terminal className="w-3.5 h-3.5 text-cyan-500" />
-          <span className="font-semibold">Bot Tail Logs ({logs.length} 条)</span>
+          <span className="font-semibold">{t('logs.tail_logs').replace('{count}', String(logs.length))}</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -71,7 +71,7 @@ export function BotLogsView() {
             className={`p-1 rounded transition-colors cursor-pointer ${
               isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-slate-200' : 'hover:bg-slate-200 text-slate-600'
             }`}
-            title="刷新日志"
+            title={t('logs.refresh')}
           >
             <RefreshCw className="w-3 h-3" />
           </button>
@@ -85,10 +85,10 @@ export function BotLogsView() {
                 isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-300 text-slate-700'
               }`}
             >
-              <option value="ALL">全部级别</option>
-              <option value="INFO">仅 INFO</option>
-              <option value="WARNING">仅 WARNING</option>
-              <option value="ERROR">仅 ERROR</option>
+              <option value="ALL">{t('logs.all_levels')}</option>
+              <option value="INFO">{t('logs.info_only')}</option>
+              <option value="WARNING">{t('logs.warning_only')}</option>
+              <option value="ERROR">{t('logs.error_only')}</option>
             </select>
           </div>
         </div>
@@ -97,7 +97,7 @@ export function BotLogsView() {
       {/* Log list */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-2.5 space-y-1 select-text">
         {filteredLogs.length === 0 ? (
-          <div className="text-center text-xs text-slate-400 py-10">暂无日志流或等待刷新中...</div>
+          <div className="text-center text-xs text-slate-400 py-10">{t('logs.empty')}</div>
         ) : (
           filteredLogs.map((log) => {
             const levelColor =
