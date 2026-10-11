@@ -741,7 +741,7 @@ export function CandleChartView() {
           >
             {availablePairs.map((pair) => (
               <option key={pair} value={pair}>
-                {pair} {activeTrades.some((t) => t.pair === pair) ? '★ (Open)' : ''}
+                {pair} {activeTrades.some((t) => t.pair === pair) ? `★ (${t('candle.open')})` : ''}
               </option>
             ))}
           </select>
@@ -1042,46 +1042,46 @@ export function CandleChartView() {
 
           <div className="space-y-1.5 font-mono text-[11px]">
             <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">Trade status:</span>
+              <span className="text-slate-500 dark:text-slate-400">{t('candle.status')}:</span>
               <span className={selectedTrade.is_open ? 'text-amber-500 font-bold' : 'text-slate-700 dark:text-slate-300'}>
-                {selectedTrade.is_open ? '● Open position' : 'Closed position'}
+                {selectedTrade.is_open ? `● ${t('candle.open_position')}` : t('candle.closed_position')}
               </span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">Trading pair:</span>
+              <span className="text-slate-500 dark:text-slate-400">{t('candle.pair')}:</span>
               <span className="text-slate-900 dark:text-slate-100 font-bold">{selectedTrade.pair}</span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">Position duration:</span>
+              <span className="text-slate-500 dark:text-slate-400">{t('candle.duration')}:</span>
               <span className="text-slate-700 dark:text-slate-300">
                 {formatDuration(selectedTrade.open_date, selectedTrade.close_date)}
               </span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">Open time:</span>
+              <span className="text-slate-500 dark:text-slate-400">{t('candle.open_time')}:</span>
               <span className="text-slate-700 dark:text-slate-300">
                 {selectedTrade.open_date ? formatUtc8(selectedTrade.open_timestamp || selectedTrade.open_date, 'YYYY-MM-DD HH:mm:ss') : '-'}
               </span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">Average open price:</span>
+              <span className="text-slate-500 dark:text-slate-400">{t('candle.avg_open')}:</span>
               <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatPrice(selectedTrade.open_rate)}</span>
             </div>
 
             {selectedTrade.close_rate && (
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">Average close price:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('candle.avg_close')}:</span>
                 <span className="font-semibold text-slate-900 dark:text-slate-100">{formatPrice(selectedTrade.close_rate)}</span>
               </div>
             )}
 
             {selectedTrade.close_date && (
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">Close time:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('candle.close_time')}:</span>
                 <span className="text-slate-700 dark:text-slate-300">
                   {formatUtc8(selectedTrade.close_timestamp || selectedTrade.close_date, 'YYYY-MM-DD HH:mm:ss')}
                 </span>
@@ -1089,7 +1089,7 @@ export function CandleChartView() {
             )}
 
             <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">Profit ratio:</span>
+              <span className="text-slate-500 dark:text-slate-400">{t('candle.profit_ratio')}:</span>
               <span
                 className={`font-bold ${
                   (selectedTrade.profit_pct ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
@@ -1108,7 +1108,7 @@ export function CandleChartView() {
 
             {selectedTrade.stake_amount !== undefined && (
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">Margin used:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('candle.margin')}:</span>
                 <span className="text-slate-800 dark:text-slate-200">
                   {selectedTrade.stake_amount} {botState.stake_currency || 'USDT'}
                 </span>
@@ -1117,7 +1117,7 @@ export function CandleChartView() {
 
             {selectedTrade.stop_loss_abs && (
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">Stop-loss protection:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('candle.stop_protection')}:</span>
                 <span className="text-rose-600 dark:text-rose-400 font-semibold">
                   {formatPrice(selectedTrade.stop_loss_abs)}
                   {selectedTrade.stop_loss_pct !== undefined && ` (${selectedTrade.stop_loss_pct}%)`}
@@ -1127,7 +1127,7 @@ export function CandleChartView() {
 
             {selectedTrade.enter_tag && (
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">Entry signal:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('candle.entry_signal')}:</span>
                 <span className="text-cyan-700 dark:text-cyan-400 font-semibold">
                   {selectedTrade.enter_tag}
                   {isNfiStrategy(botState.strategy) && (
@@ -1141,7 +1141,7 @@ export function CandleChartView() {
 
             {selectedTrade.exit_reason && (
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">Exit reason:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('candle.exit_reason')}:</span>
                 <span className="text-amber-700 dark:text-amber-400 font-semibold">{selectedTrade.exit_reason}</span>
               </div>
             )}

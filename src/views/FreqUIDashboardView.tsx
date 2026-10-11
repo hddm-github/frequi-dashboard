@@ -243,7 +243,7 @@ export function FreqUIDashboardView() {
             <span className="text-slate-700 dark:text-slate-200 font-semibold">
               {formatCurrency(botState.free_balance ?? botState.balance)}
             </span>{' '}
-            · Per trade: {botState.stake_amount === 'unlimited' ? 'Per trade' : formatCurrency(Number(botState.stake_amount) || 0)}
+            · {t('dashboard.per_trade')}: {botState.stake_amount === 'unlimited' ? t('dashboard.per_trade') : formatCurrency(Number(botState.stake_amount) || 0)}
           </div>
         </div>
       </div>
@@ -262,7 +262,7 @@ export function FreqUIDashboardView() {
           <div className="flex items-center gap-2">
             <Activity className="w-3.5 h-3.5 text-emerald-500" />
             <span className="text-xs font-bold uppercase tracking-wide">
-              Active trades ({activeTrades.length} trades)
+              {t('dashboard.active_trades')} ({activeTrades.length} {t('dashboard.trades_count')})
             </span>
           </div>
           <span className="text-xs text-slate-500 font-mono">

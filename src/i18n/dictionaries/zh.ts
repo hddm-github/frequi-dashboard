@@ -81,6 +81,8 @@ export const zh: Record<string, string> = {
   'dashboard.balance': '账户余额',
   'dashboard.available': '可用',
   'dashboard.per_trade': '单笔',
+  'dashboard.active_trades': '当前持仓',
+  'dashboard.trades_count': '笔交易',
   'dashboard.view_chart': '查看图表',
   'dashboard.close': '平仓',
   'dashboard.no_data': '暂无近期绩效数据',

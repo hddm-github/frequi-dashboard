@@ -87,6 +87,8 @@ export const en: Record<string, string> = {
   'dashboard.balance': 'Account Balance',
   'dashboard.available': 'Available',
   'dashboard.per_trade': 'Per trade',
+  'dashboard.active_trades': 'Active trades',
+  'dashboard.trades_count': 'trades',
   'dashboard.view_chart': 'View Chart',
   'dashboard.close': 'Close',
   'dashboard.no_data': 'No recent performance data',
