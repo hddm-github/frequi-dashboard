@@ -827,7 +827,7 @@ export function CandleChartView() {
             {/* Dropdown Menu */}
             {showTradeDropdown && (
               <div
-                className={`absolute top-full right-0 sm:right-auto sm:left-0 mt-1.5 w-[calc(100vw-2rem)] sm:w-80 max-w-xs sm:max-w-sm max-h-80 overflow-y-auto rounded-xl shadow-2xl border z-50 p-2 text-xs font-sans ${
+                className={`absolute top-full left-1/2 -translate-x-1/2 right-auto mt-1.5 w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:left-0 sm:translate-x-0 sm:right-auto sm:w-80 sm:max-w-sm max-h-80 overflow-x-hidden overflow-y-auto rounded-xl shadow-2xl border z-50 p-2 text-xs font-sans ${
                   isDark ? 'bg-[#131b2e] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
                 }`}
               >
