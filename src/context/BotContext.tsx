@@ -69,6 +69,8 @@ interface BotContextValue {
   mobileTab: string;
   setMobileTab: (tab: string) => void;
   refreshCountdown: number;
+  refreshInterval: number;
+  setRefreshInterval: (seconds: number) => void;
 }
 
 const BotContext = createContext<BotContextValue | null>(null);
@@ -436,8 +438,41 @@ export function BotProvider({ children }: { children: ReactNode }) {
   // Mobile App active tab state
   const [mobileTab, setMobileTab] = useState<string>('frequi_dashboard');
 
-  // Live 6-second countdown timer for auto-refresh
-  const [refreshCountdown, setRefreshCountdown] = useState<number>(6);
+  // Configurable auto-refresh interval (defaults to 6s, 0 means manual, persisted to localStorage)
+  const [refreshInterval, setRefreshIntervalState] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('frequi_refresh_interval');
+      if (saved !== null) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= 0) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return 6;
+  });
+
+  const [refreshCountdown, setRefreshCountdown] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('frequi_refresh_interval');
+      if (saved !== null) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= 0) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return 6;
+  });
+
+  const setRefreshInterval = useCallback((seconds: number) => {
+    const val = Math.max(0, Math.floor(seconds));
+    setRefreshIntervalState(val);
+    setRefreshCountdown(val);
+    try {
+      localStorage.setItem('frequi_refresh_interval', String(val));
+    } catch {}
+  }, []);
 
   // Live & Configurable Exchange Rates (defaults to real market rates: ~6.7025 for CNY, ~0.8929 for EUR)
   const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(() => {
@@ -931,9 +966,9 @@ export function BotProvider({ children }: { children: ReactNode }) {
     }
   }, [activeProfile, refreshData]);
 
-  // Live 6s Countdown ticker & Auto-refresh polling when actively connected
+  // Live Countdown ticker & Auto-refresh polling when actively connected
   useEffect(() => {
-    if (!activeProfile || isSelectingBot) return;
+    if (!activeProfile || isSelectingBot || refreshInterval <= 0) return;
 
     const timer = setInterval(() => {
       // 只有在标签页处于可见状态下才倒计时与轮询，完全避免后台隐秘消耗连接
@@ -941,14 +976,14 @@ export function BotProvider({ children }: { children: ReactNode }) {
         setRefreshCountdown((prev) => {
           if (prev <= 1) {
             refreshData();
-            return 6;
+            return refreshInterval;
           }
           return prev - 1;
         });
       }
     }, 1000);
     return () => clearInterval(timer);
-  }, [activeProfile, isSelectingBot, refreshData]);
+  }, [activeProfile, isSelectingBot, refreshData, refreshInterval]);
 
   // Page Visibility: pause polling when tab is hidden, refresh immediately on visible
   useEffect(() => {
@@ -956,14 +991,16 @@ export function BotProvider({ children }: { children: ReactNode }) {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        setRefreshCountdown(6);
+        if (refreshInterval > 0) {
+          setRefreshCountdown(refreshInterval);
+        }
         refreshData(undefined, true);
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [activeProfile, isSelectingBot, refreshData]);
+  }, [activeProfile, isSelectingBot, refreshData, refreshInterval]);
 
   return (
     <BotContext.Provider
@@ -1016,6 +1053,8 @@ export function BotProvider({ children }: { children: ReactNode }) {
         mobileTab,
         setMobileTab,
         refreshCountdown,
+        refreshInterval,
+        setRefreshInterval,
       }}
     >
       {children}
