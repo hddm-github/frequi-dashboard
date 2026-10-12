@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, useRef, lazy, Suspense } from 'react';
 import { useBot } from '../context/BotContext';
 import { HeaderBar } from './HeaderBar';
 import { FreqUIDashboardView } from '../views/FreqUIDashboardView';
@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   Plus,
   Server,
+  RefreshCw,
 } from 'lucide-react';
 import { isNfiStrategy } from '../utils/nfiSignals';
 import { ConnectModal } from './ConnectModal';
@@ -34,12 +35,60 @@ const LazyFallback = () => (
 );
 
 export function MobileWorkspace() {
-  const { theme, mobileTab, setMobileTab, activeTrades, botState, setIsSelectingBot, isConnecting } = useBot();
+  const { theme, mobileTab, setMobileTab, activeTrades, botState, setIsSelectingBot, isConnecting, refreshData } = useBot();
   const t = useT();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
+  // Pull down to refresh touch tracking
+  const [pullY, setPullY] = useState(0);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const startYRef = useRef(0);
+  const mainRef = useRef<HTMLElement>(null);
+
   const isDark = theme === 'dark';
+  const isFixedViewportView = mobileTab === 'chart' || mobileTab === 'logs';
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (isFixedViewportView) return;
+    if (mainRef.current && mainRef.current.scrollTop <= 0) {
+      startYRef.current = e.touches[0].clientY;
+    } else {
+      startYRef.current = 0;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isFixedViewportView || isPullRefreshing || startYRef.current === 0) return;
+    if (mainRef.current && mainRef.current.scrollTop <= 0) {
+      const deltaY = e.touches[0].clientY - startYRef.current;
+      if (deltaY > 0) {
+        const damped = Math.min(Math.pow(deltaY, 0.85), 60);
+        setPullY(damped);
+      } else {
+        setPullY(0);
+      }
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (isFixedViewportView || isPullRefreshing) return;
+    if (pullY >= 42) {
+      setIsPullRefreshing(true);
+      setPullY(42);
+      try {
+        await refreshData(undefined, true);
+      } finally {
+        setTimeout(() => {
+          setIsPullRefreshing(false);
+          setPullY(0);
+        }, 400);
+      }
+    } else {
+      setPullY(0);
+    }
+    startYRef.current = 0;
+  };
 
   const isSecondaryView = [
     'equity_curve',
@@ -125,8 +174,35 @@ export function MobileWorkspace() {
         </div>
       )}
 
-      {/* Main View Area (100% full screen width, smoothly scrollable) */}
-      <main className="flex-1 w-full min-h-0 relative overflow-hidden select-text">
+      {/* Main View Area (100% full screen width, smoothly scrollable with momentum) */}
+      <main
+        ref={mainRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className={`flex-1 w-full min-h-0 relative select-text transition-colors ${
+          isFixedViewportView
+            ? 'flex flex-col overflow-hidden'
+            : 'overflow-y-auto overflow-x-hidden overscroll-y-contain [-webkit-overflow-scrolling:touch] pb-24'
+        }`}
+      >
+        {/* Pull Down to Refresh Visual Indicator */}
+        {pullY > 0 && (
+          <div
+            style={{ height: `${pullY}px` }}
+            className="w-full flex items-center justify-center overflow-hidden text-xs font-semibold text-emerald-500 gap-1.5 transition-all bg-emerald-500/10 border-b border-emerald-500/20 shrink-0 select-none"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isPullRefreshing || pullY >= 42 ? 'animate-spin text-emerald-500' : 'text-slate-400'}`} />
+            <span>
+              {isPullRefreshing
+                ? t('login.connecting')
+                : pullY >= 42
+                ? t('header.release_to_refresh')
+                : t('header.pull_to_refresh')}
+            </span>
+          </div>
+        )}
+
         {renderActiveView()}
 
         {/* More Functions Bottom Drawer */}
@@ -263,7 +339,7 @@ export function MobileWorkspace() {
                   isDark ? 'border-slate-700 bg-slate-800/80 text-slate-300' : 'border-slate-200 bg-slate-100 text-slate-700'
                 }`}
               >
-                Cancel
+                {t('mobile.cancel')}
               </button>
             </div>
           </div>
