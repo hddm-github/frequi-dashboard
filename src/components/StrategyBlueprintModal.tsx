@@ -19,6 +19,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useBot } from '../context/BotContext';
+import { useLocale } from '../i18n/LocaleContext';
 
 interface StrategyBlueprintModalProps {
   open: boolean;
@@ -161,46 +162,8 @@ export function StrategyBlueprintModal({
   botState = {},
 }: StrategyBlueprintModalProps) {
   const { client, isReadOnly } = useBot();
-  const [localeState, setLocaleState] = useState<'en' | 'zh'>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('frequi.locale');
-        if (saved === 'zh' || saved === 'en') return saved;
-      } catch {
-        // ignore
-      }
-    }
-    if (typeof document !== 'undefined' && document.documentElement.lang?.startsWith('zh')) {
-      return 'zh';
-    }
-    return 'en';
-  });
-
-  useEffect(() => {
-    if (!open) return;
-    const sync = () => {
-      try {
-        const saved = localStorage.getItem('frequi.locale');
-        if (saved === 'zh' || saved === 'en') setLocaleState(saved);
-      } catch {
-        // ignore
-      }
-    };
-    sync();
-    window.addEventListener('storage', sync);
-    return () => window.removeEventListener('storage', sync);
-  }, [open]);
-
-  const isZh = localeState === 'zh';
-  const toggleLocale = () => {
-    const next = isZh ? 'en' : 'zh';
-    setLocaleState(next);
-    try {
-      localStorage.setItem('frequi.locale', next);
-    } catch {
-      // ignore
-    }
-  };
+  const { locale, toggleLocale } = useLocale();
+  const isZh = locale === 'zh';
 
   const [liveData, setLiveData] = useState<LiveStrategyData | null>(null);
   const [loading, setLoading] = useState(false);

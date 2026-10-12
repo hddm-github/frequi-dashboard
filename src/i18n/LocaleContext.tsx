@@ -31,6 +31,16 @@ const LocaleContext = createContext<LocaleContextValue | null>(null);
 const STORAGE_KEY = 'frequi.locale';
 
 function resolveInitialLocale(): Locale {
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved === 'zh' || saved === 'en') {
+        return saved;
+      }
+    } catch {
+      // localStorage unavailable
+    }
+  }
   // English is the product default. User can switch to 中文 with toggle.
   return 'en';
 }
@@ -58,6 +68,16 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       // ignore
     }
   }, [locale]);
+
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && (e.newValue === 'zh' || e.newValue === 'en')) {
+        setLocaleState(e.newValue);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   const t = useCallback(
     (key: string, fallback?: string): string => {
