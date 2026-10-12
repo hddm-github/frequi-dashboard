@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import type { BotProfile } from '../types';
 import { Edit3, X, Check, Loader2, ShieldCheck } from 'lucide-react';
 import { useBot } from '../context/BotContext';
+import { useT } from '../i18n/LocaleContext';
 import { normalizeApiUrl } from '../api/client';
 
 interface EditBotModalProps {
@@ -20,6 +21,7 @@ export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const isDark = theme === 'dark';
+  const t = useT();
   const isProtected = isReadOnly || Boolean(bot?.isShared) || Boolean(bot?.id?.startsWith('bot-url-'));
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setErrorMsg('机器人名称不能为空');
+      setErrorMsg('Bot name cannot be empty');
       return;
     }
     setSaving(true);
@@ -64,10 +66,10 @@ export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
       if (ok) {
         onClose();
       } else {
-        setErrorMsg('更新配置失败');
+        setErrorMsg('Failed to update configuration');
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || '保存失败');
+      setErrorMsg(err?.message || 'Save failed');
     } finally {
       setSaving(false);
     }
@@ -84,7 +86,7 @@ export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
           <div className="flex items-center gap-2">
             <Edit3 className="w-4 h-4 text-emerald-500" />
             <h3 className="font-bold text-sm">
-              {isProtected ? '修改机器人备注名称' : '修改机器人信息'}
+              {isProtected ? t('botselect.edit_name') : t('botselect.edit_details')}
             </h3>
           </div>
           <button
@@ -104,13 +106,13 @@ export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
           <div>
             <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-              机器人备注名称
+              {t('botselect.display_name')}
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如: 腾讯云实盘机器人"
+              placeholder="Example: Production live bot"
               className={`w-full border rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-emerald-500 ${
                 isDark ? 'bg-[#1a233a] border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
               }`}
@@ -123,9 +125,9 @@ export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
             <div className="p-3 rounded-xl bg-slate-500/10 border border-slate-500/20 text-xs flex items-start gap-2.5">
               <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
               <div>
-                <div className="font-semibold text-slate-700 dark:text-slate-200">连接凭据受安全保护</div>
+                <div className="font-semibold text-slate-700 dark:text-slate-200">{t('botselect.credentials_protected')}</div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                  此节点为分享接入节点，底层 API 端点地址与账号认证信息处于加密脱敏保护状态。您可以自由自定义修改此机器人的本地备注名称。
+                  {t('botselect.credentials_protected_desc')}
                 </div>
               </div>
             </div>
@@ -133,7 +135,7 @@ export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
             <>
               <div>
                 <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                  API 端点地址 (Base URL)
+                  {t('botselect.api_base')}
                 </label>
                 <input
                   type="text"
@@ -150,7 +152,7 @@ export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                    API 用户名
+                    {t('botselect.api_username')}
                   </label>
                   <input
                     type="text"
@@ -165,7 +167,7 @@ export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
 
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                    API 密码
+                    {t('botselect.api_password')}
                   </label>
                   <input
                     type="password"
@@ -189,7 +191,7 @@ export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
                 isDark ? 'border-slate-700 hover:bg-slate-800' : 'border-slate-300 hover:bg-slate-100'
               }`}
             >
-              取消
+              {t('botselect.cancel')}
             </button>
             <button
               type="submit"
@@ -197,7 +199,7 @@ export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
               className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer disabled:opacity-60"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-              <span>保存修改</span>
+              <span>{t('botselect.save_edit')}</span>
             </button>
           </div>
         </form>

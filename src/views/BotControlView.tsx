@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { EditBotModal } from '../components/EditBotModal';
 import { StrategyBlueprintModal } from '../components/StrategyBlueprintModal';
+import { useT } from '../i18n/LocaleContext';
 
 export function BotControlView() {
   const {
@@ -48,6 +49,7 @@ export function BotControlView() {
   const [showBlueprint, setShowBlueprint] = useState(false);
 
   const isDark = theme === 'dark';
+  const t = useT();
 
   const handleAction = async (action: 'start' | 'stop' | 'reload') => {
     setOperating(true);
@@ -58,9 +60,9 @@ export function BotControlView() {
       else if (action === 'stop') ok = await stopBot();
       else if (action === 'reload') ok = await reloadConfig();
 
-      setOpMessage(ok ? `操作成功 [${action}]` : `操作失败 [${action}]`);
+      setOpMessage(ok ? `${t('ui.operation_succeeded')} [${action}]` : `${t('ui.operation_failed')} [${action}]`);
     } catch (err: any) {
-      setOpMessage(err?.message || '操作失败');
+      setOpMessage(err?.message || 'Operation failed');
     } finally {
       setOperating(false);
     }
@@ -72,61 +74,7 @@ export function BotControlView() {
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-50 text-slate-800'
       }`}
     >
-{/* 1. Current Active Bot Profile Banner */}
-      <div
-        className={`p-4 rounded-xl border shadow-xs transition-colors ${
-          isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
-        }`}
-      >
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Server className="w-4 h-4 text-emerald-500" />
-            <span className="font-bold text-xs uppercase tracking-wide">当前连接的策略机器人</span>
-          </div>
-
-          {!isReadOnly && (
-            <button
-              onClick={() => setIsSelectingBot(true)}
-              className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer flex items-center gap-1 font-medium"
-            >
-              <span>切换 / 管理机器人</span>
-              <ExternalLink className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
-          <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <div className="truncate pr-1">
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">节点名称</span>
-              <span className="font-bold text-slate-900 dark:text-slate-100 truncate block">
-                {activeProfile?.name || '-'}
-              </span>
-            </div>
-            <button
-              onClick={() => setShowEditModal(true)}
-              className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:text-emerald-500 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer shrink-0"
-              title="修改机器人备注名称"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">端点地址 (Base URL)</span>
-            <span className="font-bold text-slate-900 dark:text-slate-100 truncate block">
-              {isReadOnly || activeProfile?.isShared || activeProfile?.id?.startsWith('bot-url-') ? '●●●●●● [受保护]' : activeProfile?.apiUrl || '-'}
-            </span>
-          </div>
-          <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">API 用户身份</span>
-            <span className="font-bold text-slate-900 dark:text-slate-100 block">
-              {isReadOnly || activeProfile?.isShared || activeProfile?.id?.startsWith('bot-url-') ? '只读访客模式' : activeProfile?.username || '-'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Bot State & Interactive Operations */}
+      {/* 1. Bot State & Interactive Operations */}
       <div
         className={`p-4 rounded-xl border shadow-xs transition-colors ${
           isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
@@ -135,7 +83,7 @@ export function BotControlView() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Radio className="w-4 h-4 text-cyan-500" />
-            <span className="font-bold text-xs uppercase tracking-wide">机器人运行控制</span>
+            <span className="font-bold text-xs uppercase tracking-wide">{t('control.title')}</span>
           </div>
 
           <div className="flex items-center gap-2 text-xs">
@@ -147,7 +95,7 @@ export function BotControlView() {
               }`}
             />
             <span className="font-bold font-mono">
-              {isConnecting ? '连接中...' : isConnected ? '在线运行中 (LIVE)' : '断开 / 异常'}
+              {isConnecting ? t('control.connecting') : isConnected ? t('ui.running_online') : t('ui.disconnected_error')}
             </span>
           </div>
         </div>
@@ -160,12 +108,12 @@ export function BotControlView() {
 
         {isReadOnly ? (
           <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
-            <span className="leading-relaxed">🛡️ 当前处于只读观摩分享模式，启停交易与参数重载操作已安全锁定</span>
+            <span className="leading-relaxed">🛡️ {t('ui.readonly_locked')}</span>
             <button
               onClick={() => refreshData()}
               className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold cursor-pointer shrink-0 whitespace-nowrap self-end sm:self-auto transition-colors"
             >
-              刷新数据
+              {t('ui.refresh_data')}
             </button>
           </div>
         ) : (
@@ -176,7 +124,7 @@ export function BotControlView() {
               className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
-              <span>启动交易 (Start)</span>
+              <span>{t('ui.start_trading')}</span>
             </button>
 
             <button
@@ -185,7 +133,7 @@ export function BotControlView() {
               className="py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
             >
               <Square className="w-3.5 h-3.5 fill-current" />
-              <span>停止交易 (Stop)</span>
+              <span>{t('ui.stop_trading')}</span>
             </button>
 
             <button
@@ -198,7 +146,7 @@ export function BotControlView() {
               }`}
             >
               <RotateCw className={`w-3.5 h-3.5 ${operating ? 'animate-spin' : ''}`} />
-              <span>重载配置 (Reload)</span>
+              <span>{t('ui.reload_configuration')}</span>
             </button>
 
             <button
@@ -211,7 +159,7 @@ export function BotControlView() {
               }`}
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              <span>立即同步数据</span>
+              <span>{t('ui.sync_data')}</span>
             </button>
           </div>
         )}
@@ -226,18 +174,18 @@ export function BotControlView() {
         <div className="flex items-center gap-2 mb-3">
           <Cpu className="w-4 h-4 text-purple-500" />
           <span className="font-bold text-xs uppercase tracking-wide">
-            策略运行环境参数 (Live Specs)
+            {t('control.live_specs')}
           </span>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs font-mono">
           <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 min-w-0 flex flex-col justify-center">
-            <span className="text-[10px] text-slate-500 block font-sans mb-1">Running strategy</span>
+            <span className="text-[10px] text-slate-500 block font-sans mb-1">{t('ui.running_strategy')}</span>
             <button
               type="button"
               onClick={() => setShowBlueprint(true)}
               className="group inline-flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm truncate font-mono text-left hover:text-emerald-500 dark:hover:text-emerald-300 hover:underline underline-offset-2 decoration-dotted transition-colors"
-              title={`Open blueprint ${botState.strategy}`}
+              title={`Buka blueprint ${botState.strategy}`}
             >
               <BookOpen className="w-3.5 h-3.5 shrink-0 opacity-70 group-hover:opacity-100" />
               <span className="truncate">{botState.strategy}</span>
@@ -245,50 +193,43 @@ export function BotControlView() {
           </div>
 
           <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 min-w-0 flex flex-col justify-center">
-            <span className="text-[10px] text-slate-500 block font-sans mb-1">K 线主周期</span>
+            <span className="text-[10px] text-slate-500 block font-sans mb-1">{t('ui.primary_timeframe')}</span>
             <span className="font-bold text-slate-800 dark:text-slate-100 text-xs sm:text-sm">
               {botState.timeframe}
             </span>
           </div>
 
           <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 min-w-0 flex flex-col justify-center">
-            <span className="text-[10px] text-slate-500 block font-sans mb-1">运行模式</span>
+            <span className="text-[10px] text-slate-500 block font-sans mb-1">{t('ui.run_mode')}</span>
             <div>
               <span
                 className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold ${
                   botState.dry_run
-                    ? 'bg-blue-500/15 text-blue-600 dark:text-blue-300 border border-blue-500/30'
-                    : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'
+                    ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                    : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
                 }`}
               >
-                {botState.dry_run ? 'Dry-Run (模拟)' : 'Live (实盘)'}
+                {botState.dry_run ? t('ui.dry_run') : 'LIVE'}
               </span>
             </div>
           </div>
 
           <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 min-w-0 flex flex-col justify-center">
-            <span className="text-[10px] text-slate-500 block font-sans mb-1">Strategy Version</span>
+            <span className="text-[10px] text-slate-500 block font-sans mb-1">{t('control.version')}</span>
             <span className="font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm truncate font-mono">
-              {botState.strategy_version || 'unknown'}
+              {botState.strategy_version || 'v18.0.124'}
             </span>
           </div>
 
           <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 min-w-0 flex flex-col justify-center">
-            <span className="text-[10px] text-slate-500 block font-sans mb-1">Stake Currency</span>
+            <span className="text-[10px] text-slate-500 block font-sans mb-1">{t('ui.max_open_trades')}</span>
             <span className="font-bold text-slate-800 dark:text-slate-100 text-xs sm:text-sm">
-              {botState.stake_currency}
+              {botState.max_open_trades} {t('ui.trades')}
             </span>
           </div>
 
           <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 min-w-0 flex flex-col justify-center">
-            <span className="text-[10px] text-slate-500 block font-sans mb-1">最大开仓数量</span>
-            <span className="font-bold text-slate-800 dark:text-slate-100 text-xs sm:text-sm">
-              {botState.max_open_trades} 笔
-            </span>
-          </div>
-
-          <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 min-w-0 flex flex-col justify-center">
-            <span className="text-[10px] text-slate-500 block font-sans mb-1">Freqtrade 版本</span>
+            <span className="text-[10px] text-slate-500 block font-sans mb-1">{t('ui.freqtrade_version')}</span>
             <span
               className="font-bold text-slate-800 dark:text-slate-100 text-xs sm:text-sm truncate"
               title={botState.version}
@@ -309,15 +250,15 @@ export function BotControlView() {
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-blue-500" />
             <span className="font-bold text-xs uppercase tracking-wide">
-              白名单交易对 (Whitelist - {botState.whitelist.length} 个)
+              {t('ui.whitelist_pairs')} ({botState.whitelist.length} {t('ui.pairs_count')})
             </span>
           </div>
-          <span className="text-[10px] text-slate-500">点击任意币对可立即切换 K 线图表</span>
+          <span className="text-[10px] text-slate-500">{t('ui.open_candle_chart')}</span>
         </div>
 
         {botState.whitelist.length === 0 ? (
           <div className="text-center py-6 text-xs text-slate-500">
-            正在从 Freqtrade API 获取交易对白名单...
+            {t('ui.loading_pairs')}
           </div>
         ) : (
           <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pt-1">
@@ -347,7 +288,7 @@ export function BotControlView() {
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <Server className="w-4 h-4 text-emerald-500" />
-            <span className="font-bold text-xs uppercase tracking-wide">Connected strategy bot</span>
+            <span className="font-bold text-xs uppercase tracking-wide">{t('ui.connected_strategy_bot')}</span>
           </div>
 
           {!isReadOnly && (
@@ -355,7 +296,7 @@ export function BotControlView() {
               onClick={() => setIsSelectingBot(true)}
               className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer flex items-center gap-1 font-medium"
             >
-              <span>Switch / manage bots</span>
+              <span>{t('ui.switch_manage_bots')}</span>
               <ExternalLink className="w-3 h-3" />
             </button>
           )}
@@ -364,7 +305,7 @@ export function BotControlView() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
           <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
             <div className="truncate pr-1">
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">Node name</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">{t('ui.node_name')}</span>
               <span className="font-bold text-slate-900 dark:text-slate-100 truncate block">
                 {activeProfile?.name || '-'}
               </span>
@@ -372,21 +313,21 @@ export function BotControlView() {
             <button
               onClick={() => setShowEditModal(true)}
               className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:text-emerald-500 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer shrink-0"
-              title="Edit bot name"
+              title={t('ui.edit_bot')}
             >
               <Edit3 className="w-3.5 h-3.5" />
             </button>
           </div>
           <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">Endpoint (Base URL)</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">{t('ui.endpoint_base_url')}</span>
             <span className="font-bold text-slate-900 dark:text-slate-100 truncate block">
-              {isReadOnly || activeProfile?.isShared || activeProfile?.id?.startsWith('bot-url-') ? '●●●●●● [Protected]' : activeProfile?.apiUrl || '-'}
+              {isReadOnly || activeProfile?.isShared || activeProfile?.id?.startsWith('bot-url-') ? `●●●●●● ${t('ui.protected')}` : activeProfile?.apiUrl || '-'}
             </span>
           </div>
           <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">API identity</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">{t('ui.api_identity')}</span>
             <span className="font-bold text-slate-900 dark:text-slate-100 block">
-              {isReadOnly || activeProfile?.isShared || activeProfile?.id?.startsWith('bot-url-') ? 'Read-only guest mode' : activeProfile?.username || '-'}
+              {isReadOnly || activeProfile?.isShared || activeProfile?.id?.startsWith('bot-url-') ? t('ui.readonly_guest') : activeProfile?.username || '-'}
             </span>
           </div>
         </div>

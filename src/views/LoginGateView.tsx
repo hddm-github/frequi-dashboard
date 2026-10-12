@@ -2,17 +2,33 @@ import { useState, type FormEvent } from 'react';
 import { useBot } from '../context/BotContext';
 import { Server, ShieldCheck, AlertCircle, ArrowRight, Sun, Moon, Loader2 } from 'lucide-react';
 import { normalizeApiUrl } from '../api/client';
+import { PRESET_BOTS } from '../config/botPresets';
+import { useT } from '../i18n/LocaleContext';
 
 export function LoginGateView() {
   const { addProfile, theme, setTheme, lastError } = useBot();
-  const [name, setName] = useState('');
-  const [apiUrl, setApiUrl] = useState('http://127.0.0.1:8080');
+  const [selectedPreset, setSelectedPreset] = useState('futures');
+  const [name, setName] = useState('FuturesBinance-Bot');
+  const [apiUrl, setApiUrl] = useState('/ft-api');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const isDark = theme === 'dark';
+  const t = useT();
+
+  const handlePresetChange = (presetId: string) => {
+    setSelectedPreset(presetId);
+    const preset = PRESET_BOTS.find((p) => p.id === presetId);
+    if (preset && preset.id !== 'custom') {
+      setName(preset.name);
+      setApiUrl(preset.apiUrl);
+    } else if (presetId === 'custom') {
+      setName('');
+      setApiUrl('');
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -21,17 +37,17 @@ export function LoginGateView() {
 
     try {
       const res = await addProfile({
-        name: name.trim() || 'Freqtrade 机器人',
+        name: name.trim() || 'FuturesBinance-Bot',
         apiUrl: normalizeApiUrl(apiUrl),
         username: username.trim(),
         password: password.trim(),
       });
 
       if (!res.success) {
-        setErrorMsg(res.error || lastError || '无法连接到该端点，请检查 API 基础地址和账号密码');
+        setErrorMsg(res.error || lastError || 'Unable to connect to endpoint. Check the API address and credentials');
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || '连接异常，请重试');
+      setErrorMsg(err?.message || 'Connection error. Try again');
     } finally {
       setLoading(false);
     }
@@ -39,13 +55,13 @@ export function LoginGateView() {
 
   return (
     <div
-      className={`min-h-screen w-screen flex flex-col justify-between transition-colors ${
+      className={`min-h-screen w-full flex flex-col justify-between transition-colors pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] ${
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-50 text-slate-800'
       }`}
     >
       {/* Top Bar with Brand & Theme Switcher */}
       <header
-        className={`px-6 py-4 flex items-center justify-between border-b transition-colors ${
+        className={`px-4 sm:px-6 py-3.5 flex items-center justify-between border-b transition-colors ${
           isDark ? 'border-slate-800 bg-[#0f1626]/90' : 'border-slate-200 bg-white/80'
         } backdrop-blur-sm`}
       >
@@ -61,7 +77,7 @@ export function LoginGateView() {
               </span>
             </div>
             <div className="text-[11px] text-slate-500">
-              Freqtrade 量化策略监控与多窗口交易工作区
+              Freqtrade strategy monitor and multi-window trading workspace
             </div>
           </div>
         </div>
@@ -73,10 +89,10 @@ export function LoginGateView() {
               ? 'border-slate-700 bg-[#1a233a] text-amber-400 hover:bg-[#222e4c]'
               : 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200'
           }`}
-          title="切换白天 / 暗黑主题"
+          title={isDark ? t('login.theme_light') : t('login.theme_dark')}
         >
           {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          <span className="hidden sm:inline font-mono">{isDark ? '白天模式' : '暗黑模式'}</span>
+          <span className="hidden sm:inline font-mono">{isDark ? t('login.theme_light') : t('login.theme_dark')}</span>
         </button>
       </header>
 
@@ -91,9 +107,9 @@ export function LoginGateView() {
             <div className="inline-flex p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 mb-3">
               <Server className="w-6 h-6" />
             </div>
-            <h1 className="text-lg font-bold tracking-tight">接入首个 Freqtrade 机器人</h1>
+            <h1 className="text-lg font-bold tracking-tight">Connect your Freqtrade bot</h1>
             <p className="text-xs text-slate-500 mt-1">
-              连接运行在云服务器或本地的 Freqtrade 机器人节点（100% 真实 REST API 直连）
+              Connect to your live Freqtrade bot through its REST API
             </p>
           </div>
 
@@ -107,41 +123,63 @@ export function LoginGateView() {
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                机器人备注名称
+                Bot Display Name
               </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="例如: 实盘策略机器人 #1"
-                className={`w-full border rounded-xl px-3.5 py-2.5 font-medium focus:outline-none focus:border-emerald-500 transition-colors ${
+              <select
+                value={selectedPreset}
+                onChange={(e) => handlePresetChange(e.target.value)}
+                className={`w-full border rounded-xl px-3.5 py-2.5 font-medium focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer ${
                   isDark
-                    ? 'bg-[#1a233a] border-slate-700 text-slate-100 placeholder:text-slate-500'
-                    : 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400'
+                    ? 'bg-[#1a233a] border-slate-700 text-slate-100'
+                    : 'bg-slate-50 border-slate-300 text-slate-900'
                 }`}
-                required
-              />
+              >
+                {PRESET_BOTS.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.name} {preset.apiUrl ? `(${preset.apiUrl})` : ''}
+                  </option>
+                ))}
+              </select>
+
+              {selectedPreset === 'custom' && (
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Example: Custom bot #1"
+                  className={`mt-2 w-full border rounded-xl px-3.5 py-2.5 font-medium focus:outline-none focus:border-emerald-500 transition-colors ${
+                    isDark
+                      ? 'bg-[#1a233a] border-slate-700 text-slate-100 placeholder:text-slate-500'
+                      : 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400'
+                  }`}
+                  required
+                />
+              )}
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                  Freqtrade 服务地址 (Base URL)
+                  Freqtrade service address (Base URL)
                 </label>
                 <div className="flex gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setApiUrl('http://127.0.0.1:8080')}
-                    className="px-2 py-0.5 bg-slate-500/10 hover:bg-slate-500/20 border border-slate-500/30 text-slate-600 dark:text-slate-400 rounded text-[10px] font-mono transition-colors cursor-pointer"
+                    onClick={() => {
+                      setSelectedPreset('futures');
+                      setName('FuturesBinance-Bot');
+                      setApiUrl('/ft-api');
+                    }}
+                    className="px-2 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded text-[10px] font-mono transition-colors cursor-pointer"
                   >
-                    默认本地 (8080)
+                    /ft-api (Futures default)
                   </button>
                   <button
                     type="button"
                     onClick={() => setApiUrl('')}
                     className="px-2 py-0.5 bg-slate-500/10 hover:bg-slate-500/20 border border-slate-500/30 text-slate-500 rounded text-[10px] font-mono transition-colors cursor-pointer"
                   >
-                    清空
+                    Clear
                   </button>
                 </div>
               </div>
@@ -149,7 +187,7 @@ export function LoginGateView() {
                 type="text"
                 value={apiUrl}
                 onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="http://127.0.0.1:8080 或 http://服务器IP:端口"
+                placeholder="/ft-api"
                 className={`w-full border rounded-xl px-3.5 py-2.5 font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
                   isDark
                     ? 'bg-[#1a233a] border-slate-700 text-slate-100 placeholder:text-slate-500'
@@ -158,20 +196,20 @@ export function LoginGateView() {
                 required
               />
               <p className="text-[10px] text-slate-500 mt-1">
-                支持填写任意远程或本地服务地址，系统已内置通用动态代理，彻底免除跨域 (CORS) 限制。
+                Default endpoint is <code className="font-mono text-emerald-500">/ft-api</code> routed securely to Binance Futures Bot.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                  API 用户名 (Username)
+                  API username (Username)
                 </label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="例如: freqtrade"
+                  placeholder="Example: freqtrade"
                   className={`w-full border rounded-xl px-3.5 py-2.5 font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
                     isDark
                       ? 'bg-[#1a233a] border-slate-700 text-slate-100'
@@ -183,7 +221,7 @@ export function LoginGateView() {
 
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                  API 密码 (Password)
+                  API password (Password)
                 </label>
                 <input
                   type="password"
@@ -203,18 +241,18 @@ export function LoginGateView() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full mt-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer disabled:opacity-60"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>正在验证并连接 Freqtrade 端点...</span>
+                  <span>Connecting to Freqtrade endpoint...</span>
                 </>
               ) : (
                 <>
                   <ShieldCheck className="w-4 h-4" />
-                  <span>测试连接并登录进入看板</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <span>Verify connection and open dashboard</span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
                 </>
               )}
             </button>
@@ -222,9 +260,9 @@ export function LoginGateView() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="p-4 text-center text-xs text-slate-500">
-        FreqUI · 100% 真实交易数据直连
+      {/* Bottom Footer Info */}
+      <footer className="py-4 text-center text-[11px] text-slate-500">
+        <span>Protected trading terminal · Direct API connection</span>
       </footer>
     </div>
   );

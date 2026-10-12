@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useBot } from '../context/BotContext';
-import { Terminal, Filter, RefreshCw } from 'lucide-react';
+import { Terminal, Filter, RefreshCw, ArrowDown } from 'lucide-react';
 import { formatUtc8 } from '../utils/dateUtils';
+import { useT } from '../i18n/LocaleContext';
 
 export function BotLogsView() {
   const { logs, refreshData, theme } = useBot();
+  const t = useT();
   const [filterLevel, setFilterLevel] = useState<string>('ALL');
+  const [autoScroll, setAutoScroll] = useState<boolean>(true);
   const isDark = theme === 'dark';
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -15,10 +18,10 @@ export function BotLogsView() {
   });
 
   useEffect(() => {
-    if (scrollRef.current) {
+    if (autoScroll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [filteredLogs]);
+  }, [filteredLogs, autoScroll]);
 
   return (
     <div
@@ -34,16 +37,41 @@ export function BotLogsView() {
       >
         <div className="flex items-center gap-1.5 text-slate-500">
           <Terminal className="w-3.5 h-3.5 text-cyan-500" />
-          <span className="font-semibold">Bot Tail Logs ({logs.length} 条)</span>
+          <span className="font-semibold">{t('logs.tail_logs').replace('{count}', String(logs.length))}</span>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Auto-scroll toggle */}
+          <button
+            type="button"
+            onClick={() => {
+              const next = !autoScroll;
+              setAutoScroll(next);
+              if (next && scrollRef.current) {
+                scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+              }
+            }}
+            className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-sans transition-colors cursor-pointer border ${
+              autoScroll
+                ? isDark
+                  ? 'bg-cyan-950/60 border-cyan-700/80 text-cyan-300'
+                  : 'bg-cyan-50 border-cyan-300 text-cyan-700 font-medium'
+                : isDark
+                ? 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-300'
+                : 'bg-slate-100 border-slate-300 text-slate-500 hover:text-slate-700'
+            }`}
+            title={t('logs.autoscroll_title')}
+          >
+            <ArrowDown className={`w-3 h-3 ${autoScroll ? 'text-cyan-400' : 'text-slate-400 opacity-60'}`} />
+            <span>{autoScroll ? t('logs.autoscroll_on') : t('logs.autoscroll_off')}</span>
+          </button>
+
           <button
             onClick={() => refreshData()}
             className={`p-1 rounded transition-colors cursor-pointer ${
               isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-slate-200' : 'hover:bg-slate-200 text-slate-600'
             }`}
-            title="刷新日志"
+            title={t('logs.refresh')}
           >
             <RefreshCw className="w-3 h-3" />
           </button>
@@ -57,10 +85,10 @@ export function BotLogsView() {
                 isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-300 text-slate-700'
               }`}
             >
-              <option value="ALL">全部级别</option>
-              <option value="INFO">仅 INFO</option>
-              <option value="WARNING">仅 WARNING</option>
-              <option value="ERROR">仅 ERROR</option>
+              <option value="ALL">{t('logs.all_levels')}</option>
+              <option value="INFO">{t('logs.info_only')}</option>
+              <option value="WARNING">{t('logs.warning_only')}</option>
+              <option value="ERROR">{t('logs.error_only')}</option>
             </select>
           </div>
         </div>
@@ -69,7 +97,7 @@ export function BotLogsView() {
       {/* Log list */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-2.5 space-y-1 select-text">
         {filteredLogs.length === 0 ? (
-          <div className="text-center text-xs text-slate-400 py-10">暂无日志流或等待刷新中...</div>
+          <div className="text-center text-xs text-slate-400 py-10">{t('logs.empty')}</div>
         ) : (
           filteredLogs.map((log) => {
             const levelColor =

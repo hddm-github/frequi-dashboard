@@ -2,19 +2,21 @@ import { useBot } from '../context/BotContext';
 import { isNfiStrategy } from '../utils/nfiSignals';
 import { Flame, Trophy, BookOpen, Layers } from 'lucide-react';
 import { SignalBadge } from '../components/SignalBadge';
+import { useT } from '../i18n/LocaleContext';
 
 const SIGNAL_CATEGORIES = [
-  { range: '1 ~ 13', name: '趋势波段多头', desc: '大级别均线顺势做多，稳定捕捉趋势波段', color: 'border-emerald-300 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/15' },
-  { range: '21 ~ 26', name: '放量拉升追多', desc: '成交量异动放大、动量爆发追强', color: 'border-cyan-300 dark:border-cyan-500/40 text-cyan-800 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-500/15' },
-  { range: '41 ~ 53', name: '超跌快速反弹', desc: '极端下挫超卖形态快速抢超短反弹', color: 'border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/15' },
-  { range: '61 ~ 68', name: '回调低吸加仓', desc: '稳健支撑均线回踩企稳低吸做多', color: 'border-blue-300 dark:border-blue-500/40 text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/15' },
-  { range: '141 ~ 145', name: '头部主流大币', desc: 'BTC / ETH 等主流高市值币种专属多头体系', color: 'border-purple-300 dark:border-purple-500/40 text-purple-800 dark:text-purple-300 bg-purple-50 dark:bg-purple-500/15' },
-  { range: '161 ~ 173', name: '高频超短头皮', desc: '微观结构快速进出剥头皮套利', color: 'border-pink-300 dark:border-pink-500/40 text-pink-800 dark:text-pink-300 bg-pink-50 dark:bg-pink-500/15' },
-  { range: '500+', name: '做空信号体系', desc: '高位滞涨顶背离与反转做空体系', color: 'border-rose-300 dark:border-rose-500/40 text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/15' },
+  { range: '1 ~ 13', name: 'signals.trend_swing', desc: 'signals.trend_swing_desc', color: 'border-emerald-300 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10' },
+  { range: '21 ~ 26', name: 'signals.volume_breakout', desc: 'signals.volume_breakout_desc', color: 'border-cyan-300 dark:border-cyan-500/40 text-cyan-800 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-500/10' },
+  { range: '41 ~ 53', name: 'signals.oversold_rebound', desc: 'signals.oversold_rebound_desc', color: 'border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10' },
+  { range: '61 ~ 68', name: 'signals.pullback', desc: 'signals.pullback_desc', color: 'border-blue-300 dark:border-blue-500/40 text-blue-800 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10' },
+  { range: '141 ~ 145', name: 'signals.large_cap', desc: 'signals.large_cap_desc', color: 'border-purple-300 dark:border-purple-500/40 text-purple-800 dark:text-purple-400 bg-purple-50 dark:bg-purple-500/10' },
+  { range: '161 ~ 173', name: 'signals.scalping', desc: 'signals.scalping_desc', color: 'border-pink-300 dark:border-pink-500/40 text-pink-800 dark:text-pink-400 bg-pink-50 dark:bg-pink-500/10' },
+  { range: '500+', name: 'signals.short_system', desc: 'signals.short_system_desc', color: 'border-rose-300 dark:border-rose-500/40 text-rose-800 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10' },
 ];
 
 export function SignalsView() {
   const { signals, botState, theme } = useBot();
+  const t = useT();
   const isDark = theme === 'dark';
   const isNfi = isNfiStrategy(botState.strategy);
 
@@ -33,7 +35,7 @@ export function SignalsView() {
         >
           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 mb-2.5">
             <BookOpen className="w-4 h-4 text-emerald-500" />
-            <span>📖 NFI 策略入场信号分类速查手册 ({botState.strategy})</span>
+            <span>📖 {t('signals.reference')} ({botState.strategy})</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 text-xs">
             {SIGNAL_CATEGORIES.map((cat) => (
@@ -42,12 +44,12 @@ export function SignalsView() {
                 className={`p-2.5 rounded-lg border flex flex-col justify-between ${cat.color}`}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold">{cat.name}</span>
+                  <span className="font-bold">{t(cat.name)}</span>
                   <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-black/10 dark:bg-white/10 font-semibold">
                     {cat.range}
                   </span>
                 </div>
-                <span className="text-[10px] opacity-80 leading-relaxed font-sans">{cat.desc}</span>
+                <span className="text-[10px] opacity-80 leading-relaxed font-sans">{t(cat.desc)}</span>
               </div>
             ))}
           </div>
@@ -62,13 +64,13 @@ export function SignalsView() {
             <Layers className="w-4 h-4 text-emerald-500 shrink-0" />
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-xs">当前策略: {botState.strategy || '通用策略'}</span>
+                <span className="font-bold text-xs">{t('signals.current_strategy')}: {botState.strategy || t('signals.generic_strategy')}</span>
                 <span className="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-mono">
-                  通用策略模式
+                  {t('signals.generic_mode')}
                 </span>
               </div>
               <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
-                自动根据当前策略的真实入场标签 (enter_tag) 汇总各信号的交易胜率与累计收益贡献
+                {t('signals.summary')}
               </span>
             </div>
           </div>
@@ -79,9 +81,9 @@ export function SignalsView() {
       <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
         <span className="flex items-center gap-1.5 font-bold uppercase tracking-wide">
           <Trophy className="w-4 h-4 text-amber-500" />
-          {isNfi ? 'NFI 策略信号历史收益排行榜' : '策略信号历史收益排行榜'}
+          {isNfi ? t('signals.historical_nfi') : t('signals.historical')}
         </span>
-        <span className="text-[11px]">按真实信号累计产出收益排序</span>
+        <span className="text-[11px]">{t('signals.ranked_profit')}</span>
       </div>
 
       {signals.length === 0 ? (
@@ -91,9 +93,9 @@ export function SignalsView() {
           }`}
         >
           <Trophy className="w-8 h-8 text-slate-400 mb-2 opacity-40" />
-          <p>暂无策略信号统计数据</p>
+          <p>{t('signals.no_stats')}</p>
           <span className="text-[11px] text-slate-400 mt-1">
-            等待机器人产生真实平仓历史后自动汇总各信号表现
+            {t('signals.stats_hint')}
           </span>
         </div>
       ) : (
@@ -137,7 +139,7 @@ export function SignalsView() {
                       {sig.total_profit_pct >= 0 ? '+' : ''}
                       {sig.total_profit_pct.toFixed(1)}%
                     </span>
-                    <span className="text-[10px] text-slate-500 ml-1">累计贡献</span>
+                    <span className="text-[10px] text-slate-500 ml-1">{t('signals.cumulative')}</span>
                   </div>
                 </div>
 
@@ -155,17 +157,17 @@ export function SignalsView() {
 
                 <div className="grid grid-cols-4 text-[11px] text-slate-500 font-mono">
                   <div>
-                    胜率: <span className="font-bold text-slate-800 dark:text-slate-200">{winRatePct}%</span>
+                    {t('signals.win_rate')}: <span className="font-bold text-slate-800 dark:text-slate-200">{winRatePct}%</span>
                   </div>
                   <div>
-                    胜/负: <span className="text-emerald-600 dark:text-emerald-400">{sig.win_trades}</span> /{' '}
+                    {t('signals.wins_losses')}: <span className="text-emerald-600 dark:text-emerald-400">{sig.win_trades}</span> /{' '}
                     <span className="text-rose-600 dark:text-rose-400">{sig.loss_trades}</span>
                   </div>
                   <div>
-                    总单数: <span className="text-slate-800 dark:text-slate-200">{sig.total_trades}</span>
+                    {t('signals.total_trades')}: <span className="text-slate-800 dark:text-slate-200">{sig.total_trades}</span>
                   </div>
                   <div className="text-right">
-                    单均:{' '}
+                    {t('signals.per_trade')}:{' '}
                     <span className="text-emerald-600 dark:text-emerald-400">
                       {sig.avg_profit_pct >= 0 ? '+' : ''}
                       {sig.avg_profit_pct}%

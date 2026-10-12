@@ -48,6 +48,8 @@ interface BotContextValue {
   setCustomRate: (unit: CurrencyUnit, rate: number) => void;
   fetchLiveRates: () => Promise<void>;
   formatCurrency: (val: number, options?: { showSign?: boolean; decimals?: number }) => string;
+  hideBalances: boolean;
+  toggleHideBalances: () => void;
   initialCapital: number;
   setInitialCapital: (val: number) => void;
   isManualCapital: boolean;
@@ -285,6 +287,41 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
   return { profiles: [], activeId: null };
 }
 
+function loadBotSnapshot(botId: string | null): {
+  botState?: BotState;
+  activeTrades?: Trade[];
+  profitSummary?: ProfitSummary;
+  closedTrades?: Trade[];
+} | null {
+  if (!botId) return null;
+  try {
+    const raw = localStorage.getItem(`frequi_snapshot_${botId}`);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return null;
+}
+
+function saveBotSnapshot(
+  botId: string | null,
+  data: {
+    botState?: BotState;
+    activeTrades?: Trade[];
+    profitSummary?: ProfitSummary | null;
+    closedTrades?: Trade[];
+  }
+) {
+  if (!botId) return;
+  try {
+    const existing = loadBotSnapshot(botId) || {};
+    const updated = {
+      ...existing,
+      ...data,
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(`frequi_snapshot_${botId}`, JSON.stringify(updated));
+  } catch {}
+}
+
 export function BotProvider({ children }: { children: ReactNode }) {
   // Theme state: 默认白天模式 (Light mode)
   const [theme, setThemeState] = useState<'dark' | 'light'>(() => {
@@ -444,8 +481,21 @@ export function BotProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const [hideBalances, setHideBalances] = useState<boolean>(() => {
+    try { return localStorage.getItem('frequi_hide_balances') === 'true'; } catch { return false; }
+  });
+
+  const toggleHideBalances = useCallback(() => {
+    setHideBalances((current) => {
+      const next = !current;
+      localStorage.setItem('frequi_hide_balances', String(next));
+      return next;
+    });
+  }, []);
+
   // Universal Dynamic Currency Formatter
   const formatCurrency = useCallback((val: number, options?: { showSign?: boolean; decimals?: number }): string => {
+    if (hideBalances) return '••••••';
     const decimals = options?.decimals ?? 2;
     let rate = 1;
     let symbol = 'USDT';
@@ -474,13 +524,16 @@ export function BotProvider({ children }: { children: ReactNode }) {
       return `${sign}${formattedNum} USDT`;
     }
     return `${sign}${symbol}${formattedNum}`;
-  }, [currencyUnit, exchangeRates]);
+  }, [currencyUnit, exchangeRates, hideBalances]);
 
-  // Operational state
-  const [botState, setBotState] = useState<BotState>(EMPTY_BOT_STATE);
-  const [activeTrades, setActiveTrades] = useState<Trade[]>([]);
-  const [closedTrades, setClosedTrades] = useState<Trade[]>([]);
-  const [profitSummary, setProfitSummary] = useState<ProfitSummary | null>(null);
+  // ── SWR Snapshot: instant hydrate from cached data ──
+  const snapshot = useMemo(() => loadBotSnapshot(initialData.activeId), []);
+
+  // Operational state — pre-filled from snapshot for instant first paint
+  const [botState, setBotState] = useState<BotState>(() => snapshot?.botState || EMPTY_BOT_STATE);
+  const [activeTrades, setActiveTrades] = useState<Trade[]>(() => snapshot?.activeTrades || []);
+  const [closedTrades, setClosedTrades] = useState<Trade[]>(() => snapshot?.closedTrades || []);
+  const [profitSummary, setProfitSummary] = useState<ProfitSummary | null>(() => snapshot?.profitSummary || null);
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
   const [signals, setSignals] = useState<SignalStat[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -591,11 +644,11 @@ export function BotProvider({ children }: { children: ReactNode }) {
     setRefreshCountdown(6);
 
     try {
-      // ── Tier 1: 核心轻量数据（串行微步执行，单次只占用 1 个连接）──
-      const state = await targetClient.getBotState();
-      if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
-
-      const active = await targetClient.getActiveTrades();
+      // ── Tier 1: 核心数据并行获取，first paint 不等待历史统计 ──
+      const [state, active] = await Promise.all([
+        targetClient.getBotState(),
+        targetClient.getActiveTrades(),
+      ]);
       if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
 
       setBotState(state);
@@ -613,7 +666,10 @@ export function BotProvider({ children }: { children: ReactNode }) {
       setIsConnected(true);
       setLastError(null);
 
-      // ── Tier 2 & 3: 统计与历史数据（按需、低频、或持仓变动时立即触发）──
+      // ── SWR: persist snapshot for instant next-load ──
+      saveBotSnapshot(activeBotIdRef.current, { botState: state, activeTrades: active });
+
+      // ── Tier 2 & 3: 历史数据在核心 UI 已可用后后台同步 ──
       const now = Date.now();
       const timeSinceLastSecondary = now - lastSecondaryFetchTimeRef.current;
       const currentTradeIds = active.map((t) => t.trade_id).sort().join(',');
@@ -622,7 +678,6 @@ export function BotProvider({ children }: { children: ReactNode }) {
       prevActiveTradeCountRef.current = active.length;
       prevActiveTradeIdsRef.current = currentTradeIds;
 
-      // 首次加载、手动强制刷新、平仓历史仍为空(尚未同步成功)、平仓/开仓(数量或ID变动)、或距上次拉取超过 30 秒且页面可见时触发
       const shouldFetchSecondary =
         forceAll ||
         lastSecondaryFetchTimeRef.current === 0 ||
@@ -633,13 +688,13 @@ export function BotProvider({ children }: { children: ReactNode }) {
 
       if (shouldFetchSecondary) {
         lastSecondaryFetchTimeRef.current = now;
+        const fetchTier3 = forceAll || timeSinceLastSecondary > 60000 || timeSinceLastSecondary === 0;
 
-        // 串行执行重度数据库查询，让 SQLite / SQLAlchemy 连接池有充裕时间释放
+        // Core state is committed above first. Keep heavy DB queries serial to protect SQLite.
         const summary = await targetClient.getProfitSummary().catch(() => null);
         if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
         if (summary) setProfitSummary(summary);
 
-        // 获取最新 100 笔已平仓订单 (order_by_id: false 保证最新成交优先排在最前)
         const closed = await targetClient.getClosedTrades(100, false).catch(() => null);
         if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
         if (closed) {
@@ -647,14 +702,15 @@ export function BotProvider({ children }: { children: ReactNode }) {
           closedTradesRef.current = closed;
         }
 
-        // 获取近 30 日每日表现，覆盖跨月统计
         const daily = await targetClient.getDailyPerformance(30).catch(() => null);
         if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
         if (daily) setDailyRecords(daily);
 
-        // Tier 3: 日志与信号统计
-        if (forceAll || timeSinceLastSecondary > 60000 || lastSecondaryFetchTimeRef.current === now) {
-          const sigs = await targetClient.getSignalStats().catch(() => null);
+        // SWR: include secondary data in snapshot
+        saveBotSnapshot(activeBotIdRef.current, { profitSummary: summary, closedTrades: closed || undefined });
+
+        if (fetchTier3) {
+          const sigs = await targetClient.getSignalStats(closed || undefined).catch(() => null);
           if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
           if (sigs) setSignals(sigs);
 
@@ -939,6 +995,8 @@ export function BotProvider({ children }: { children: ReactNode }) {
         setCustomRate,
         fetchLiveRates,
         formatCurrency,
+        hideBalances,
+        toggleHideBalances,
         initialCapital,
         setInitialCapital,
         isManualCapital,

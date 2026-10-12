@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { useBot } from '../context/BotContext';
 import { X, Server, AlertCircle, ShieldCheck, Loader2 } from 'lucide-react';
 import { normalizeApiUrl } from '../api/client';
+import { PRESET_BOTS } from '../config/botPresets';
+import { useT } from '../i18n/LocaleContext';
 
 interface ConnectModalProps {
   isOpen: boolean;
@@ -10,14 +12,28 @@ interface ConnectModalProps {
 
 export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
   const { addProfile, theme } = useBot();
-  const [name, setName] = useState('');
-  const [apiUrl, setApiUrl] = useState('http://127.0.0.1:8080');
+  const t = useT();
+  const [selectedPreset, setSelectedPreset] = useState('futures');
+  const [name, setName] = useState('FuturesBinance-Bot');
+  const [apiUrl, setApiUrl] = useState('/ft-api');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const handlePresetChange = (presetId: string) => {
+    setSelectedPreset(presetId);
+    const preset = PRESET_BOTS.find((p) => p.id === presetId);
+    if (preset && preset.id !== 'custom') {
+      setName(preset.name);
+      setApiUrl(preset.apiUrl);
+    } else if (presetId === 'custom') {
+      setName('');
+      setApiUrl('');
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -26,7 +42,7 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
 
     try {
       const res = await addProfile({
-        name: name.trim() || 'Freqtrade 机器人',
+        name: name.trim() || 'FuturesBinance-Bot',
         apiUrl: normalizeApiUrl(apiUrl),
         username: username.trim(),
         password: password.trim(),
@@ -35,10 +51,10 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
       if (res.success) {
         onClose();
       } else {
-        setError(res.error || '连接失败，请检查地址与密码');
+        setError(res.error || 'Connection failed. Check the address and password.');
       }
     } catch (err: any) {
-      setError(err?.message || '连接异常');
+      setError(err?.message || 'Connection error');
     } finally {
       setLoading(false);
     }
@@ -60,7 +76,7 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
         >
           <div className="flex items-center gap-2">
             <Server className="w-5 h-5 text-emerald-500" />
-            <h2 className="text-sm font-bold">接入新 Freqtrade 机器人</h2>
+            <h2 className="text-sm font-bold">{t('connect.title')}</h2>
           </div>
           <button
             onClick={onClose}
@@ -82,39 +98,59 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
 
           <div>
             <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
-              机器人备注名称
+              {t('connect.bot_name')}
             </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="例如: 备用策略节点 #2"
-              className={`w-full border rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-emerald-500 transition-colors ${
+            <select
+              value={selectedPreset}
+              onChange={(e) => handlePresetChange(e.target.value)}
+              className={`w-full border rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer ${
                 isDark ? 'bg-[#1a233a] border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
               }`}
-              required
-            />
+            >
+              {PRESET_BOTS.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.name} {preset.apiUrl ? `(${preset.apiUrl})` : ''}
+                </option>
+              ))}
+            </select>
+
+            {selectedPreset === 'custom' && (
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t('login.custom_name')}
+                className={`mt-2 w-full border rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-emerald-500 transition-colors ${
+                  isDark ? 'bg-[#1a233a] border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
+                }`}
+                required
+              />
+            )}
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                API 地址 (Base URL)
+                {t('connect.api_address')}
               </label>
               <div className="flex gap-1">
                 <button
                   type="button"
-                  onClick={() => setApiUrl('http://127.0.0.1:8080')}
-                  className="px-1.5 py-0.2 bg-slate-500/10 text-slate-500 border border-slate-500/30 rounded text-[9px] font-mono cursor-pointer"
+                  onClick={() => {
+                    setSelectedPreset('futures');
+                    setName('FuturesBinance-Bot');
+                    setApiUrl('/ft-api');
+                  }}
+                  className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded text-[9px] font-mono cursor-pointer"
                 >
-                  默认本地(8080)
+                  {t('connect.futures_default')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setApiUrl('')}
-                  className="px-1.5 py-0.2 bg-slate-500/10 text-slate-500 border border-slate-500/30 rounded text-[9px] font-mono cursor-pointer"
+                  className="px-1.5 py-0.5 bg-slate-500/10 text-slate-500 border border-slate-500/30 rounded text-[9px] font-mono cursor-pointer"
                 >
-                  清空
+                  {t('connect.clear')}
                 </button>
               </div>
             </div>
@@ -122,7 +158,7 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
               type="text"
               value={apiUrl}
               onChange={(e) => setApiUrl(e.target.value)}
-              placeholder="http://127.0.0.1:8080 或 http://服务器IP:端口"
+              placeholder="/ft-api"
               className={`w-full border rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
                 isDark ? 'bg-[#1a233a] border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
               }`}
@@ -133,13 +169,13 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                API 用户名
+                {t('connect.api_username')}
               </label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="例如: freqtrade"
+                placeholder="Example: freqtrade"
                 className={`w-full border rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
                   isDark ? 'bg-[#1a233a] border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
                 }`}
@@ -148,7 +184,7 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
             </div>
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                API 密码
+                {t('connect.api_password')}
               </label>
               <input
                 type="password"
@@ -171,7 +207,7 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
                 isDark ? 'border-slate-700 hover:bg-slate-800' : 'border-slate-300 hover:bg-slate-100'
               }`}
             >
-              取消
+              {t('connect.cancel')}
             </button>
             <button
               type="submit"
@@ -179,7 +215,7 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
               className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer disabled:opacity-60"
             >
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-              <span>验证并接入</span>
+              <span>{t('connect.verify')}</span>
             </button>
           </div>
         </form>

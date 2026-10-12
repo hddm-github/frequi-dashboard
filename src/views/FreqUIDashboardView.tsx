@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useBot } from '../context/BotContext';
 import {
   DollarSign,
@@ -15,6 +15,8 @@ import {
   Coins,
   ExternalLink,
   RefreshCw,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { SignalBadge } from '../components/SignalBadge';
 import { buildEncryptedShareUrl } from '../utils/shareCrypto';
@@ -22,6 +24,7 @@ import { copyToClipboard } from '../utils/clipboard';
 import { formatUtc8 } from '../utils/dateUtils';
 
 import { useOptionalWorkspace } from '@danfessler/trellis-react';
+import { useT } from '../i18n/LocaleContext';
 
 export function FreqUIDashboardView() {
   const {
@@ -40,18 +43,21 @@ export function FreqUIDashboardView() {
     setCustomRate,
     fetchLiveRates,
     formatCurrency,
+    hideBalances,
+    toggleHideBalances,
     isReadOnly,
     refreshData,
     setMobileTab,
   } = useBot();
 
   const ws = useOptionalWorkspace();
+  const t = useT();
   const [copiedShare, setCopiedShare] = useState(false);
   const [isLogScale, setIsLogScale] = useState(true);
 
   const handleCopyShareLink = async () => {
     if (!activeProfile?.apiUrl) {
-      alert('当前未连接任何机器人，无法生成分享链接');
+      alert('No bot connected. Cannot create a share link');
       return;
     }
 
@@ -126,16 +132,9 @@ export function FreqUIDashboardView() {
     }
   };
 
-  // 进来之后如果暂无平仓历史记录，自动请求一次全量手动同步接口
-  useEffect(() => {
-    if (closedTrades.length === 0) {
-      handleRefreshHistory();
-    }
-  }, []);
-
   return (
     <div
-      className={`h-full w-full flex flex-col p-2.5 sm:p-4 pb-6 sm:pb-8 gap-2.5 sm:gap-3 select-text transition-colors overflow-y-auto overflow-x-hidden [touch-action:pan-y] [-webkit-overflow-scrolling:touch] ${
+      className={`h-full w-full flex flex-col p-2.5 sm:p-4 pb-16 sm:pb-8 gap-2.5 sm:gap-3 select-text transition-colors overflow-y-auto overflow-x-hidden [touch-action:pan-y] [-webkit-overflow-scrolling:touch] ${
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-100/70 text-slate-800'
       }`}
     >
@@ -147,14 +146,14 @@ export function FreqUIDashboardView() {
           }`}
         >
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-0.5 gap-1">
-            <span className="font-medium truncate">已结收益 (Profit)</span>
+            <span className="font-medium truncate">{t('dashboard.realized_profit')}</span>
             <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
           </div>
           <div className="text-lg sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight whitespace-nowrap truncate">
             {formatCurrency(profitSummary?.profit_closed_coin || 0, { showSign: true })}
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 flex items-center gap-1 font-mono whitespace-nowrap truncate">
-            <span>收益率:</span>
+            <span>{t('dashboard.return')}:</span>
             <span className="text-emerald-600 dark:text-emerald-400 font-bold">
               +{((profitSummary?.profit_closed_ratio || 0) * 100).toFixed(2)}%
             </span>
@@ -167,14 +166,14 @@ export function FreqUIDashboardView() {
           }`}
         >
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-0.5 gap-1">
-            <span className="font-medium truncate">胜率 (Win Rate)</span>
+            <span className="font-medium truncate">{t('dashboard.win_rate')}</span>
             <Award className="w-3.5 h-3.5 text-blue-500 shrink-0" />
           </div>
           <div className="text-lg sm:text-2xl font-bold font-mono text-blue-600 dark:text-blue-400 tracking-tight whitespace-nowrap truncate">
             {winRate}%
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 font-mono whitespace-nowrap truncate">
-            已结: <span className="font-bold text-slate-700 dark:text-slate-200">{closedCount}</span> (
+            Closed: <span className="font-bold text-slate-700 dark:text-slate-200">{closedCount}</span> (
             <span className="text-emerald-600 dark:text-emerald-400 font-medium">
               {profitSummary?.winning_trades || 0}
             </span>/
@@ -190,7 +189,7 @@ export function FreqUIDashboardView() {
           }`}
         >
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-0.5 gap-1">
-            <span className="font-medium truncate">浮动盈亏 (PnL)</span>
+            <span className="font-medium truncate">{t('dashboard.unrealized')}</span>
             <Activity className="w-3.5 h-3.5 text-amber-500 shrink-0" />
           </div>
           <div
@@ -204,14 +203,14 @@ export function FreqUIDashboardView() {
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 flex items-center justify-between gap-1 whitespace-nowrap truncate">
             <span>
-              仓位:{' '}
+              Position:{' '}
               <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
                 {activeTrades.length}
               </span>{' '}
               / {botState.max_open_trades}
             </span>
             <span className="text-[10px] sm:text-[11px] text-cyan-600 dark:text-cyan-400 font-mono font-medium">
-              已用: {formatCurrency(totalStake)}
+              {t('dashboard.used')}: {formatCurrency(totalStake)}
             </span>
           </div>
         </div>
@@ -222,23 +221,34 @@ export function FreqUIDashboardView() {
           }`}
         >
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-0.5 gap-1">
-            <span className="font-medium truncate">账户总额 (Balance)</span>
-            <Layers className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+            <span className="font-medium truncate">{t('dashboard.balance')}</span>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={toggleHideBalances}
+                className="p-1 rounded-md text-slate-400 hover:text-purple-500 hover:bg-purple-500/10 transition-colors cursor-pointer"
+                title={hideBalances ? t('ui.show_balances') : t('ui.hide_balances')}
+                aria-label={hideBalances ? t('ui.show_balances') : t('ui.hide_balances')}
+              >
+                {hideBalances ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+              <Layers className="w-3.5 h-3.5 text-purple-500" />
+            </div>
           </div>
           <div className="text-lg sm:text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight whitespace-nowrap truncate">
             {formatCurrency(botState.balance)}
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 font-mono whitespace-nowrap truncate">
-            可用:{' '}
+            {t('dashboard.available')}:{' '}
             <span className="text-slate-700 dark:text-slate-200 font-semibold">
               {formatCurrency(botState.free_balance ?? botState.balance)}
             </span>{' '}
-            · 单仓: {botState.stake_amount === 'unlimited' ? '均仓' : formatCurrency(Number(botState.stake_amount) || 0)}
+            · {t('dashboard.per_trade')}: {botState.stake_amount === 'unlimited' ? t('dashboard.per_trade') : formatCurrency(Number(botState.stake_amount) || 0)}
           </div>
         </div>
       </div>
 
-        {/* 2. FreqUI Active Trades Table (Main prominent section - 必须全部展示) */}
+        {/* 2. FreqUI Active Trades Table (Main prominent section - show all fields) */}
         <div
           className={`shrink-0 rounded-xl overflow-hidden shadow-sm border transition-colors ${
             isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
@@ -252,18 +262,18 @@ export function FreqUIDashboardView() {
           <div className="flex items-center gap-2">
             <Activity className="w-3.5 h-3.5 text-emerald-500" />
             <span className="text-xs font-bold uppercase tracking-wide">
-              当前持仓交易 ({activeTrades.length} 笔)
+              {t('dashboard.active_trades')} ({activeTrades.length} {t('dashboard.trades_count')})
             </span>
           </div>
           <span className="text-xs text-slate-500 font-mono">
-            策略: <span className="text-cyan-600 dark:text-cyan-400 font-bold">{botState.strategy}</span>{' '}
+            Strategy: <span className="text-cyan-600 dark:text-cyan-400 font-bold">{botState.strategy}</span>{' '}
             [{botState.timeframe}]
           </span>
         </div>
 
         {activeTrades.length === 0 ? (
           <div className="p-5 text-center text-xs text-slate-500 font-mono">
-            当前无持仓中交易 · 正在等待策略信号买入...
+            No active trades · waiting for strategy entry signal...
           </div>
         ) : (
           <div className="overflow-x-auto w-full">
@@ -276,13 +286,13 @@ export function FreqUIDashboardView() {
                       : 'border-slate-200 text-slate-500 bg-slate-50/60'
                   }`}
                 >
-                  <th className="py-2 px-3 whitespace-nowrap">交易对 / 开仓时间</th>
-                  <th className="py-2 px-3 whitespace-nowrap">开仓价格 / 现价</th>
-                  <th className="py-2 px-3 whitespace-nowrap">浮动盈亏 (PnL)</th>
-                  <th className="py-2 px-3 whitespace-nowrap">仓位金额 (Stake)</th>
-                  <th className="py-2 px-3 whitespace-nowrap">止损线 (Stoploss)</th>
-                  <th className="py-2 px-3 whitespace-nowrap">入场策略信号</th>
-                  <th className="py-2 px-3 text-right whitespace-nowrap">操作</th>
+                  <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.pair_open_time')}</th>
+                  <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.open_current_price')}</th>
+                  <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.unrealized')}</th>
+                  <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.stake_amount')}</th>
+                  <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.stop_loss')}</th>
+                  <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.entry_signal')}</th>
+                  <th className="py-2 px-3 text-right whitespace-nowrap">{t('dashboard.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60">
@@ -334,7 +344,7 @@ export function FreqUIDashboardView() {
                           </span>
                         </div>
                         <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                          回报率: {isProfit ? '+' : ''}{trade.profit_pct}%
+                          Return: {isProfit ? '+' : ''}{trade.profit_pct}%
                         </div>
                       </td>
 
@@ -342,7 +352,7 @@ export function FreqUIDashboardView() {
                         <div className="font-medium text-slate-700 dark:text-slate-300 font-mono">
                           {formatCurrency(trade.stake_amount || 0)}
                         </div>
-                        <div className="text-[10px] text-slate-500 font-mono">数量: {trade.amount}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">Amount: {trade.amount}</div>
                       </td>
 
                       <td className="py-2 px-3 whitespace-nowrap">
@@ -361,23 +371,23 @@ export function FreqUIDashboardView() {
                           <button
                             onClick={() => handleViewChart(trade.pair)}
                             className="px-2 py-0.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-500 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0"
-                            title="联动在 K 线中查看该交易对"
+                            title="Open this pair in the candle chart"
                           >
                             <CandlestickChart className="w-3 h-3" />
-                            <span>看盘</span>
+                            <span>{t('dashboard.view_chart')}</span>
                           </button>
                           {!isReadOnly && (
                             <button
                               onClick={() => {
-                                if (confirm(`确定要市价平仓 #${trade.trade_id} (${trade.pair}) 吗？`)) {
+                                if (confirm(`Close at market price #${trade.trade_id} (${trade.pair}) ?`)) {
                                   forceExitTrade(trade.trade_id);
                                 }
                               }}
                               className="px-2 py-0.5 rounded bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0"
-                              title="强制市价平仓"
+                              title="Force market exit"
                             >
                               <XCircle className="w-3 h-3" />
-                              <span>平仓</span>
+                              <span>{t('dashboard.close')}</span>
                             </button>
                           )}
                         </div>
@@ -402,7 +412,7 @@ export function FreqUIDashboardView() {
           <div className="flex items-center justify-between mb-1.5 shrink-0 gap-2 flex-wrap">
             <span className="text-xs font-bold uppercase tracking-wide flex items-center gap-1.5">
               <TrendingUp className="w-4 h-4 text-cyan-500" />
-              近 10 日收益走势 (Daily Returns)
+              Daily returns - last 10 days
             </span>
             <div className="flex items-center gap-2 text-[11px] font-mono">
               <div
@@ -417,7 +427,7 @@ export function FreqUIDashboardView() {
                       ? 'bg-cyan-600 text-white font-bold shadow-xs'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
-                  title="对数模式 (Log Scale)：平衡高低极端收益，防止小额柱形被压缩至不可见"
+                  title="Log scale: balance extreme returns so small bars remain visible"
                 >
                   Log
                 </button>
@@ -428,12 +438,12 @@ export function FreqUIDashboardView() {
                       ? 'bg-cyan-600 text-white font-bold shadow-xs'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
-                  title="线性模式 (Linear)：按实际绝对金额比例展示"
+                  title="Linear mode: show actual absolute amounts"
                 >
-                  线性
+                  Linear
                 </button>
               </div>
-              <span className="text-slate-500">单位: {currencyUnit}</span>
+              <span className="text-slate-500">Unit: {currencyUnit}</span>
             </div>
           </div>
 
@@ -443,7 +453,7 @@ export function FreqUIDashboardView() {
             }`}
           >
             {sortedDaily.length === 0 ? (
-              <div className="w-full text-center text-xs text-slate-400 my-auto py-4">暂无近期收益数据</div>
+              <div className="w-full text-center text-xs text-slate-400 my-auto py-4">{t('dashboard.no_performance')}</div>
             ) : (
               sortedDaily.map((d) => {
                 const isPos = d.abs_profit >= 0;
@@ -452,7 +462,7 @@ export function FreqUIDashboardView() {
                 let heightPct: number;
 
                 if (isLogScale) {
-                  // 对数高度映射：采用 log10(val + 1)，确保小额收益明显可见，大额适度延展
+                  // 对数高度映射：采用 log10(val + 1)，确保小额Return明显可见，大额适度延展
                   const logVal = Math.log10(absVal + 1);
                   const logMax = Math.log10(maxDailyVal + 1);
                   heightPct = logMax > 0 ? Math.round((logVal / logMax) * 78) + 12 : 10;
@@ -463,7 +473,7 @@ export function FreqUIDashboardView() {
 
                 return (
                   <div key={d.date} className="flex-1 flex flex-col items-center h-full justify-end group min-w-[24px] max-w-[48px]">
-{hasTrade && (
+                    {hasTrade && (
                       <div className="text-[10px] text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1 font-mono text-center whitespace-nowrap z-10 bg-black/70 text-white px-1.5 py-0.5 rounded shadow pointer-events-none shrink-0">
                         {formatCurrency(d.abs_profit, { showSign: true })} ({d.trade_count} trades)
                       </div>
@@ -496,7 +506,7 @@ export function FreqUIDashboardView() {
               }`}
             >
               <div>
-                10日累计盈亏:{' '}
+                10-day cumulative P&L:{' '}
                 <span
                   className={`font-bold ${
                     dailyStats.totalProfit >= 0
@@ -509,13 +519,13 @@ export function FreqUIDashboardView() {
               </div>
               <div>
                 <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-{dailyStats.winDays} Win Days
+                  {dailyStats.winDays} Win Days
                 </span>{' '}
                 /{' '}
                 <span className="text-rose-600 dark:text-rose-400 font-medium">
                   {dailyStats.lossDays} Loss Days
                 </span>{' '}
-                · {dailyStats.totalTrades} total trades
+                · Total {dailyStats.totalTrades} trades
               </div>
             </div>
           )}
@@ -530,17 +540,17 @@ export function FreqUIDashboardView() {
           <div className="flex items-center justify-between mb-1.5 shrink-0">
             <span className="text-xs font-bold uppercase tracking-wide flex items-center gap-1.5">
               <Layers className="w-4 h-4 text-purple-500" />
-              最近已平仓订单 (Recent Closed)
+              Recent closed trades
             </span>
             <div className="flex items-center gap-2">
               <span className="text-[11px] text-slate-500 font-mono">
-                共 {closedTrades.length} 条记录
+                Total {closedTrades.length}  records
               </span>
               <button
                 onClick={handleRefreshHistory}
                 disabled={isRefreshingHistory}
                 className="p-1 rounded text-slate-400 hover:text-emerald-500 transition-colors cursor-pointer disabled:opacity-50"
-                title="立即同步最新成交记录"
+                title="Sync latest trade records"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingHistory ? 'animate-spin text-emerald-500' : ''}`} />
               </button>
@@ -549,7 +559,7 @@ export function FreqUIDashboardView() {
 
           <div className="space-y-1.5 flex-1 min-h-0 overflow-y-auto pr-1 font-mono text-xs">
             {recentClosed.length === 0 ? (
-              <div className="text-center text-xs text-slate-400 my-auto py-6">暂无平仓历史记录</div>
+              <div className="text-center text-xs text-slate-400 my-auto py-6">{t('dashboard.no_closed')}</div>
             ) : (
               recentClosed.map((t) => {
                 const isProfit = t.profit_pct >= 0;
@@ -562,13 +572,13 @@ export function FreqUIDashboardView() {
                         : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
-                    {/* 上半行：交易对名称 + 信号标签 | 盈亏绝对金额 */}
+                    {/* Top row: pair name + signal tag | absolute P&L */}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <button
                           onClick={() => handleViewChart(t.pair)}
                           className="font-bold hover:text-cyan-500 transition-colors flex items-center gap-1 cursor-pointer truncate text-xs"
-                          title="点击在 K 线中查看"
+                          title="Click to view in candle chart"
                         >
                           <span className="truncate">{t.pair}</span>
                           <CandlestickChart className="w-3 h-3 text-cyan-500/60 shrink-0" />
@@ -590,7 +600,7 @@ export function FreqUIDashboardView() {
                       </span>
                     </div>
 
-                    {/* 下半行：平仓时间 | 收益百分比 */}
+                    {/* Bottom row: close time | return percentage */}
                     <div className="flex items-center justify-between gap-2 mt-1 text-[10px] text-slate-400 dark:text-slate-500 font-mono">
                       <span>{formatUtc8(t.close_timestamp || t.close_date, 'MM-DD HH:mm')}</span>
                       <span className={`font-semibold ${isProfit ? 'text-emerald-500/90' : 'text-rose-500/90'}`}>
@@ -607,7 +617,7 @@ export function FreqUIDashboardView() {
 
       {/* 4. Bottom Utility & Global Settings Card */}
       <div
-        className={`rounded-xl px-3.5 py-2.5 shadow-xs border flex flex-wrap items-center justify-between gap-2.5 text-xs transition-colors shrink-0 mt-auto mb-1 ${
+        className={`rounded-xl px-3.5 py-2.5 shadow-xs border flex flex-wrap items-center justify-between gap-2.5 text-xs transition-colors shrink-0 mt-2 mb-2 ${
           isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
         }`}
       >
@@ -615,7 +625,7 @@ export function FreqUIDashboardView() {
         <div className="flex items-center gap-2.5 flex-wrap">
           <div className="flex items-center gap-1.5 text-slate-500 font-medium">
             <Coins className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            <span>计价展示货币:</span>
+            <span>Display currency:</span>
           </div>
           <div
             className={`flex items-center p-0.5 rounded-lg border text-xs font-mono ${
@@ -640,12 +650,12 @@ export function FreqUIDashboardView() {
           {currencyUnit !== 'USDT' && currencyUnit !== 'USD' ? (
             <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-500 dark:text-slate-400">
               <span>
-                (参考汇率: 1 USDT ≈ {currencyUnit === 'CNY' ? `¥${exchangeRates.CNY}` : `€${exchangeRates.EUR}`})
+                (Reference rate: 1 USDT ≈ {currencyUnit === 'CNY' ? `¥${exchangeRates.CNY}` : `€${exchangeRates.EUR}`})
               </span>
               <button
                 onClick={() => {
                   const current = currencyUnit === 'CNY' ? exchangeRates.CNY : exchangeRates.EUR;
-                  const input = prompt(`请输入自定义 1 USDT 对 ${currencyUnit} 的折算汇率 (当前: ${current})`, String(current));
+                  const input = prompt(`Enter custom conversion rate for 1 USDT to ${currencyUnit} conversion rate (current: ${current})`, String(current));
                   if (input) {
                     const parsed = parseFloat(input);
                     if (!isNaN(parsed) && parsed > 0) {
@@ -654,21 +664,21 @@ export function FreqUIDashboardView() {
                   }
                 }}
                 className="hover:text-cyan-500 underline decoration-dotted cursor-pointer text-slate-400"
-                title="点击自定义汇率"
+                title="Click to set a custom exchange rate"
               >
-                修改
+                Edit
               </button>
               <button
                 onClick={() => fetchLiveRates()}
                 className="hover:text-emerald-500 cursor-pointer text-slate-400 p-0.5 rounded"
-                title="重新联网获取今日银行最新汇率"
+                title="Fetch againtoday's exchange rate"
               >
                 <RefreshCw className="w-3 h-3 inline" />
               </button>
             </div>
           ) : (
             <div className="text-[11px] text-slate-400 hidden md:inline">
-              (以 USDT 原币种为基准)
+              (Based on native USDT)
             </div>
           )}
         </div>
@@ -682,10 +692,10 @@ export function FreqUIDashboardView() {
                 ? 'border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300'
                 : 'border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-700'
             }`}
-            title="打开累计资金净值曲线面板"
+            title="Open cumulative equity curve"
           >
             <TrendingUp className="w-3.5 h-3.5" />
-            <span>资产收益曲线</span>
+            <span>Equity curve</span>
             <ExternalLink className="w-3 h-3 opacity-60" />
           </button>
 
@@ -698,17 +708,17 @@ export function FreqUIDashboardView() {
                 ? 'border-slate-700 bg-[#1a233a] hover:bg-[#222e4c] text-slate-200'
                 : 'border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800'
             }`}
-            title="复制只读观摩分享链接，无任何修改/平仓权限"
+            title="Copy read-only share link with no edit or close permissions"
           >
             {copiedShare ? (
               <>
                 <Check className="w-3.5 h-3.5 text-emerald-500" />
-                <span className="text-emerald-500 font-semibold">只读分享链接已复制!</span>
+                <span className="text-emerald-500 font-semibold">Read-only share link copied!</span>
               </>
             ) : (
               <>
                 <Share2 className="w-3.5 h-3.5 text-cyan-500" />
-                <span>生成只读分享链接</span>
+                <span>Create read-only share link</span>
               </>
             )}
           </button>
