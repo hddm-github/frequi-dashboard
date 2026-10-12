@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   BookOpen,
@@ -350,10 +351,11 @@ export function StrategyBlueprintModal({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/65 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md"
       onClick={onClose}
+      role="presentation"
     >
       <div
         className="relative w-[calc(100vw-1.5rem)] sm:w-[calc(100vw-3rem)] max-w-[1200px] max-h-[92dvh] overflow-hidden rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-700/60 bg-gradient-to-b from-[#0f1729] via-[#0c1322] to-[#0a1020] text-slate-200"
@@ -1187,7 +1189,8 @@ export function StrategyBlueprintModal({
           </section>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
