@@ -130,23 +130,16 @@ export function BotControlView() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             <button
-              onClick={() => handleAction('start')}
+              onClick={() => handleAction(botRunning ? 'stop' : 'start')}
               disabled={operating || !isConnected}
-              className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
+              className={`py-2.5 px-3 rounded-xl text-white font-medium text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50 ${
+                botRunning ? 'bg-rose-600 hover:bg-rose-500' : 'bg-emerald-600 hover:bg-emerald-500'
+              }`}
             >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              <span>{t('ui.start_trading')}</span>
-            </button>
-
-            <button
-              onClick={() => handleAction('stop')}
-              disabled={operating || !isConnected}
-              className="py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
-            >
-              <Square className="w-3.5 h-3.5 fill-current" />
-              <span>{t('ui.stop_trading')}</span>
+              {botRunning ? <Square className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+              <span>{botRunning ? t('ui.stop_trading') : t('ui.start_trading')}</span>
             </button>
 
             <button
