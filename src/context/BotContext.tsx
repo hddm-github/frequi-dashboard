@@ -114,7 +114,7 @@ function extractUrlCredentials(): {
       if (decrypted && decrypted.apiUrl) {
         return {
           name: decrypted.name || '实盘观摩节点',
-          apiUrl: decrypted.apiUrl,
+          apiUrl: normalizeApiUrl(decrypted.apiUrl),
           username: decrypted.username || '',
           password: decrypted.password || '',
         };
@@ -127,7 +127,7 @@ function extractUrlCredentials(): {
         if (obj && (obj.apiUrl || obj.url)) {
           return {
             name: obj.name || '实盘观摩节点',
-            apiUrl: obj.apiUrl || obj.url,
+            apiUrl: normalizeApiUrl(obj.apiUrl || obj.url),
             username: obj.username || obj.user || '',
             password: obj.password || obj.pass || '',
           };
@@ -146,7 +146,7 @@ function extractUrlCredentials(): {
 
       return {
         name,
-        apiUrl,
+        apiUrl: normalizeApiUrl(apiUrl),
         username,
         password,
       };
@@ -254,6 +254,7 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
         const savedActive = localStorage.getItem('nfi_active_bot_id');
         const sanitized = parsed.map((p: BotProfile) => ({
           ...p,
+          apiUrl: normalizeApiUrl(p.apiUrl),
           isShared: p.isShared ?? (p.id?.startsWith('bot-url-') || false),
         }));
         const activeExists = sanitized.some((p: BotProfile) => p.id === savedActive);
@@ -272,7 +273,7 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
         const migrated: BotProfile = {
           id: `bot-${Date.now()}`,
           name: '默认机器人',
-          apiUrl: parsedLegacy.apiUrl,
+          apiUrl: normalizeApiUrl(parsedLegacy.apiUrl),
           username: parsedLegacy.username || '',
           password: parsedLegacy.password || '',
           createdAt: Date.now(),

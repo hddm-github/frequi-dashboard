@@ -26,11 +26,14 @@ export const EMPTY_BOT_STATE: BotState = {
 export function normalizeApiUrl(url: string): string {
   let cleaned = (url || '').trim().replace(/\/dashboard\/?$/, '').replace(/\/+$/, '');
   if (!cleaned) return '';
-  if (cleaned.startsWith('/')) return cleaned;
-  if (!/^https?:\/\/\//i.test(cleaned)) {
-    cleaned = `http://${cleaned}`;
-  }
-  return cleaned;
+  if (cleaned.startsWith('/') && !cleaned.startsWith('//')) return cleaned;
+
+  // 智能清洗协议头：支持修复诸如 http://http://、http:/// 等畸形前缀，并保留原有的协议类型
+  const prefixMatch = cleaned.match(/^(?:https?:[\/\\]*)+/i);
+  const isHttps = prefixMatch ? /https:/i.test(prefixMatch[0]) : false;
+  const stripped = cleaned.replace(/^(?:https?:[\/\\]*)+/i, '').replace(/^[\/\\]+/, '');
+
+  return `${isHttps ? 'https' : 'http'}://${stripped}`;
 }
 
 function mapOrders(rawOrders?: any[]): any[] | undefined {
@@ -120,7 +123,7 @@ export class FreqtradeClient {
       url += `?${q.toString()}`;
     }
 
-    const rawApiUrl = (this.config.apiUrl || '').trim().replace(/\/dashboard\/?$/, '').replace(/\/+$/, '');
+    const rawApiUrl = normalizeApiUrl(this.config.apiUrl || '');
 
     // In-flight request deduplication: scoped by target bot apiUrl so different bots never collide
     const cacheKey = `${rawApiUrl}::${url}`;
@@ -179,9 +182,12 @@ export class FreqtradeClient {
         }
         if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
           const origin = typeof window !== 'undefined' ? window.location.origin : '';
-          const fetchMsg = `连接失败 (Failed to fetch)：请检查跨域 (CORS) 或端口是否开放。
-原因：Freqtrade 拒绝了来自「${origin}」的跨域访问。
-解决：请在机器人的 config.json 中，将 "${origin}" 加入到 api_server.CORS_origins 列表中并重启机器人。`;
+          const targetUrl = this.getBaseUrl();
+          const fetchMsg = `连接失败 (Failed to fetch)：无法访问目标地址「${targetUrl}」。
+可能原因：
+1. 目标服务未启动、端口未开放或防火墙拦截
+2. 跨域 (CORS) 限制：请确认在机器人的 config.json 中，已将「${origin}」加入 api_server.CORS_origins 列表并重启机器人
+3. 协议或证书错误（例如 HTTPS 站点直接请求 HTTP 接口被浏览器拦截）`;
           this.lastError = fetchMsg;
           throw new Error(fetchMsg);
         }
@@ -198,7 +204,7 @@ export class FreqtradeClient {
 
   private async postRequest<T>(endpoint: string, body?: any): Promise<T> {
     const url = `${this.getBaseUrl()}/api/v1/${endpoint}`;
-    const rawApiUrl = (this.config.apiUrl || '').trim().replace(/\/dashboard\/?$/, '').replace(/\/+$/, '');
+    const rawApiUrl = normalizeApiUrl(this.config.apiUrl || '');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
@@ -250,9 +256,12 @@ export class FreqtradeClient {
       }
       if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
-        const fetchMsg = `连接失败 (Failed to fetch)：请检查跨域 (CORS) 或端口是否开放。
-原因：Freqtrade 拒绝了来自「${origin}」的跨域访问。
-解决：请在机器人的 config.json 中，将 "${origin}" 加入到 api_server.CORS_origins 列表中并重启机器人。`;
+        const targetUrl = this.getBaseUrl();
+        const fetchMsg = `连接失败 (Failed to fetch)：无法访问目标地址「${targetUrl}」。
+可能原因：
+1. 目标服务未启动、端口未开放或防火墙拦截
+2. 跨域 (CORS) 限制：请确认在机器人的 config.json 中，已将「${origin}」加入 api_server.CORS_origins 列表并重启机器人
+3. 协议或证书错误（例如 HTTPS 站点直接请求 HTTP 接口被浏览器拦截）`;
         this.lastError = fetchMsg;
         throw new Error(fetchMsg);
       }
