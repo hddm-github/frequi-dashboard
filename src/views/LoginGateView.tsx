@@ -192,7 +192,7 @@ export function LoginGateView() {
                 type="text"
                 value={apiUrl}
                 onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="/ft-api"
+                placeholder="/owner-api"
                 className={`w-full border rounded-xl px-3.5 py-2.5 font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
                   isDark
                     ? 'bg-[#1a233a] border-slate-700 text-slate-100 placeholder:text-slate-500'

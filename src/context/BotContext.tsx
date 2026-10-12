@@ -139,58 +139,30 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
         }
       } catch {}
 
-      // Match by both apiUrl AND name: if user shares a different bot name/url, both are preserved!
-      const foundIdx = existingProfiles.findIndex(
-        (p) => p.apiUrl === urlCreds.apiUrl && (p.name === urlCreds.name || !urlCreds.name)
-      );
-      let activeId: string;
+      // Share sessions are isolated. Never mutate or reuse an owner profile.
+      const newBot: BotProfile = {
+        id: `bot-url-${Date.now()}`,
+        name: urlCreds.name,
+        apiUrl: urlCreds.apiUrl,
+        username: urlCreds.username,
+        password: urlCreds.password,
+        shareToken: urlCreds.shareToken,
+        createdAt: Date.now(),
+        isShared: Boolean(urlCreds.shareToken),
+      };
+      const profiles = urlCreds.shareToken ? [newBot, ...existingProfiles] : [newBot];
+      const activeId = newBot.id;
 
-      if (foundIdx >= 0) {
-        // Update credentials of this existing profile
-        existingProfiles[foundIdx] = {
-          ...existingProfiles[foundIdx],
-          name: urlCreds.name || existingProfiles[foundIdx].name,
-          username: urlCreds.username,
-          password: urlCreds.password,
-          shareToken: urlCreds.shareToken,
-          isShared: true,
-        };
-        activeId = existingProfiles[foundIdx].id;
-      } else {
-        // Create new bot profile and prepend, so all shared bots accumulate in browser
-        const newBot: BotProfile = {
-          id: `bot-url-${Date.now()}`,
-          name: urlCreds.name,
-          apiUrl: urlCreds.apiUrl,
-          username: urlCreds.username,
-          password: urlCreds.password,
-          shareToken: urlCreds.shareToken,
-          createdAt: Date.now(),
-          isShared: true,
-        };
-        existingProfiles = [newBot, ...existingProfiles];
-        activeId = newBot.id;
+      // Share token stays in memory only. Owner profiles remain unchanged in localStorage.
+      if (!urlCreds.shareToken) {
+        localStorage.setItem('nfi_bot_profiles', JSON.stringify(profiles));
+        localStorage.setItem('nfi_active_bot_id', activeId);
       }
-
-      localStorage.setItem(
-        'nfi_bot_profiles',
-        JSON.stringify(existingProfiles.map(({ shareToken: _shareToken, ...profile }) => profile))
-      );
-      localStorage.setItem('nfi_active_bot_id', activeId);
-      localStorage.setItem(
-        'nfi_bot_config',
-        JSON.stringify({
-          apiUrl: urlCreds.apiUrl,
-          username: urlCreds.username,
-          password: urlCreds.password,
-        })
-      );
 
       try {
         sessionStorage.setItem('nfi_url_imported_name', urlCreds.name);
       } catch {}
 
-      // Clean browser address bar: removes ?name=...&apiUrl=... immediately so credentials don't stay in URL history
       try {
         if (window.history && window.history.replaceState) {
           const cleanUrl = window.location.origin + window.location.pathname;
@@ -200,7 +172,7 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
         console.warn('Failed to clean URL', e);
       }
 
-      return { profiles: existingProfiles, activeId };
+      return { profiles, activeId };
     }
 
     // 2. Legacy /share-api mode (?share=true without explicit url)
@@ -227,8 +199,8 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
         const savedActive = localStorage.getItem('nfi_active_bot_id');
         const sanitized = parsed.map((p: BotProfile) => ({
           ...p,
-          apiUrl: normalizeApiUrl(p.apiUrl),
-          isShared: p.isShared ?? (p.id?.startsWith('bot-url-') || false),
+          apiUrl: normalizeApiUrl(p.apiUrl === '/ft-api' ? '/owner-api' : p.apiUrl),
+          isShared: p.id?.startsWith('bot-url-') || (p.isShared === true && p.apiUrl !== '/owner-api' && p.apiUrl !== '/ft-api'),
         }));
         const activeExists = sanitized.some((p: BotProfile) => p.id === savedActive);
         return {
@@ -390,14 +362,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
   }, [config]);
 
   // Branch 'hide-operation-buttons': Default to Read-Only mode to hide all dangerous operation buttons
-  const isReadOnly = useMemo(() => {
-    try {
-      const sp = new URLSearchParams(window.location.search);
-      return sp.get('readonly') !== 'false';
-    } catch {
-      return true;
-    }
-  }, []);
+  const isReadOnly = Boolean(activeProfile?.isShared || activeProfile?.shareToken || activeProfile?.id?.startsWith('bot-url-'));
 
   // Global Currency Unit State: 默认 CNY 计价
   const [currencyUnit, setCurrencyUnitState] = useState<CurrencyUnit>(() => {

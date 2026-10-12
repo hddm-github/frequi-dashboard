@@ -16,7 +16,7 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
   const defaultFuturesName = locale === 'zh' ? '币安合约机器人' : 'Binance Futures Bot';
   const [selectedPreset, setSelectedPreset] = useState('futures');
   const [name, setName] = useState(defaultFuturesName);
-  const [apiUrl, setApiUrl] = useState('/ft-api');
+  const [apiUrl, setApiUrl] = useState('/owner-api');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -143,7 +143,7 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
                   onClick={() => {
                     setSelectedPreset('futures');
                     setName(defaultFuturesName);
-                    setApiUrl('/ft-api');
+                    setApiUrl('/owner-api');
                   }}
                   className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded text-[9px] font-mono cursor-pointer"
                 >
