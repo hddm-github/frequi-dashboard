@@ -28,6 +28,8 @@ export function BotControlView() {
     stopBot,
     reloadConfig,
     refreshData,
+    refreshInterval,
+    setRefreshInterval,
     setSelectedPair,
     setIsSelectingBot,
     theme,
@@ -68,6 +70,23 @@ export function BotControlView() {
     }
   };
 
+  const updatesPaused = refreshInterval === 0;
+  const botRunning = botState.state === 'running';
+  const runtimeLabel = isConnecting
+    ? t('control.connecting')
+    : !isConnected
+      ? t('ui.disconnected_error')
+      : updatesPaused
+        ? `${botRunning ? t('control.status_running') : t('control.status_stopped')} · ${t('control.updates_paused')}`
+        : botRunning
+          ? t('control.status_running')
+          : t('control.status_stopped');
+  const runtimeTone = !isConnected ? 'bg-rose-500' : botRunning ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-slate-400';
+
+  const toggleUpdates = () => {
+    setRefreshInterval(updatesPaused ? 6 : 0);
+  };
+
   return (
     <div
       className={`w-full p-4 pb-24 md:pb-4 space-y-4 select-text transition-colors md:h-full md:overflow-y-auto ${
@@ -87,15 +106,9 @@ export function BotControlView() {
           </div>
 
           <div className="flex items-center gap-2 text-xs">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                isConnected
-                  ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]'
-                  : 'bg-rose-500'
-              }`}
-            />
+            <span className={`w-2 h-2 rounded-full ${runtimeTone}`} />
             <span className="font-bold font-mono">
-              {isConnecting ? t('control.connecting') : isConnected ? t('ui.running_online') : t('ui.disconnected_error')}
+              {runtimeLabel}
             </span>
           </div>
         </div>
@@ -134,6 +147,22 @@ export function BotControlView() {
             >
               <Square className="w-3.5 h-3.5 fill-current" />
               <span>{t('ui.stop_trading')}</span>
+            </button>
+
+            <button
+              onClick={toggleUpdates}
+              disabled={operating}
+              title={t('control.pause_updates_title')}
+              className={`py-2.5 px-3 rounded-xl border font-medium text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 ${
+                updatesPaused
+                  ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                  : isDark
+                    ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
+                    : 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800'
+              }`}
+            >
+              {updatesPaused ? <Play className="w-3.5 h-3.5 fill-current" /> : <Square className="w-3.5 h-3.5 fill-current" />}
+              <span>{updatesPaused ? t('control.resume_updates') : t('control.pause_updates')}</span>
             </button>
 
             <button

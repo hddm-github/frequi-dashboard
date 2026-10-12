@@ -41,7 +41,7 @@ export function FreqUIDashboardView() {
 
   const ws = useOptionalWorkspace();
   const t = useT();
-  const [isLogScale, setIsLogScale] = useState(true);
+  const [chartMode, setChartMode] = useState<'bar' | 'line'>('bar');
 
   const handleViewChart = (pair: string) => {
     setSelectedPair(pair);
@@ -69,6 +69,14 @@ export function FreqUIDashboardView() {
     if (sortedDaily.length === 0) return 1;
     const vals = sortedDaily.map((r) => Math.abs(r.abs_profit));
     return Math.max(...vals, 1);
+  }, [sortedDaily]);
+
+  const linePoints = useMemo(() => {
+    if (!sortedDaily.length) return '';
+    const max = Math.max(...sortedDaily.map((d) => Math.abs(d.abs_profit)), 1);
+    return sortedDaily
+      .map((d, i) => `${((i + 0.5) / sortedDaily.length) * 100},${50 - (d.abs_profit / max) * 42}`)
+      .join(' ');
   }, [sortedDaily]);
 
   const dailyStats = useMemo(() => {
@@ -119,7 +127,7 @@ export function FreqUIDashboardView() {
             <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
           </div>
           <div className="text-lg sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight whitespace-nowrap truncate">
-            {formatCurrency(profitSummary?.profit_closed_coin || 0, { showSign: true })}
+            {isReadOnly ? 'Hidden' : formatCurrency(profitSummary?.profit_closed_coin || 0, { showSign: true })}
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 flex items-center gap-1 font-mono whitespace-nowrap truncate">
             <span>{t('dashboard.return')}:</span>
@@ -168,7 +176,7 @@ export function FreqUIDashboardView() {
                 : 'text-rose-600 dark:text-rose-400'
             }`}
           >
-            {formatCurrency(totalUnrealized, { showSign: true })}
+            {isReadOnly ? 'Hidden' : formatCurrency(totalUnrealized, { showSign: true })}
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 flex items-center justify-between gap-1 whitespace-nowrap truncate">
             <span>
@@ -179,7 +187,7 @@ export function FreqUIDashboardView() {
               / {botState.max_open_trades}
             </span>
             <span className="text-[10px] sm:text-[11px] text-cyan-600 dark:text-cyan-400 font-mono font-medium">
-              {t('dashboard.used')}: {formatCurrency(totalStake)}
+              {t('dashboard.used')}: {isReadOnly ? 'Hidden' : formatCurrency(totalStake)}
             </span>
           </div>
         </div>
@@ -205,14 +213,14 @@ export function FreqUIDashboardView() {
             </div>
           </div>
           <div className="text-lg sm:text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight whitespace-nowrap truncate">
-            {formatCurrency(botState.balance)}
+            {isReadOnly ? 'Hidden' : formatCurrency(botState.balance)}
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 font-mono whitespace-nowrap truncate">
             {t('dashboard.available')}:{' '}
             <span className="text-slate-700 dark:text-slate-200 font-semibold">
-              {formatCurrency(botState.free_balance ?? botState.balance)}
+              {isReadOnly ? 'Hidden' : formatCurrency(botState.free_balance ?? botState.balance)}
             </span>{' '}
-            · {t('dashboard.per_trade')}: {botState.stake_amount === 'unlimited' ? t('dashboard.per_trade') : formatCurrency(Number(botState.stake_amount) || 0)}
+            · {t('dashboard.per_trade')}: {isReadOnly ? 'Hidden' : botState.stake_amount === 'unlimited' ? t('dashboard.per_trade') : formatCurrency(Number(botState.stake_amount) || 0)}
           </div>
         </div>
       </div>
@@ -304,12 +312,14 @@ export function FreqUIDashboardView() {
                           }`}
                         >
                           <span>
-                            {formatCurrency(
-                              trade.profit_abs !== undefined
-                                ? trade.profit_abs
-                                : (trade.stake_amount || 0) * (trade.profit_ratio || 0),
-                              { showSign: true }
-                            )}
+                            {isReadOnly
+                              ? 'Hidden'
+                              : formatCurrency(
+                                  trade.profit_abs !== undefined
+                                    ? trade.profit_abs
+                                    : (trade.stake_amount || 0) * (trade.profit_ratio || 0),
+                                  { showSign: true }
+                                )}
                           </span>
                         </div>
                         <div className="text-[10px] text-slate-500 font-mono mt-0.5">
@@ -319,7 +329,7 @@ export function FreqUIDashboardView() {
 
                       <td className="py-2 px-3 whitespace-nowrap">
                         <div className="font-medium text-slate-700 dark:text-slate-300 font-mono">
-                          {formatCurrency(trade.stake_amount || 0)}
+                          {isReadOnly ? 'Hidden' : formatCurrency(trade.stake_amount || 0)}
                         </div>
                         <div className="text-[10px] text-slate-500 font-mono">{t('dashboard.amount')}: {trade.amount}</div>
                       </td>
@@ -392,26 +402,24 @@ export function FreqUIDashboardView() {
                 }`}
               >
                 <button
-                  onClick={() => setIsLogScale(true)}
+                  onClick={() => setChartMode('bar')}
                   className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
-                    isLogScale
+                    chartMode === 'bar'
                       ? 'bg-cyan-600 text-white font-bold shadow-xs'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
-                  title={t('dashboard.log_title')}
                 >
-                  {t('dashboard.log')}
+                  {t('dashboard.bar')}
                 </button>
                 <button
-                  onClick={() => setIsLogScale(false)}
+                  onClick={() => setChartMode('line')}
                   className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
-                    !isLogScale
+                    chartMode === 'line'
                       ? 'bg-cyan-600 text-white font-bold shadow-xs'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
-                  title={t('dashboard.linear_title')}
                 >
-                  {t('dashboard.linear')}
+                  {t('dashboard.line')}
                 </button>
               </div>
               <span className="text-slate-500">{t('dashboard.unit')}: {currencyUnit}</span>
@@ -425,6 +433,22 @@ export function FreqUIDashboardView() {
           >
             {sortedDaily.length === 0 ? (
               <div className="w-full text-center text-xs text-slate-400 my-auto py-4">{t('dashboard.no_performance')}</div>
+            ) : chartMode === 'line' ? (
+              <div className="w-full h-full relative">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible">
+                  <line x1="0" y1="50" x2="100" y2="50" stroke="currentColor" strokeOpacity="0.15" strokeDasharray="1 2" />
+                  <polyline points={linePoints} fill="none" stroke="#06b6d4" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+                  {sortedDaily.map((d, i) => {
+                    const max = Math.max(...sortedDaily.map((item) => Math.abs(item.abs_profit)), 1);
+                    const y = 50 - (d.abs_profit / max) * 42;
+                    const x = ((i + 0.5) / sortedDaily.length) * 100;
+                    return <circle key={d.date} cx={x} cy={y} r="1.5" fill={d.abs_profit >= 0 ? '#10b981' : '#f43f5e'} />;
+                  })}
+                </svg>
+                <div className="absolute inset-x-0 bottom-0 flex justify-around">
+                  {sortedDaily.map((d) => <span key={d.date} className="text-[10px] text-slate-500 font-mono">{d.date.slice(5)}</span>)}
+                </div>
+              </div>
             ) : (
               sortedDaily.map((d) => {
                 const isPos = d.abs_profit >= 0;
@@ -432,21 +456,14 @@ export function FreqUIDashboardView() {
                 const hasTrade = (d.trade_count && d.trade_count > 0) || absVal > 0;
                 let heightPct: number;
 
-                if (isLogScale) {
-                  // 对数高度映射：采用 log10(val + 1)，确保小额Return明显可见，大额适度延展
-                  const logVal = Math.log10(absVal + 1);
-                  const logMax = Math.log10(maxDailyVal + 1);
-                  heightPct = logMax > 0 ? Math.round((logVal / logMax) * 78) + 12 : 10;
-                } else {
-                  heightPct = Math.round((absVal / maxDailyVal) * 80);
-                }
+                heightPct = Math.round((absVal / maxDailyVal) * 80);
                 heightPct = Math.min(Math.max(heightPct, 6), 92);
 
                 return (
                   <div key={d.date} className="flex-1 flex flex-col items-center h-full justify-end group min-w-[24px] max-w-[48px]">
                     {hasTrade && (
                       <div className="text-[10px] text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1 font-mono text-center whitespace-nowrap z-10 bg-black/70 text-white px-1.5 py-0.5 rounded shadow pointer-events-none shrink-0">
-                        {formatCurrency(d.abs_profit, { showSign: true })} ({d.trade_count} {t('dashboard.trades_count')})
+                        {isReadOnly ? 'Hidden' : formatCurrency(d.abs_profit, { showSign: true })} ({d.trade_count} {t('dashboard.trades_count')})
                       </div>
                     )}
                     <div className="flex-1 w-full flex items-end justify-center">
