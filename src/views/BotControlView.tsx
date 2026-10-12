@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { EditBotModal } from '../components/EditBotModal';
 import { StrategyBlueprintModal } from '../components/StrategyBlueprintModal';
-import { useT } from '../i18n/LocaleContext';
+import { useLocale } from '../i18n/LocaleContext';
 
 export function BotControlView() {
   const {
@@ -49,7 +49,7 @@ export function BotControlView() {
   const [showBlueprint, setShowBlueprint] = useState(false);
 
   const isDark = theme === 'dark';
-  const t = useT();
+  const { locale, t } = useLocale();
 
   const handleAction = async (action: 'start' | 'stop' | 'reload') => {
     setOperating(true);
@@ -62,7 +62,7 @@ export function BotControlView() {
 
       setOpMessage(ok ? `${t('ui.operation_succeeded')} [${action}]` : `${t('ui.operation_failed')} [${action}]`);
     } catch (err: any) {
-      setOpMessage(err?.message || 'Operation failed');
+      setOpMessage(err?.message || t('ui.operation_failed'));
     } finally {
       setOperating(false);
     }
@@ -70,7 +70,7 @@ export function BotControlView() {
 
   return (
     <div
-      className={`h-full overflow-y-auto p-4 space-y-4 select-text transition-colors ${
+      className={`w-full p-4 pb-24 md:pb-4 space-y-4 select-text transition-colors md:h-full md:overflow-y-auto ${
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-50 text-slate-800'
       }`}
     >
@@ -185,7 +185,7 @@ export function BotControlView() {
               type="button"
               onClick={() => setShowBlueprint(true)}
               className="group inline-flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm truncate font-mono text-left hover:text-emerald-500 dark:hover:text-emerald-300 hover:underline underline-offset-2 decoration-dotted transition-colors"
-              title={`Buka blueprint ${botState.strategy}`}
+              title={locale === 'zh' ? `查看 ${botState.strategy} 策略蓝图` : `View ${botState.strategy} strategy blueprint`}
             >
               <BookOpen className="w-3.5 h-3.5 shrink-0 opacity-70 group-hover:opacity-100" />
               <span className="truncate">{botState.strategy}</span>
@@ -209,7 +209,7 @@ export function BotControlView() {
                     : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
                 }`}
               >
-                {botState.dry_run ? t('ui.dry_run') : 'LIVE'}
+                {botState.dry_run ? t('ui.dry_run') : (locale === 'zh' ? '实盘运行' : 'LIVE')}
               </span>
             </div>
           </div>

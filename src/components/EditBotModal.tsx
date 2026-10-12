@@ -45,7 +45,7 @@ export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setErrorMsg('Bot name cannot be empty');
+      setErrorMsg(t('botselect.name_required'));
       return;
     }
     setSaving(true);
@@ -66,10 +66,10 @@ export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
       if (ok) {
         onClose();
       } else {
-        setErrorMsg('Failed to update configuration');
+        setErrorMsg(t('botselect.update_failed'));
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Save failed');
+      setErrorMsg(err?.message || t('ui.operation_failed'));
     } finally {
       setSaving(false);
     }
@@ -112,7 +112,7 @@ export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Example: Production live bot"
+              placeholder={t('botselect.custom_placeholder')}
               className={`w-full border rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-emerald-500 ${
                 isDark ? 'bg-[#1a233a] border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
               }`}

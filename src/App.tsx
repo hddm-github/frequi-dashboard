@@ -17,7 +17,7 @@ import { BotControlView } from './views/BotControlView';
 import { LoginGateView } from './views/LoginGateView';
 import { BotSelectView } from './views/BotSelectView';
 import { isNfiStrategy } from './utils/nfiSignals';
-import { LocaleProvider, useT } from './i18n/LocaleContext';
+import { LocaleProvider, useLocale } from './i18n/LocaleContext';
 
 // ── Code-split heavy views for faster initial bundle ──
 const CandleChartView = lazy(() => import('./views/CandleChartView').then(m => ({ default: m.CandleChartView })));
@@ -30,37 +30,38 @@ const LazyFallback = () => (
   <div className="flex items-center justify-center h-full opacity-40 text-xs">Loading…</div>
 );
 
-const translateMenuLabel = (label: string): string => {
+const translateMenuLabel = (label: string, locale: 'zh' | 'en'): string => {
   if (!label) return label;
-  if (label === 'Restore size') return 'Restore default size';
-  if (label === 'Maximize') return 'Maximize current window';
-  if (label === 'Float') return 'Float as separate window';
-  if (label === 'Dock') return 'Dock back to workspace';
-  if (label === 'Dock beside stage') return 'Dock beside dashboard';
+  const isZh = locale === 'zh';
+  if (label === 'Restore size') return isZh ? '恢复默认尺寸' : 'Restore default size';
+  if (label === 'Maximize') return isZh ? '最大化窗口' : 'Maximize current window';
+  if (label === 'Float') return isZh ? '浮动为独立窗口' : 'Float as separate window';
+  if (label === 'Dock') return isZh ? '停靠回工作区' : 'Dock back to workspace';
+  if (label === 'Dock beside stage') return isZh ? '停靠在舞台侧边' : 'Dock beside dashboard';
   if (label.startsWith('Move ') && label.endsWith(' to')) {
     const title = label.slice(5, -3);
-    return `Move "${title}" to`;
+    return isZh ? `移动 "${title}" 至` : `Move "${title}" to`;
   }
-  if (label === 'New split right') return 'Create split panel to the right';
-  if (label === 'New split below') return 'Create split panel below';
-  if (label === 'Hide') return 'Hide current panel';
+  if (label === 'New split right') return isZh ? '向右分屏' : 'Create split panel to the right';
+  if (label === 'New split below') return isZh ? '向下分屏' : 'Create split panel below';
+  if (label === 'Hide') return isZh ? '隐藏此面板' : 'Hide current panel';
   if (label.startsWith('Close ')) {
     const title = label.slice(6);
-    return `Close "${title}"`;
+    return isZh ? `关闭 "${title}"` : `Close "${title}"`;
   }
-  if (label === 'Close other tabs') return 'Close other tabs';
+  if (label === 'Close other tabs') return isZh ? '关闭其他标签页' : 'Close other tabs';
   return label;
 };
 
-const localizeTrellisMenu = (entries: any[]): any[] => {
+const localizeTrellisMenu = (entries: any[], locale: 'zh' | 'en'): any[] => {
   return entries.map((entry) => {
     if (typeof entry === 'string') return entry;
     const localized = { ...entry };
     if (localized.label) {
-      localized.label = translateMenuLabel(localized.label);
+      localized.label = translateMenuLabel(localized.label, locale);
     }
     if (Array.isArray(localized.items)) {
-      localized.items = localizeTrellisMenu(localized.items);
+      localized.items = localizeTrellisMenu(localized.items, locale);
     }
     return localized;
   });
@@ -68,7 +69,7 @@ const localizeTrellisMenu = (entries: any[]): any[] => {
 
 function DashboardWorkspace() {
   const { theme, botState } = useBot();
-  const t = useT();
+  const { locale, t } = useLocale();
 
   return (
     <div
@@ -83,7 +84,7 @@ function DashboardWorkspace() {
           theme={theme === 'dark' ? 'dark' : 'light'}
           storageKey="frequi-trellis:layout:v9"
           version={9}
-          panelMenu={localizeTrellisMenu}
+          panelMenu={(entries) => localizeTrellisMenu(entries, locale)}
         >
           {/* Register all View Types */}
           <ViewType
@@ -105,7 +106,7 @@ function DashboardWorkspace() {
 
           <ViewType
             id="signals"
-            title={() => (isNfiStrategy(botState.strategy) ? 'NFI Strategy Signal Rankings' : 'Strategy Signal Performance')}
+            title={() => (isNfiStrategy(botState.strategy) ? t('ui.nfi_signal_rankings') : t('view.signals'))}
             singleton
           >
             <Suspense fallback={<LazyFallback />}><SignalsView /></Suspense>

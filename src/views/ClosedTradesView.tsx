@@ -73,7 +73,7 @@ export function ClosedTradesView() {
 
   return (
     <div
-      className={`h-full flex flex-col transition-colors select-text ${
+      className={`w-full flex flex-col transition-colors select-text md:h-full pb-24 md:pb-0 ${
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-white text-slate-800'
       }`}
     >
@@ -118,7 +118,7 @@ export function ClosedTradesView() {
       </div>
 
       {/* Trades Table */}
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="w-full md:flex-1 md:overflow-y-auto p-3">
         <div className="overflow-x-auto w-full">
           <table className="w-full text-left text-xs border-collapse font-mono min-w-[700px]">
             <thead>
@@ -194,7 +194,7 @@ export function ClosedTradesView() {
                       <div className="font-medium text-slate-700 dark:text-slate-300">
                         {formatCurrency(t.stake_amount || 0)}
                       </div>
-                      <div className="text-[10px] text-slate-500">Amount: {t.amount}</div>
+                      <div className="text-[10px] text-slate-500">{translate('dashboard.amount')}: {t.amount}</div>
                     </td>
 
                     <td className="py-2.5 px-3 whitespace-nowrap">

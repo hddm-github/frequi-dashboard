@@ -742,7 +742,7 @@ export function CandleChartView() {
           >
             {availablePairs.map((pair) => (
               <option key={pair} value={pair}>
-                {pair} {activeTrades.some((t) => t.pair === pair) ? `★ (${t('candle.open')})` : ''}
+                {pair} {activeTrades.some((tr) => tr.pair === pair) ? `★ (${t('candle.open')})` : ''}
               </option>
             ))}
           </select>
@@ -1013,7 +1013,7 @@ export function CandleChartView() {
                 ? 'border-slate-700 bg-[#1a233a] hover:bg-[#202b46] text-slate-300'
                 : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600'
             }`}
-            title="Refresh candles"
+            title={t('candle.refresh_candles')}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-500' : ''}`} />
           </button>
@@ -1024,7 +1024,7 @@ export function CandleChartView() {
       {loadingOlder && (
         <div className="absolute top-12 left-4 z-20 px-2.5 py-1 rounded-lg bg-black/75 border border-emerald-500/40 text-emerald-400 text-xs flex items-center gap-1.5 shadow-lg backdrop-blur-xs animate-pulse">
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          <span>Loading earlier candles...</span>
+          <span>{t('candle.loading_earlier')}</span>
         </div>
       )}
 
@@ -1038,7 +1038,7 @@ export function CandleChartView() {
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-700/40">
             <div className="flex items-center gap-1.5 font-bold font-mono">
               <Crosshair className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Trade details #{selectedTrade.trade_id}</span>
+              <span>{t('candle.trade_details')} #{selectedTrade.trade_id}</span>
               <span
                 className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${
                   selectedTrade.is_short
@@ -1046,7 +1046,7 @@ export function CandleChartView() {
                     : 'bg-emerald-500/20 text-emerald-400'
                 }`}
               >
-                {selectedTrade.is_short ? 'Short' : 'Long'}
+                {selectedTrade.is_short ? t('candle.short') : t('candle.long')}
               </span>
             </div>
             <button
@@ -1175,7 +1175,7 @@ export function CandleChartView() {
             onClick={loadCandles}
             className="mt-3 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-medium cursor-pointer"
           >
-            Retry
+            {t('candle.retry')}
           </button>
         </div>
       )}
@@ -1183,7 +1183,7 @@ export function CandleChartView() {
       {empty && !loading && !errorMsg && (
         <div className="absolute inset-0 top-11 flex flex-col items-center justify-center p-6 text-xs text-slate-400 z-10 pointer-events-none">
           <TrendingUp className="w-8 h-8 mb-2 opacity-30 text-emerald-500" />
-          <p>No candle data for this timeframe</p>
+          <p>{t('candle.no_candle_data')}</p>
         </div>
       )}
 
@@ -1211,12 +1211,12 @@ export function CandleChartView() {
                 {isHovering ? (
                   <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-cyan-50 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 border border-cyan-300 dark:border-cyan-500/30 flex items-center gap-1">
                     <Crosshair className="w-3 h-3" />
-                    <span>Crosshair position</span>
+                    <span>{t('candle.crosshair')}</span>
                   </span>
                 ) : (
                   <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/30 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-                    <span>Latest market data</span>
+                    <span>{t('candle.latest_data')}</span>
                   </span>
                 )}
               </div>
@@ -1226,28 +1226,28 @@ export function CandleChartView() {
 
               {/* OHLC Values */}
               <div className="flex items-center gap-1">
-                <span className="text-slate-500 dark:text-slate-400">Open:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('candle.open')}:</span>
                 <span className="font-semibold text-slate-900 dark:text-slate-100">
                   {formatPrice(displayBar.open)}
                 </span>
               </div>
 
               <div className="flex items-center gap-1">
-                <span className="text-slate-500 dark:text-slate-400">High:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('candle.high')}:</span>
                 <span className="font-semibold text-slate-900 dark:text-slate-100">
                   {formatPrice(displayBar.high)}
                 </span>
               </div>
 
               <div className="flex items-center gap-1">
-                <span className="text-slate-500 dark:text-slate-400">Low:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('candle.low')}:</span>
                 <span className="font-semibold text-slate-900 dark:text-slate-100">
                   {formatPrice(displayBar.low)}
                 </span>
               </div>
 
               <div className="flex items-center gap-1">
-                <span className="text-slate-500 dark:text-slate-400">Close:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('candle.close')}:</span>
                 <span
                   className={`font-bold ${
                     displayBar.isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
@@ -1259,7 +1259,7 @@ export function CandleChartView() {
 
               {/* Change Pct & Val */}
               <div className="flex items-center gap-1">
-                <span className="text-slate-500 dark:text-slate-400">Change:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('candle.change')}:</span>
                 <span
                   className={`font-bold ${
                     displayBar.isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
@@ -1274,7 +1274,7 @@ export function CandleChartView() {
 
               {/* Amplitude */}
               <div className="flex items-center gap-1">
-                <span className="text-slate-500 dark:text-slate-400">Range:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('candle.range')}:</span>
                 <span className="text-slate-800 dark:text-slate-300 font-medium">
                   {displayBar.amplitudePct.toFixed(2)}%
                 </span>
@@ -1282,7 +1282,7 @@ export function CandleChartView() {
 
               {/* Volume */}
               <div className="flex items-center gap-1">
-                <span className="text-slate-500 dark:text-slate-400">Volume:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('candle.volume')}:</span>
                 <span className="font-semibold text-slate-900 dark:text-slate-100">
                   {formatVolume(displayBar.volume)}
                 </span>
@@ -1291,7 +1291,7 @@ export function CandleChartView() {
               {/* If candle has trade operations */}
               {isHovering && hoveredTrades.length > 0 && (
                 <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 dark:bg-amber-500/20 text-amber-800 dark:text-amber-400 border border-amber-300 dark:border-amber-500/40 animate-pulse font-sans">
-                  ★ This candle contains trades ({hoveredTrades.length})
+                  ★ {t('candle.contains_trades')} ({hoveredTrades.length})
                 </span>
               )}
             </div>
@@ -1317,7 +1317,7 @@ export function CandleChartView() {
                           ? 'bg-emerald-50 border-emerald-300 text-emerald-950 hover:bg-emerald-100 dark:bg-emerald-950/90 dark:border-emerald-500/60 dark:text-emerald-100 dark:hover:bg-emerald-900/90'
                           : 'bg-rose-50 border-rose-300 text-rose-950 hover:bg-rose-100 dark:bg-rose-950/90 dark:border-rose-500/60 dark:text-rose-100 dark:hover:bg-rose-900/90'
                       }`}
-                      title="Click to expand full trade details and order analysis"
+                      title={t('candle.click_expand_trade')}
                     >
                       {/* Trade Badge */}
                       <span className="font-bold flex items-center gap-1.5 font-mono">
@@ -1334,9 +1334,9 @@ export function CandleChartView() {
                         >
                           {type === 'open'
                             ? trade.is_short
-                              ? 'Short entry'
-                              : 'Long entry'
-                            : 'Closed exit (Close Exit)'}
+                              ? t('candle.short_entry')
+                              : t('candle.long_entry')
+                            : t('candle.closed_exit')}
                         </span>
                       </span>
 
@@ -1344,11 +1344,11 @@ export function CandleChartView() {
                       <span className="font-mono">
                         {type === 'open' ? (
                           <span>
-                            Open price: <strong>{formatPrice(trade.open_rate)}</strong>
+                            {t('candle.open_price')}: <strong>{formatPrice(trade.open_rate)}</strong>
                           </span>
                         ) : (
                           <span>
-                            Open: <strong>{formatPrice(trade.open_rate)}</strong> → Close:{' '}
+                            {t('candle.open')}: <strong>{formatPrice(trade.open_rate)}</strong> → {t('candle.close')}:{' '}
                             <strong>{formatPrice(trade.close_rate || 0)}</strong>
                           </span>
                         )}
@@ -1357,7 +1357,7 @@ export function CandleChartView() {
                       {/* Profit for Close */}
                       {type === 'close' && (
                         <span className="font-mono font-bold">
-                          P&L:{' '}
+                          {t('candle.unrealized_pnl')}:{' '}
                           <span className={isProfit ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}>
                             {isProfit ? '+' : ''}
                             {trade.profit_pct}%
@@ -1374,7 +1374,7 @@ export function CandleChartView() {
                       {/* Signal Tag */}
                       {trade.enter_tag && (
                         <span className="px-1.5 py-0.5 rounded bg-cyan-100/80 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-500/30 font-mono text-[11px]">
-                          Signal: {trade.enter_tag}
+                          {t('candle.entry_signal')}: {trade.enter_tag}
                           {nfiSignal && nfiSignal.category !== 'Standard entry' && (
                             <span className="ml-1 font-sans text-[10px] opacity-90 font-normal">
                               ({nfiSignal.category})
@@ -1386,12 +1386,12 @@ export function CandleChartView() {
                       {/* Exit Reason */}
                       {type === 'close' && (trade.exit_reason || trade.exit_tag) && (
                         <span className="px-1.5 py-0.5 rounded bg-amber-100/80 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 font-mono text-[11px]">
-                          Reason: {trade.exit_reason || trade.exit_tag}
+                          {t('candle.exit_reason')}: {trade.exit_reason || trade.exit_tag}
                         </span>
                       )}
 
                       <span className="text-[10px] opacity-75 ml-auto font-sans">
-                        [Click to view full details]
+                        [{t('candle.click_full_details')}]
                       </span>
                     </div>
                   );

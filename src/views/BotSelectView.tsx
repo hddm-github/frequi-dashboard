@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useBot } from '../context/BotContext';
-import { useT } from '../i18n/LocaleContext';
+import { useLocale } from '../i18n/LocaleContext';
 import {
   Server,
   Plus,
@@ -18,7 +18,7 @@ import { EditBotModal } from '../components/EditBotModal';
 import { normalizeApiUrl } from '../api/client';
 import type { BotProfile } from '../types';
 
-import { PRESET_BOTS } from '../config/botPresets';
+import { PRESET_BOTS, getPresetDisplayName } from '../config/botPresets';
 
 export function BotSelectView() {
   const {
@@ -33,9 +33,12 @@ export function BotSelectView() {
     isReadOnly,
   } = useBot();
 
+  const { locale, t } = useLocale();
+  const defaultFuturesName = locale === 'zh' ? '币安合约机器人' : 'Binance Futures Bot';
+
   const [isAdding, setIsAdding] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState('futures');
-  const [name, setName] = useState('FuturesBinance-Bot');
+  const [name, setName] = useState(defaultFuturesName);
   const [apiUrl, setApiUrl] = useState('/ft-api');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -45,13 +48,12 @@ export function BotSelectView() {
   const [editingBot, setEditingBot] = useState<BotProfile | null>(null);
 
   const isDark = theme === 'dark';
-  const t = useT();
 
   const handlePresetChange = (presetId: string) => {
     setSelectedPreset(presetId);
     const preset = PRESET_BOTS.find((p) => p.id === presetId);
     if (preset && preset.id !== 'custom') {
-      setName(preset.name);
+      setName(getPresetDisplayName(preset, locale));
       setApiUrl(preset.apiUrl);
     } else if (presetId === 'custom') {
       setName('');
@@ -217,11 +219,14 @@ export function BotSelectView() {
                         : 'bg-slate-50 border-slate-300 text-slate-900'
                     }`}
                   >
-                    {PRESET_BOTS.map((preset) => (
-                      <option key={preset.id} value={preset.id}>
-                        {preset.name} {preset.apiUrl ? `(${preset.apiUrl})` : ''}
-                      </option>
-                    ))}
+                    {PRESET_BOTS.map((preset) => {
+                      const displayName = getPresetDisplayName(preset, locale);
+                      return (
+                        <option key={preset.id} value={preset.id}>
+                          {displayName} {preset.apiUrl ? `(${preset.apiUrl})` : ''}
+                        </option>
+                      );
+                    })}
                   </select>
 
                   {selectedPreset === 'custom' && (
@@ -250,19 +255,19 @@ export function BotSelectView() {
                         type="button"
                         onClick={() => {
                           setSelectedPreset('futures');
-                          setName('FuturesBinance-Bot');
+                          setName(defaultFuturesName);
                           setApiUrl('/ft-api');
                         }}
                         className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded text-[9px] font-mono cursor-pointer"
                       >
-                        /ft-api (Futures default)
+                        {t('login.futures_default')}
                       </button>
                       <button
                         type="button"
                         onClick={() => setApiUrl('')}
                         className="px-1.5 py-0.5 bg-slate-500/10 text-slate-500 border border-slate-500/30 rounded text-[9px] font-mono cursor-pointer"
                       >
-                        Clear
+                        {t('connect.clear')}
                       </button>
                     </div>
                   </div>
@@ -288,7 +293,7 @@ export function BotSelectView() {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Example: freqtrade"
+                    placeholder={t('connect.username_placeholder')}
                     className={`w-full border rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
                       isDark
                         ? 'bg-[#1a233a] border-slate-700 text-slate-100'

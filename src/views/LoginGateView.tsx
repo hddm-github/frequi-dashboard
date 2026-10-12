@@ -2,13 +2,15 @@ import { useState, type FormEvent } from 'react';
 import { useBot } from '../context/BotContext';
 import { Server, ShieldCheck, AlertCircle, ArrowRight, Sun, Moon, Loader2 } from 'lucide-react';
 import { normalizeApiUrl } from '../api/client';
-import { PRESET_BOTS } from '../config/botPresets';
-import { useT } from '../i18n/LocaleContext';
+import { PRESET_BOTS, getPresetDisplayName } from '../config/botPresets';
+import { useLocale } from '../i18n/LocaleContext';
 
 export function LoginGateView() {
   const { addProfile, theme, setTheme, lastError } = useBot();
+  const { locale, t } = useLocale();
+  const defaultFuturesName = locale === 'zh' ? '币安合约机器人' : 'Binance Futures Bot';
   const [selectedPreset, setSelectedPreset] = useState('futures');
-  const [name, setName] = useState('FuturesBinance-Bot');
+  const [name, setName] = useState(defaultFuturesName);
   const [apiUrl, setApiUrl] = useState('/ft-api');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -16,13 +18,12 @@ export function LoginGateView() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const isDark = theme === 'dark';
-  const t = useT();
 
   const handlePresetChange = (presetId: string) => {
     setSelectedPreset(presetId);
     const preset = PRESET_BOTS.find((p) => p.id === presetId);
     if (preset && preset.id !== 'custom') {
-      setName(preset.name);
+      setName(getPresetDisplayName(preset, locale));
       setApiUrl(preset.apiUrl);
     } else if (presetId === 'custom') {
       setName('');
@@ -37,17 +38,17 @@ export function LoginGateView() {
 
     try {
       const res = await addProfile({
-        name: name.trim() || 'FuturesBinance-Bot',
+        name: name.trim() || defaultFuturesName,
         apiUrl: normalizeApiUrl(apiUrl),
         username: username.trim(),
         password: password.trim(),
       });
 
       if (!res.success) {
-        setErrorMsg(res.error || lastError || 'Unable to connect to endpoint. Check the API address and credentials');
+        setErrorMsg(res.error || lastError || t('login.test_failed'));
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Connection error. Try again');
+      setErrorMsg(err?.message || t('login.error_unknown'));
     } finally {
       setLoading(false);
     }
@@ -77,7 +78,7 @@ export function LoginGateView() {
               </span>
             </div>
             <div className="text-[11px] text-slate-500">
-              Freqtrade strategy monitor and multi-window trading workspace
+              {t('login.tagline')}
             </div>
           </div>
         </div>
@@ -107,9 +108,9 @@ export function LoginGateView() {
             <div className="inline-flex p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 mb-3">
               <Server className="w-6 h-6" />
             </div>
-            <h1 className="text-lg font-bold tracking-tight">Connect your Freqtrade bot</h1>
+            <h1 className="text-lg font-bold tracking-tight">{t('login.connect_title')}</h1>
             <p className="text-xs text-slate-500 mt-1">
-              Connect to your live Freqtrade bot through its REST API
+              {t('login.connect_desc')}
             </p>
           </div>
 
@@ -123,7 +124,7 @@ export function LoginGateView() {
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                Bot Display Name
+                {t('login.bot_name')}
               </label>
               <select
                 value={selectedPreset}
@@ -134,11 +135,14 @@ export function LoginGateView() {
                     : 'bg-slate-50 border-slate-300 text-slate-900'
                 }`}
               >
-                {PRESET_BOTS.map((preset) => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.name} {preset.apiUrl ? `(${preset.apiUrl})` : ''}
-                  </option>
-                ))}
+                {PRESET_BOTS.map((preset) => {
+                  const displayName = getPresetDisplayName(preset, locale);
+                  return (
+                    <option key={preset.id} value={preset.id}>
+                      {displayName} {preset.apiUrl ? `(${preset.apiUrl})` : ''}
+                    </option>
+                  );
+                })}
               </select>
 
               {selectedPreset === 'custom' && (
@@ -146,7 +150,7 @@ export function LoginGateView() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Example: Custom bot #1"
+                  placeholder={t('login.custom_name')}
                   className={`mt-2 w-full border rounded-xl px-3.5 py-2.5 font-medium focus:outline-none focus:border-emerald-500 transition-colors ${
                     isDark
                       ? 'bg-[#1a233a] border-slate-700 text-slate-100 placeholder:text-slate-500'
@@ -160,26 +164,26 @@ export function LoginGateView() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                  Freqtrade service address (Base URL)
+                  {t('login.endpoint')}
                 </label>
                 <div className="flex gap-1.5">
                   <button
                     type="button"
                     onClick={() => {
                       setSelectedPreset('futures');
-                      setName('FuturesBinance-Bot');
+                      setName(defaultFuturesName);
                       setApiUrl('/ft-api');
                     }}
                     className="px-2 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded text-[10px] font-mono transition-colors cursor-pointer"
                   >
-                    /ft-api (Futures default)
+                    {t('login.futures_default')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setApiUrl('')}
                     className="px-2 py-0.5 bg-slate-500/10 hover:bg-slate-500/20 border border-slate-500/30 text-slate-500 rounded text-[10px] font-mono transition-colors cursor-pointer"
                   >
-                    Clear
+                    {t('login.clear')}
                   </button>
                 </div>
               </div>
@@ -196,20 +200,20 @@ export function LoginGateView() {
                 required
               />
               <p className="text-[10px] text-slate-500 mt-1">
-                Default endpoint is <code className="font-mono text-emerald-500">/ft-api</code> routed securely to Binance Futures Bot.
+                {t('login.endpoint_hint')}
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                  API username (Username)
+                  {t('login.api_username')}
                 </label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Example: freqtrade"
+                  placeholder={t('connect.username_placeholder')}
                   className={`w-full border rounded-xl px-3.5 py-2.5 font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
                     isDark
                       ? 'bg-[#1a233a] border-slate-700 text-slate-100'
@@ -221,7 +225,7 @@ export function LoginGateView() {
 
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                  API password (Password)
+                  {t('login.api_password')}
                 </label>
                 <input
                   type="password"
@@ -246,12 +250,12 @@ export function LoginGateView() {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Connecting to Freqtrade endpoint...</span>
+                  <span>{t('login.connecting')}</span>
                 </>
               ) : (
                 <>
                   <ShieldCheck className="w-4 h-4" />
-                  <span>Verify connection and open dashboard</span>
+                  <span>{t('login.verify')}</span>
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </>
               )}
@@ -262,7 +266,7 @@ export function LoginGateView() {
 
       {/* Bottom Footer Info */}
       <footer className="py-4 text-center text-[11px] text-slate-500">
-        <span>Protected trading terminal · Direct API connection</span>
+        <span>{t('login.footer_protected')}</span>
       </footer>
     </div>
   );
