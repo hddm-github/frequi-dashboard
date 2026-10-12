@@ -23,18 +23,23 @@ RUN pnpm run build
 # ==========================================
 FROM nginx:alpine
 
+RUN apk add --no-cache python3
+
 # 清理默认静态网页
 RUN rm -rf /usr/share/nginx/html/*
 
 # 复制前端编译打包产物
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# 复制 Nginx 配置文件
+# 复制 Nginx 配置文件与只读分享网关
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY share_gateway.py /usr/local/bin/share_gateway.py
+COPY start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
 
 # 暴露 HTTP 端口
 EXPOSE 80
 
 STOPSIGNAL SIGQUIT
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/usr/local/bin/start.sh"]

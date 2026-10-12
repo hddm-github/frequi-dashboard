@@ -12,7 +12,7 @@ export const PRESET_BOTS: BotPreset[] = [
     id: 'futures',
     name: 'Binance Futures Bot',
     nameZh: '币安合约机器人',
-    apiUrl: '/ft-api',
+    apiUrl: '/owner-api',
     description: 'Futures Bot (/ft-api)',
     descriptionZh: '合约机器人 (/ft-api)',
   },

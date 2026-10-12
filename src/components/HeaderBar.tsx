@@ -34,7 +34,6 @@ import { EditBotModal } from './EditBotModal';
 import type { BotProfile } from '../types';
 import { isNfiStrategy } from '../utils/nfiSignals';
 import { useLocale } from '../i18n/LocaleContext';
-import { buildEncryptedShareUrl } from '../utils/shareCrypto';
 import { copyToClipboard } from '../utils/clipboard';
 
 export function HeaderBar() {
@@ -95,11 +94,29 @@ export function HeaderBar() {
   }, []);
 
   const handleCopyShareLink = async () => {
-    if (!activeProfile?.apiUrl) {
-      alert(locale === 'zh' ? '暂未连接机器人，无法生成分享链接' : 'No bot connected. Cannot create a share link');
+    if (!activeProfile?.apiUrl || isReadOnly || !activeProfile.username || !activeProfile.password) {
+      alert(locale === 'zh' ? '仅管理员可创建分享链接' : 'Only an authenticated admin can create a share link');
       return;
     }
-    const shareUrl = buildEncryptedShareUrl(activeProfile);
+    const raw = window.prompt('Share duration in minutes (1-10080)', '60');
+    if (raw === null) return;
+    const minutes = Number(raw);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 10080) {
+      alert('Duration must be 1-10080 minutes');
+      return;
+    }
+    const auth = btoa(`${activeProfile.username}:${activeProfile.password}`);
+    const response = await fetch('/share-token', {
+      method: 'POST',
+      headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ minutes }),
+    });
+    if (!response.ok) {
+      alert('Unable to create temporary share link');
+      return;
+    }
+    const { token } = await response.json();
+    const shareUrl = `${window.location.origin}${window.location.pathname}#share=${encodeURIComponent(token)}`;
     await copyToClipboard(shareUrl);
     setCopiedShare(true);
     setTimeout(() => setCopiedShare(false), 2500);

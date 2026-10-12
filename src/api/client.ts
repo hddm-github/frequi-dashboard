@@ -83,14 +83,17 @@ export class FreqtradeClient {
     if (raw === '/share-api' || raw.startsWith('/share-api')) {
       return '/share-api';
     }
-    // In Vite dev mode, route through universal /api-proxy to eliminate browser CORS limitations
-    if (import.meta.env.DEV) {
-      return '/api-proxy';
+    // Owner mode always uses fixed same-origin server proxy; no user-controlled target URL.
+    if (raw === '/ft-api' || raw === '/owner-api' || import.meta.env.DEV) {
+      return '/owner-api';
     }
     return raw;
   }
 
   private getAuthHeader(): Record<string, string> {
+    if (this.config.shareToken) {
+      return { 'X-Share-Token': this.config.shareToken };
+    }
     // If using server-side share-api proxy, credentials are auto-injected by Nginx
     if (this.config.apiUrl === '/share-api' || this.config.apiUrl?.startsWith('/share-api')) {
       return {};
@@ -112,7 +115,8 @@ export class FreqtradeClient {
   ): Promise<T> {
     const baseUrl = this.getBaseUrl();
     const isShareProxy = baseUrl === '/share-api' || baseUrl.startsWith('/share-api');
-    let url = isShareProxy ? `${baseUrl}/${endpoint}` : `${baseUrl}/api/v1/${endpoint}`;
+    const isOwnerProxy = baseUrl === '/owner-api' || baseUrl.startsWith('/owner-api');
+    let url = isShareProxy || isOwnerProxy ? `${baseUrl}/${endpoint}` : `${baseUrl}/api/v1/${endpoint}`;
     if (params) {
       const q = new URLSearchParams();
       Object.entries(params).forEach(([k, v]) => {
@@ -135,9 +139,6 @@ export class FreqtradeClient {
       Accept: 'application/json',
       ...this.getAuthHeader(),
     };
-    if (this.getBaseUrl() === '/api-proxy' && rawApiUrl && !isShareProxy) {
-      headers['x-target-url'] = rawApiUrl;
-    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout limit
@@ -203,16 +204,15 @@ export class FreqtradeClient {
   }
 
   private async postRequest<T>(endpoint: string, body?: any): Promise<T> {
-    const url = `${this.getBaseUrl()}/api/v1/${endpoint}`;
+    const baseUrl = this.getBaseUrl();
+    const isProxy = baseUrl === '/owner-api' || baseUrl.startsWith('/owner-api') || baseUrl === '/share-api' || baseUrl.startsWith('/share-api');
+    const url = isProxy ? `${baseUrl}/${endpoint}` : `${baseUrl}/api/v1/${endpoint}`;
     const rawApiUrl = normalizeApiUrl(this.config.apiUrl || '');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
       ...this.getAuthHeader(),
     };
-    if (this.getBaseUrl() === '/api-proxy' && rawApiUrl) {
-      headers['x-target-url'] = rawApiUrl;
-    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -706,13 +706,7 @@ export class FreqtradeClient {
       for (const t of targets) {
         try {
           let resp: Response;
-          if (import.meta.env.DEV) {
-            resp = await fetch(`/api-proxy${t.path}`, {
-              headers: { 'x-target-url': t.host },
-            });
-          } else {
-            resp = await fetch(`${t.host}${t.path}`);
-          }
+          resp = await fetch(`${t.host}${t.path}`);
 
           if (!resp.ok) continue;
           const klines = await resp.json();

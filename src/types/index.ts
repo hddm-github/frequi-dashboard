@@ -104,12 +104,14 @@ export interface BotProfile {
   createdAt: number;
   lastConnected?: number;
   isShared?: boolean;
+  shareToken?: string;
 }
 
 export interface BotConfig {
   apiUrl: string;
   username?: string;
   password?: string;
+  shareToken?: string;
   strategyName?: string;
   timeframe?: string;
   state?: 'running' | 'stopped' | 'reload';

@@ -10,7 +10,6 @@ import type {
   Trade,
 } from '../types';
 import { FreqtradeClient, EMPTY_BOT_STATE, normalizeApiUrl } from '../api/client';
-import { decryptShareToken } from '../utils/shareCrypto';
 
 export type CurrencyUnit = 'USDT' | 'USD' | 'CNY' | 'EUR';
 
@@ -75,19 +74,12 @@ interface BotContextValue {
 
 const BotContext = createContext<BotContextValue | null>(null);
 
-function safeBase64Decode(str: string): string {
-  try {
-    return decodeURIComponent(escape(atob(str)));
-  } catch {
-    return atob(str);
-  }
-}
-
 function extractUrlCredentials(): {
   name: string;
   apiUrl: string;
   username: string;
   password: string;
+  shareToken?: string;
 } | null {
   try {
     const searchParams = new URLSearchParams(window.location.search);
@@ -106,38 +98,14 @@ function extractUrlCredentials(): {
       return null;
     };
 
-    // 1. Check encrypted token parameter (?token=... or #token=... or ?t=... or ?s=...)
-    const token = getVal('token', 't', 'connect', 'share_token', 's');
-    if (token) {
-      // First try frontend symmetric decryption
-      const decrypted = decryptShareToken(token);
-      if (decrypted && decrypted.apiUrl) {
-        return {
-          name: decrypted.name || '实盘观摩节点',
-          apiUrl: normalizeApiUrl(decrypted.apiUrl),
-          username: decrypted.username || '',
-          password: decrypted.password || '',
-        };
-      }
-
-      // Fallback to legacy unencrypted base64 json if present
-      try {
-        const decoded = safeBase64Decode(token);
-        const obj = JSON.parse(decoded);
-        if (obj && (obj.apiUrl || obj.url)) {
-          return {
-            name: obj.name || '实盘观摩节点',
-            apiUrl: normalizeApiUrl(obj.apiUrl || obj.url),
-            username: obj.username || obj.user || '',
-            password: obj.password || obj.pass || '',
-          };
-        }
-      } catch (e) {
-        console.warn('Failed to parse legacy connect token:', e);
-      }
+    // New secure share token: opaque token in URL fragment, no credentials in URL.
+    const secureShare = hashParams.get('share');
+    if (secureShare) {
+      return { name: 'Read-only share', apiUrl: '/share-api', username: '', password: '', shareToken: secureShare };
     }
 
-    // 2. Check plaintext query/hash parameters (?name=...&apiUrl=...&user=...&pass=...)
+    // Direct credential links intentionally disabled; connect through login UI instead.
+    // 2. Legacy /share-api mode (?share=true without explicit url)
     const apiUrl = getVal('apiUrl', 'url', 'api', 'server');
     if (apiUrl) {
       const name = getVal('name', 'n', 'bot') || '实盘观摩节点';
@@ -184,6 +152,7 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
           name: urlCreds.name || existingProfiles[foundIdx].name,
           username: urlCreds.username,
           password: urlCreds.password,
+          shareToken: urlCreds.shareToken,
           isShared: true,
         };
         activeId = existingProfiles[foundIdx].id;
@@ -195,6 +164,7 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
           apiUrl: urlCreds.apiUrl,
           username: urlCreds.username,
           password: urlCreds.password,
+          shareToken: urlCreds.shareToken,
           createdAt: Date.now(),
           isShared: true,
         };
@@ -202,7 +172,10 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
         activeId = newBot.id;
       }
 
-      localStorage.setItem('nfi_bot_profiles', JSON.stringify(existingProfiles));
+      localStorage.setItem(
+        'nfi_bot_profiles',
+        JSON.stringify(existingProfiles.map(({ shareToken: _shareToken, ...profile }) => profile))
+      );
       localStorage.setItem('nfi_active_bot_id', activeId);
       localStorage.setItem(
         'nfi_bot_config',
@@ -391,7 +364,8 @@ export function BotProvider({ children }: { children: ReactNode }) {
       apiUrl: activeProfile.apiUrl,
       username: activeProfile.username,
       password: activeProfile.password,
-    };
+      shareToken: activeProfile.shareToken,
+      };
   }, [activeProfile]);
 
   const [client, setClient] = useState<FreqtradeClient>(() => new FreqtradeClient(config));
