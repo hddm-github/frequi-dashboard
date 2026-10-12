@@ -356,7 +356,7 @@ export function StrategyBlueprintModal({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl border border-slate-700/60 bg-gradient-to-b from-[#0f1729] via-[#0c1322] to-[#0a1020] text-slate-200"
+        className="relative w-[calc(100vw-1.5rem)] sm:w-[calc(100vw-3rem)] max-w-[1200px] max-h-[92dvh] overflow-hidden rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-700/60 bg-gradient-to-b from-[#0f1729] via-[#0c1322] to-[#0a1020] text-slate-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -435,7 +435,7 @@ export function StrategyBlueprintModal({
         </div>
 
         {/* Scrollable body */}
-        <div className="overflow-y-auto max-h-[calc(90vh-130px)] px-5 sm:px-7 py-5 space-y-6 text-[13px] leading-relaxed">
+        <div className="overflow-y-auto max-h-[calc(92dvh-138px)] px-4 sm:px-8 lg:px-10 py-5 sm:py-7 space-y-6 sm:space-y-8 text-[13px] leading-relaxed">
           {/* Intro */}
           <section>
             <p className="text-slate-300">
