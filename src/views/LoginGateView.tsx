@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import freqtradeLogo from '../assets/freqtrade.png';
 import { useBot } from '../context/BotContext';
 import { Server, ShieldCheck, AlertCircle, ArrowRight, Sun, Moon, Loader2 } from 'lucide-react';
 import { normalizeApiUrl } from '../api/client';
@@ -67,7 +68,7 @@ export function LoginGateView() {
       >
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-md overflow-hidden border border-slate-700/40">
-            <img src="/freqtrade.png?v=2" alt="Freqtrade" className="w-full h-full object-contain p-0.5" />
+            <img src={freqtradeLogo} alt="Freqtrade" className="w-full h-full object-contain p-0.5" />
           </div>
           <div>
             <div className="flex items-center gap-2 font-bold text-sm tracking-tight">
