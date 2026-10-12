@@ -66,8 +66,8 @@ export function LoginGateView() {
         } backdrop-blur-sm`}
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-600 to-cyan-500 flex items-center justify-center font-bold text-sm text-white shadow-md">
-            F
+          <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-md overflow-hidden border border-slate-700/40">
+            <img src="/freqtrade-logo.png" alt="Freqtrade" className="w-full h-full object-contain p-0.5" />
           </div>
           <div>
             <div className="flex items-center gap-2 font-bold text-sm tracking-tight">
