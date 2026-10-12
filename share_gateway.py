@@ -65,6 +65,9 @@ def safe_summary():
             'open_rate': trade.get('open_rate'),
             'close_rate': trade.get('close_rate'),
             'amount': trade.get('amount'),
+            'enter_tag': trade.get('enter_tag'),
+            'exit_tag': trade.get('exit_tag'),
+            'exit_reason': trade.get('exit_reason'),
             'profit_ratio': float(trade.get('profit_ratio', 0) or 0),
             'profit_pct': round(float(trade.get('profit_ratio', 0) or 0) * 100, 4),
         })

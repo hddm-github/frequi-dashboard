@@ -205,7 +205,7 @@ export function ClosedTradesView() {
                             : 'bg-slate-100 text-slate-700 border-slate-200'
                         }`}
                       >
-                        {t.exit_reason || t.exit_tag || 'roi'}
+                        {t.exit_reason || t.exit_tag || (isReadOnly ? 'Hidden' : '-')}
                       </span>
                     </td>
 

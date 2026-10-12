@@ -97,7 +97,7 @@ export function OverviewView() {
             return (
               <div key={d.date} className="flex-1 flex flex-col items-center h-full justify-end group">
                 <span className="text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity mb-1 font-mono">
-                  {hasTrade ? formatCurrency(d.abs_profit, { showSign: true }) : ''}
+                  {hasTrade ? (isReadOnly ? 'Hidden' : formatCurrency(d.abs_profit, { showSign: true })) : ''}
                 </span>
                 {hasTrade ? (
                   <div

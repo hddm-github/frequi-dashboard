@@ -498,6 +498,7 @@ export class FreqtradeClient {
           is_short: Boolean(t.is_short), open_date: t.open_date || '', open_timestamp: t.open_date ? new Date(t.open_date).getTime() : 0,
           close_date: t.close_date, close_timestamp: t.close_date ? new Date(t.close_date).getTime() : undefined,
           open_rate: Number(t.open_rate || 0), close_rate: Number(t.close_rate || 0), amount: Number(t.amount || 0), stake_amount: 0,
+          enter_tag: t.enter_tag, exit_tag: t.exit_tag, exit_reason: t.exit_reason,
           profit_ratio: Number(t.profit_ratio || 0), profit_pct: Number(t.profit_pct || 0), profit_abs: 0,
         }));
       }
