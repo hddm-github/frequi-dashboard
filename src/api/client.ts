@@ -207,7 +207,6 @@ export class FreqtradeClient {
     const baseUrl = this.getBaseUrl();
     const isProxy = baseUrl === '/owner-api' || baseUrl.startsWith('/owner-api') || baseUrl === '/share-api' || baseUrl.startsWith('/share-api');
     const url = isProxy ? `${baseUrl}/${endpoint}` : `${baseUrl}/api/v1/${endpoint}`;
-    const rawApiUrl = normalizeApiUrl(this.config.apiUrl || '');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
