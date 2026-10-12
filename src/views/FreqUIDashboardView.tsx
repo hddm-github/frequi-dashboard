@@ -325,10 +325,12 @@ export function FreqUIDashboardView() {
                       </td>
 
                       <td className="py-2 px-3 whitespace-nowrap">
-                        <div className="text-rose-600 dark:text-rose-400 text-xs">
+                        <div className="text-slate-700 dark:text-slate-300 font-medium">
+                          {trade.stop_loss_abs || '-'}
+                        </div>
+                        <div className="text-[10px] text-rose-600 dark:text-rose-400">
                           {trade.stop_loss_pct ? `${(trade.stop_loss_pct * 100).toFixed(1)}%` : '-'}
                         </div>
-                        <div className="text-[10px] text-slate-500">{trade.stop_loss_abs || '-'}</div>
                       </td>
 
                       <td className="py-2 px-3 whitespace-nowrap">

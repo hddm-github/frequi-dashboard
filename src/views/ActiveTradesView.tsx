@@ -115,10 +115,10 @@ export function ActiveTradesView() {
                   </td>
 
                   <td className="py-2.5 px-2.5 whitespace-nowrap">
-                    <span className="text-rose-600 dark:text-rose-400 text-[11px]">
+                    <div className="text-slate-700 dark:text-slate-300 font-medium">{trade.stop_loss_abs || '-'}</div>
+                    <div className="text-[10px] text-rose-600 dark:text-rose-400">
                       {trade.stop_loss_pct ? `${(trade.stop_loss_pct * 100).toFixed(1)}%` : '-'}
-                    </span>
-                    <div className="text-[10px] text-slate-500">{trade.stop_loss_abs || '-'}</div>
+                    </div>
                   </td>
 
                   <td className="py-2.5 px-2.5 whitespace-nowrap">

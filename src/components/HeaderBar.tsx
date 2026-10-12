@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useBot } from '../context/BotContext';
 import { useOptionalWorkspace } from '@danfessler/trellis-react';
+import freqtradeLogo from '../assets/freqtrade.png';
 import {
   RotateCcw,
   PlusCircle,
@@ -144,8 +145,12 @@ export function HeaderBar() {
         {/* Left Section: Brand & Multi-Bot Switcher */}
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
-            <div className="hidden sm:flex w-6 h-6 rounded-lg bg-gradient-to-tr from-emerald-600 to-cyan-500 items-center justify-center font-bold text-xs text-white shadow-xs">
-              F
+            <div className="hidden sm:flex w-7 h-7 rounded-lg bg-white items-center justify-center shadow-xs overflow-hidden border border-slate-700/40">
+              <img
+                src={freqtradeLogo}
+                alt="Freqtrade"
+                className="w-full h-full object-contain p-0.5"
+              />
             </div>
             <span
               className={`hidden sm:inline font-bold text-sm tracking-tight ${
