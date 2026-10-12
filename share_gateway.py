@@ -10,8 +10,82 @@ BACKEND = os.environ.get('FREQTRADE_BACKEND', 'http://ft-futures-bot:8081/api/v1
 MAX_MINUTES = 7 * 24 * 60
 TOKENS = {}
 LOCK = threading.Lock()
-# Public-safe market data only; no balances, positions, trades, profit, logs or config.
-ALLOWED = {'ping', 'version', 'pair_candles', 'whitelist'}
+# Public-safe market data only; no balances, positions, trades, profit, logs or raw config.
+ALLOWED = {'ping', 'version', 'pair_candles', 'whitelist', 'share-summary'}
+
+
+def backend_json(suffix):
+    req = Request(
+        BACKEND + suffix,
+        headers={
+            'Authorization': 'Basic ' + base64.b64encode(f'{USER}:{PASSWORD}'.encode()).decode(),
+            'Accept': 'application/json',
+        },
+    )
+    with urlopen(req, timeout=15) as response:
+        return json.loads(response.read())
+
+
+def safe_summary():
+    version = backend_json('version')
+    config = backend_json('show_config')
+    whitelist = backend_json('whitelist')
+    try:
+        profit = backend_json('profit')
+    except (HTTPError, URLError, ValueError):
+        profit = {}
+    try:
+        active_raw = backend_json('status')
+    except (HTTPError, URLError, ValueError):
+        active_raw = []
+    try:
+        closed_raw = backend_json('trades?limit=100&order_by_id=true')
+    except (HTTPError, URLError, ValueError):
+        closed_raw = {'trades': []}
+    active = active_raw if isinstance(active_raw, list) else []
+    closed = closed_raw.get('trades', []) if isinstance(closed_raw, dict) else []
+    safe_active = [{
+        'is_open': True,
+        'is_short': bool(trade.get('is_short', False)),
+        'open_date': trade.get('open_date'),
+        'profit_ratio': float(trade.get('profit_ratio', 0) or 0),
+        'profit_pct': round(float(trade.get('profit_ratio', 0) or 0) * 100, 4),
+    } for trade in active]
+    safe_trades = []
+    for trade in closed:
+        if trade.get('is_open'):
+            continue
+        safe_trades.append({
+            'is_open': False,
+            'is_short': bool(trade.get('is_short', False)),
+            'open_date': trade.get('open_date'),
+            'close_date': trade.get('close_date'),
+            'profit_ratio': float(trade.get('profit_ratio', 0) or 0),
+            'profit_pct': round(float(trade.get('profit_ratio', 0) or 0) * 100, 4),
+        })
+    return {
+        'version': version.get('version', 'Freqtrade'),
+        'strategy': config.get('strategy', 'FreqtradeStrategy'),
+        'strategy_version': config.get('strategy_version', ''),
+        'timeframe': config.get('timeframe', '5m'),
+        'state': 'running',
+        'dry_run': bool(config.get('dry_run', False)),
+        'stake_currency': '',
+        'max_open_trades': config.get('max_open_trades', 0),
+        'whitelist': whitelist.get('whitelist', []),
+        'active_count': len(active),
+        'active_long': sum(1 for t in active if not t.get('is_short')),
+        'active_short': sum(1 for t in active if t.get('is_short')),
+        'active_trades': safe_active,
+        'profit_closed_ratio': float(profit.get('profit_closed_ratio', 0) or 0),
+        'profit_all_ratio': float(profit.get('profit_all_ratio', 0) or 0),
+        'winrate': float(profit.get('winrate', 0) or 0),
+        'winning_trades': int(profit.get('winning_trades', 0) or 0),
+        'losing_trades': int(profit.get('losing_trades', 0) or 0),
+        'trade_count': int(profit.get('trade_count', len(safe_trades)) or 0),
+        'closed_trade_count': int(profit.get('closed_trade_count', len(safe_trades)) or 0),
+        'trades': safe_trades,
+    }
 
 
 def digest(token):
@@ -114,6 +188,9 @@ class Gateway(BaseHTTPRequestHandler):
             send_json(self, 404, {'error': 'endpoint unavailable in read-only share'})
             return
         try:
+            if endpoint == 'share-summary':
+                send_json(self, 200, safe_summary())
+                return
             req = Request(BACKEND + suffix, headers={'Authorization': 'Basic ' + base64.b64encode(f'{USER}:{PASSWORD}'.encode()).decode(), 'Accept': 'application/json'})
             with urlopen(req, timeout=15) as response:
                 body = response.read()

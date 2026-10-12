@@ -4,7 +4,7 @@ import { useT } from '../i18n/LocaleContext';
 import { TrendingUp, Award, Activity, ShieldAlert, Clock, DollarSign } from 'lucide-react';
 
 export function OverviewView() {
-  const { profitSummary, activeTrades, dailyRecords, botState, formatCurrency } = useBot();
+  const { profitSummary, activeTrades, dailyRecords, botState, formatCurrency, isReadOnly } = useBot();
   const t = useT();
 
   const totalUnrealized = activeTrades.reduce((sum, t) => sum + (t.profit_abs || 0), 0);
@@ -28,7 +28,7 @@ export function OverviewView() {
             <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
           </div>
           <div className="text-xl font-bold text-emerald-400 font-mono">
-            {formatCurrency(profitSummary?.profit_closed_coin || 0, { showSign: true })}
+            {isReadOnly ? 'Hidden' : formatCurrency(profitSummary?.profit_closed_coin || 0, { showSign: true })}
           </div>
           <div className="text-xs text-slate-500 mt-0.5">
             {t('trade.return')}: +{((profitSummary?.profit_closed_ratio || 0) * 100).toFixed(2)}%
@@ -55,7 +55,7 @@ export function OverviewView() {
             <Activity className="w-3.5 h-3.5 text-amber-400" />
           </div>
           <div className={`text-xl font-bold font-mono ${totalUnrealized >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {formatCurrency(totalUnrealized, { showSign: true })}
+            {isReadOnly ? 'Hidden' : formatCurrency(totalUnrealized, { showSign: true })}
           </div>
           <div className="text-xs text-slate-500 mt-0.5">
             {t('overview.current_positions')}: {activeTrades.length} / {botState.max_open_trades}

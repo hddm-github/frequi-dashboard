@@ -295,6 +295,31 @@ export class FreqtradeClient {
 
   async getBotState(): Promise<BotState> {
     try {
+      if (this.config.shareToken) {
+        const safe = await this.request<{
+          version?: string;
+          strategy?: string;
+          strategy_version?: string;
+          timeframe?: string;
+          state?: 'running' | 'stopped';
+          dry_run?: boolean;
+          stake_currency?: string;
+          max_open_trades?: number;
+          whitelist?: string[];
+        }>('share-summary');
+        return {
+          ...EMPTY_BOT_STATE,
+          version: safe.version || 'Freqtrade',
+          strategy: safe.strategy || 'FreqtradeStrategy',
+          strategy_version: safe.strategy_version || '',
+          timeframe: safe.timeframe || '5m',
+          state: safe.state || 'running',
+          dry_run: safe.dry_run ?? false,
+          stake_currency: safe.stake_currency || 'USDT',
+          max_open_trades: safe.max_open_trades || 0,
+          whitelist: safe.whitelist || [],
+        };
+      }
       const [versionData, configData, balanceData, whitelistData] = await Promise.all([
         this.request<{ version: string }>('version').catch(() => ({ version: 'Freqtrade' })),
         this.request<{
@@ -359,6 +384,15 @@ export class FreqtradeClient {
 
   async getActiveTrades(): Promise<Trade[]> {
     try {
+      if (this.config.shareToken) {
+        const safe = await this.request<any>('share-summary');
+        return (safe.active_trades || []).map((trade: any, index: number) => ({
+          trade_id: -(index + 1), pair: 'REDACTED', is_open: true,
+          is_short: Boolean(trade.is_short), open_date: trade.open_date || '', open_timestamp: trade.open_date ? new Date(trade.open_date).getTime() : 0,
+          open_rate: 0, current_rate: 0, amount: 0, stake_amount: 0,
+          profit_ratio: Number(trade.profit_ratio || 0), profit_pct: Number(trade.profit_pct || 0),
+        }));
+      }
       const data = await this.request<any[]>('status');
       if (!Array.isArray(data)) return [];
       return data.map((item) => ({
@@ -394,6 +428,19 @@ export class FreqtradeClient {
 
   async getProfitSummary(): Promise<ProfitSummary> {
     try {
+      if (this.config.shareToken) {
+        const raw = await this.request<any>('share-summary');
+        return {
+          profit_closed_coin: 0, profit_closed_percent_mean: Number(raw.profit_closed_ratio || 0) * 100,
+          profit_closed_ratio: Number(raw.profit_closed_ratio || 0), profit_closed_fiat: 0,
+          profit_all_coin: 0, profit_all_percent_mean: Number(raw.profit_all_ratio || 0) * 100,
+          profit_all_ratio: Number(raw.profit_all_ratio || 0), profit_all_fiat: 0,
+          trade_count: Number(raw.trade_count || 0), closed_trade_count: Number(raw.closed_trade_count || 0),
+          first_trade_date: '-', latest_trade_date: '-', avg_duration: '-', best_pair: 'REDACTED',
+          winning_trades: Number(raw.winning_trades || 0), losing_trades: Number(raw.losing_trades || 0),
+          winrate: Number(raw.winrate || 0), max_drawdown: 0, max_drawdown_pct: 0,
+        };
+      }
       const raw = await this.request<any>('profit');
       return {
         profit_closed_coin: raw.profit_closed_coin ?? 0,
@@ -444,6 +491,16 @@ export class FreqtradeClient {
 
   async getClosedTrades(limit: number = 100, orderById: boolean = false): Promise<Trade[]> {
     try {
+      if (this.config.shareToken) {
+        const data = await this.request<{ trades: any[] }>('share-summary');
+        return (data.trades || []).slice(0, limit).map((t: any, index: number) => ({
+          trade_id: -(index + 1), pair: 'REDACTED', is_open: false,
+          is_short: Boolean(t.is_short), open_date: t.open_date || '', open_timestamp: t.open_date ? new Date(t.open_date).getTime() : 0,
+          close_date: t.close_date, close_timestamp: t.close_date ? new Date(t.close_date).getTime() : undefined,
+          open_rate: 0, close_rate: 0, amount: 0, stake_amount: 0,
+          profit_ratio: Number(t.profit_ratio || 0), profit_pct: Number(t.profit_pct || 0), profit_abs: 0,
+        }));
+      }
       const data = await this.request<{ trades: any[] }>('trades', {
         limit,
         order_by_id: orderById,

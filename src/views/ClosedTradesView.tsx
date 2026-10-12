@@ -7,7 +7,7 @@ import { formatUtc8 } from '../utils/dateUtils';
 import { useT } from '../i18n/LocaleContext';
 
 export function ClosedTradesView() {
-  const { closedTrades, setSelectedPair, theme, formatCurrency, refreshData, setMobileTab } = useBot();
+  const { closedTrades, setSelectedPair, theme, formatCurrency, refreshData, setMobileTab, isReadOnly } = useBot();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const isDark = theme === 'dark';
   const translate = useT();
@@ -97,7 +97,7 @@ export function ClosedTradesView() {
           <div className="text-xs font-mono">
             <span className="text-slate-400 mr-1">{translate('closed.total_profit')}:</span>
             <span className={`font-bold ${totalClosedProfit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-              {formatCurrency(totalClosedProfit, { showSign: true })}
+              {isReadOnly ? 'Hidden' : formatCurrency(totalClosedProfit, { showSign: true })}
             </span>
           </div>
 
@@ -160,7 +160,7 @@ export function ClosedTradesView() {
                         ) : (
                           <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                         )}
-                        <span>{t.pair}</span>
+                        <span>{isReadOnly ? t.pair : t.pair}</span>
                       </div>
                       <div className="text-[10px] text-slate-500 font-normal">
                         #{t.trade_id} · {formatUtc8(t.close_timestamp || t.close_date, 'YYYY-MM-DD HH:mm:ss')}
@@ -168,8 +168,8 @@ export function ClosedTradesView() {
                     </td>
 
                     <td className="py-2.5 px-3 whitespace-nowrap">
-                      <div className="text-slate-700 dark:text-slate-300 font-medium">{t.open_rate}</div>
-                      <div className="text-[11px] text-slate-500">{t.close_rate || '-'}</div>
+                      <div className="text-slate-700 dark:text-slate-300 font-medium">{isReadOnly ? 'Hidden' : t.open_rate}</div>
+                      <div className="text-[11px] text-slate-500">{isReadOnly ? 'Hidden' : t.close_rate || '-'}</div>
                     </td>
 
                     <td className="py-2.5 px-3 whitespace-nowrap">
@@ -183,7 +183,7 @@ export function ClosedTradesView() {
                         ) : (
                           <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                         )}
-                        <span>{formatCurrency(profitAbs, { showSign: true })}</span>
+                        <span>{isReadOnly ? 'Hidden' : formatCurrency(profitAbs, { showSign: true })}</span>
                       </div>
                       <div className="text-[10px] text-slate-500 font-mono">
                         {translate('trade.return')}: {isProfit ? '+' : ''}{t.profit_pct}%
@@ -192,7 +192,7 @@ export function ClosedTradesView() {
 
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       <div className="font-medium text-slate-700 dark:text-slate-300">
-                        {formatCurrency(t.stake_amount || 0)}
+                        {isReadOnly ? 'Hidden' : formatCurrency(t.stake_amount || 0)}
                       </div>
                       <div className="text-[10px] text-slate-500">{translate('dashboard.amount')}: {t.amount}</div>
                     </td>
