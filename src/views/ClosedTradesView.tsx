@@ -160,7 +160,7 @@ export function ClosedTradesView() {
                         ) : (
                           <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                         )}
-                        <span>{isReadOnly ? t.pair : t.pair}</span>
+                        <span>{t.pair || '-'}</span>
                       </div>
                       <div className="text-[10px] text-slate-500 font-normal">
                         #{t.trade_id} · {formatUtc8(t.close_timestamp || t.close_date, 'YYYY-MM-DD HH:mm:ss')}
@@ -168,8 +168,8 @@ export function ClosedTradesView() {
                     </td>
 
                     <td className="py-2.5 px-3 whitespace-nowrap">
-                      <div className="text-slate-700 dark:text-slate-300 font-medium">{isReadOnly ? 'Hidden' : t.open_rate}</div>
-                      <div className="text-[11px] text-slate-500">{isReadOnly ? 'Hidden' : t.close_rate || '-'}</div>
+                      <div className="text-slate-700 dark:text-slate-300 font-medium">{t.open_rate || '-'}</div>
+                      <div className="text-[11px] text-slate-500">{t.close_rate || '-'}</div>
                     </td>
 
                     <td className="py-2.5 px-3 whitespace-nowrap">
@@ -194,7 +194,7 @@ export function ClosedTradesView() {
                       <div className="font-medium text-slate-700 dark:text-slate-300">
                         {isReadOnly ? 'Hidden' : formatCurrency(t.stake_amount || 0)}
                       </div>
-                      <div className="text-[10px] text-slate-500">{translate('dashboard.amount')}: {t.amount}</div>
+                      <div className="text-[10px] text-slate-500">{translate('dashboard.amount')}: {t.amount || '-'}</div>
                     </td>
 
                     <td className="py-2.5 px-3 whitespace-nowrap">

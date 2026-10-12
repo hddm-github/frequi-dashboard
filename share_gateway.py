@@ -56,10 +56,15 @@ def safe_summary():
         if trade.get('is_open'):
             continue
         safe_trades.append({
+            'trade_id': trade.get('trade_id'),
             'is_open': False,
             'is_short': bool(trade.get('is_short', False)),
+            'pair': trade.get('pair', ''),
             'open_date': trade.get('open_date'),
             'close_date': trade.get('close_date'),
+            'open_rate': trade.get('open_rate'),
+            'close_rate': trade.get('close_rate'),
+            'amount': trade.get('amount'),
             'profit_ratio': float(trade.get('profit_ratio', 0) or 0),
             'profit_pct': round(float(trade.get('profit_ratio', 0) or 0) * 100, 4),
         })

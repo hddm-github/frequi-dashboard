@@ -494,10 +494,10 @@ export class FreqtradeClient {
       if (this.config.shareToken) {
         const data = await this.request<{ trades: any[] }>('share-summary');
         return (data.trades || []).slice(0, limit).map((t: any, index: number) => ({
-          trade_id: -(index + 1), pair: 'REDACTED', is_open: false,
+          trade_id: Number(t.trade_id || index + 1), pair: t.pair || '', is_open: false,
           is_short: Boolean(t.is_short), open_date: t.open_date || '', open_timestamp: t.open_date ? new Date(t.open_date).getTime() : 0,
           close_date: t.close_date, close_timestamp: t.close_date ? new Date(t.close_date).getTime() : undefined,
-          open_rate: 0, close_rate: 0, amount: 0, stake_amount: 0,
+          open_rate: Number(t.open_rate || 0), close_rate: Number(t.close_rate || 0), amount: Number(t.amount || 0), stake_amount: 0,
           profit_ratio: Number(t.profit_ratio || 0), profit_pct: Number(t.profit_pct || 0), profit_abs: 0,
         }));
       }
