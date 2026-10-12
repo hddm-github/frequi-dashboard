@@ -109,7 +109,7 @@ export function HeaderBar() {
           <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
             <div className="hidden sm:flex w-7 h-7 rounded-lg bg-white items-center justify-center shadow-xs overflow-hidden border border-slate-700/40">
               <img
-                src="/freqtrade.png"
+                src="/freqtrade.png?v=2"
                 alt="Freqtrade"
                 className="w-full h-full object-contain p-0.5"
               />
