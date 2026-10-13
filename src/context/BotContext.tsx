@@ -87,7 +87,11 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
         const savedActive = localStorage.getItem('nfi_active_bot_id');
         const sanitized = parsed.map((p: BotProfile) => ({
           ...p,
-          apiUrl: normalizeApiUrl(p.apiUrl === '/ft-api' ? '/owner-api' : p.apiUrl),
+          // Migrate legacy internal path aliases to the same-origin standard API ("/").
+          apiUrl:
+            p.apiUrl === '/ft-api' || p.apiUrl === '/owner-api' || p.apiUrl === '/freq-trade'
+              ? '/'
+              : normalizeApiUrl(p.apiUrl),
         }));
         const activeExists = sanitized.some((p: BotProfile) => p.id === savedActive);
         return {
@@ -210,7 +214,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
     setClient(nextClient);
   }, [config]);
 
-  // Branch 'hide-operation-buttons': Default to Read-Only mode to hide all dangerous operation buttons
+  // Normal owner dashboard keeps control buttons enabled.
   const isReadOnly = false;
 
   // Global Currency Unit State: 默认 CNY 计价
