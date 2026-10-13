@@ -10,7 +10,7 @@ export interface BotPreset {
 export const PRESET_BOTS: BotPreset[] = [
   {
     id: 'futures',
-    name: 'Binance Futures Bot',
+    name: 'freqtrade-bot',
     nameZh: '币安合约机器人',
     apiUrl: '/owner-api',
     description: 'Futures Bot (/owner-api)',

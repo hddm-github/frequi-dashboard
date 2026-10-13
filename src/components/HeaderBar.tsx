@@ -21,10 +21,8 @@ import {
   Edit3,
   WifiOff,
   TrendingUp,
-  ShieldCheck,
   Globe,
   Coins,
-  Share2,
   History,
   Settings,
   X,
@@ -34,7 +32,6 @@ import { EditBotModal } from './EditBotModal';
 import type { BotProfile } from '../types';
 import { isNfiStrategy } from '../utils/nfiSignals';
 import { useLocale } from '../i18n/LocaleContext';
-import { copyToClipboard } from '../utils/clipboard';
 import { localizeError } from '../utils/localizeError';
 
 export function HeaderBar() {
@@ -51,7 +48,6 @@ export function HeaderBar() {
     refreshData,
     theme,
     setTheme,
-    isReadOnly,
     refreshCountdown,
     refreshInterval,
     setRefreshInterval,
@@ -68,7 +64,6 @@ export function HeaderBar() {
   const [showAddViewMenu, setShowAddViewMenu] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [editingBot, setEditingBot] = useState<BotProfile | null>(null);
-  const [copiedShare, setCopiedShare] = useState(false);
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
   const [showRefreshDropdown, setShowRefreshDropdown] = useState(false);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
@@ -94,34 +89,6 @@ export function HeaderBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleCopyShareLink = async () => {
-    if (!activeProfile?.apiUrl || isReadOnly || !activeProfile.username || !activeProfile.password) {
-      alert(locale === 'zh' ? '仅管理员可创建分享链接' : 'Only an authenticated admin can create a share link');
-      return;
-    }
-    const raw = window.prompt('Share duration in minutes (1-10080)', '60');
-    if (raw === null) return;
-    const minutes = Number(raw);
-    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 10080) {
-      alert('Duration must be 1-10080 minutes');
-      return;
-    }
-    const auth = btoa(`${activeProfile.username}:${activeProfile.password}`);
-    const response = await fetch('/share-token', {
-      method: 'POST',
-      headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ minutes }),
-    });
-    if (!response.ok) {
-      alert('Unable to create temporary share link');
-      return;
-    }
-    const { token } = await response.json();
-    const shareUrl = `${window.location.origin}${window.location.pathname}#share=${encodeURIComponent(token)}`;
-    await copyToClipboard(shareUrl);
-    setCopiedShare(true);
-    setTimeout(() => setCopiedShare(false), 2500);
-  };
 
   const handleManualRefresh = async () => {
     setRefreshing(true);
@@ -177,12 +144,6 @@ export function HeaderBar() {
             >
               FreqUI
             </span>
-            {isReadOnly && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1" title={t('ui.live_readonly')} aria-label={t('ui.live_readonly')}>
-                <ShieldCheck className="w-3 h-3 shrink-0" />
-                <span className="hidden sm:inline">{t('ui.live_readonly')}</span>
-              </span>
-            )}
           </div>
 
           <div className={`hidden sm:block h-4 w-px mx-0.5 ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
@@ -283,7 +244,7 @@ export function HeaderBar() {
                           >
                             <div className="truncate text-xs font-semibold">{p.name}</div>
                             <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate">
-                              {isReadOnly || p.isShared || p.id?.startsWith('bot-url-') ? `●●●●●● ${t('ui.protected')}` : p.apiUrl}
+                              {p.apiUrl}
                             </div>
                           </button>
 
@@ -351,7 +312,7 @@ export function HeaderBar() {
           {/* Desktop Expanded Action Bar (visible when screen has enough width, md and up) */}
           <div className="hidden md:flex items-center gap-1 sm:gap-1.5">
             {/* Global Currency Switcher Popover */}
-          {!isReadOnly && <div className="relative group" ref={currencyDropdownRef}>
+          <div className="relative group" ref={currencyDropdownRef}>
             <button
               type="button"
               onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
@@ -456,44 +417,7 @@ export function HeaderBar() {
               </div>
             </>
           )}
-        </div>}
-
-          {/* Share Link Button */}
-          <div className="relative group">
-            <button
-              type="button"
-              onClick={handleCopyShareLink}
-              className={`px-2 py-1.5 rounded-lg border text-xs flex items-center gap-1 sm:gap-1.5 transition-colors cursor-pointer font-medium ${
-                copiedShare
-                  ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
-                  : isDark
-                  ? 'border-slate-700 bg-[#1a233a] hover:bg-[#222e4c] text-cyan-400'
-                  : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-cyan-700'
-              }`}
-              title={copiedShare ? t('dashboard.share_copied') : t('dashboard.share_tooltip')}
-            >
-              {copiedShare ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span className="text-[11px] font-semibold text-emerald-400">
-                    {t('dashboard.copied')}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Share2 className="w-3.5 h-3.5 shrink-0" />
-                  <span className="text-[11px] font-semibold">
-                    {t('dashboard.share')}
-                  </span>
-                </>
-              )}
-            </button>
-
-            {/* Instant Floating Hover Tooltip */}
-            <div className="pointer-events-none absolute right-0 top-full mt-1.5 hidden group-hover:flex items-center px-2.5 py-1 text-[11px] font-medium text-slate-200 bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-xs rounded-md shadow-xl border border-slate-700/60 whitespace-nowrap z-50">
-              {copiedShare ? t('dashboard.share_copied') : t('dashboard.share_tooltip')}
-            </div>
-          </div>
+        </div>
 
           {/* Manual Refresh & Customizable Auto-Refresh Split Button */}
           <div className="relative" ref={refreshDropdownRef}>
@@ -900,7 +824,7 @@ export function HeaderBar() {
                 </button>
               </div>
 
-              {!isReadOnly && <>
+              <>
               {/* 1. Display Currency Section */}
               <div className="mb-4">
                 <div className="flex items-center justify-between text-xs font-semibold text-slate-400 mb-2">
@@ -967,7 +891,7 @@ export function HeaderBar() {
                   </div>
                 )}
               </div>
-              </>}
+              </>
 
               {/* 2. Auto-Refresh Frequency Section */}
               <div className="mb-4">
@@ -1091,36 +1015,7 @@ export function HeaderBar() {
                 </button>
               </div>
 
-              {/* 4. Share Read-Only Panel */}
-              <div className="mb-4">
-                <button
-                  type="button"
-                  onClick={handleCopyShareLink}
-                  className={`w-full p-2.5 rounded-xl border flex items-center justify-between transition-colors cursor-pointer ${
-                    copiedShare
-                      ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
-                      : isDark
-                      ? 'bg-[#0f1626] border-slate-800 hover:bg-slate-800 text-slate-200'
-                      : 'bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-800'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {copiedShare ? (
-                      <Check className="w-4 h-4 text-emerald-400" />
-                    ) : (
-                      <Share2 className="w-4 h-4 text-cyan-400" />
-                    )}
-                    <span className="font-semibold">
-                      {copiedShare ? t('dashboard.share_copied') : t('header.share_panel')}
-                    </span>
-                  </div>
-                  <span className="text-[11px] font-bold text-emerald-500">
-                    {copiedShare ? '✓' : locale === 'zh' ? '复制链接' : 'Copy'}
-                  </span>
-                </button>
-              </div>
-
-              {/* 5. Reset Layout Button */}
+              {/* Reset Layout Button */}
               <div>
                 <button
                   type="button"

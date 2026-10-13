@@ -28,8 +28,6 @@ export const zh: Record<string, string> = {
   'header.quick_settings': '快捷设置',
   'header.settings_title': '打开快捷设置面板',
   'header.sync_now': '立即同步数据',
-  'header.share_panel': '分享只读面板',
-  'header.share_panel_desc': '生成加密只读链接分享给朋友',
   'header.refresh_live_rate': '刷新实时汇率',
   'header.pull_to_refresh': '下拉刷新数据',
   'header.release_to_refresh': '释放立即刷新',
@@ -310,11 +308,6 @@ export const zh: Record<string, string> = {
   'dashboard.total_records': '共 {count} 条记录',
   'dashboard.reference_rate': '参考汇率',
   'dashboard.edit': '编辑',
-  'dashboard.share': '分享',
-  'dashboard.copied': '已复制',
-  'dashboard.create_share': '生成只读分享链接',
-  'dashboard.share_copied': '已复制只读链接！',
-  'dashboard.share_tooltip': '分享只读面板给朋友',
   'dashboard.sync_tooltip': '立即同步最新历史',
 
   // Closed Trades View

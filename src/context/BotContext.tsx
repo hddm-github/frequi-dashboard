@@ -76,123 +76,9 @@ interface BotContextValue {
 
 const BotContext = createContext<BotContextValue | null>(null);
 
-function extractUrlCredentials(): {
-  name: string;
-  apiUrl: string;
-  username: string;
-  password: string;
-  shareToken?: string;
-} | null {
-  try {
-    const searchParams = new URLSearchParams(window.location.search);
-    const hashStr = window.location.hash.startsWith('#')
-      ? window.location.hash.slice(1)
-      : window.location.hash;
-    const hashParams = new URLSearchParams(hashStr);
-
-    const getVal = (...keys: string[]): string | null => {
-      for (const k of keys) {
-        const v = searchParams.get(k) || hashParams.get(k);
-        if (v !== null && v !== undefined && v !== '') {
-          return decodeURIComponent(v.trim());
-        }
-      }
-      return null;
-    };
-
-    // New secure share token: opaque token in URL fragment, no credentials in URL.
-    const secureShare = hashParams.get('share');
-    if (secureShare) {
-      return { name: 'Read-only share', apiUrl: '/share-api', username: '', password: '', shareToken: secureShare };
-    }
-
-    // Direct credential links intentionally disabled; connect through login UI instead.
-    // 2. Legacy /share-api mode (?share=true without explicit url)
-    const apiUrl = getVal('apiUrl', 'url', 'api', 'server');
-    if (apiUrl) {
-      const name = getVal('name', 'n', 'bot') || '实盘观摩节点';
-      const username = getVal('username', 'user', 'u', 'account') || '';
-      const password = getVal('password', 'pass', 'pwd', 'p') || '';
-
-      return {
-        name,
-        apiUrl: normalizeApiUrl(apiUrl),
-        username,
-        password,
-      };
-    }
-  } catch (err) {
-    console.error('Failed to parse URL credentials:', err);
-  }
-  return null;
-}
-
 function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | null } {
   try {
-    // 1. Check if user opened a 1-click share URL containing credentials
-    const urlCreds = extractUrlCredentials();
-    if (urlCreds) {
-      let existingProfiles: BotProfile[] = [];
-      try {
-        const raw = localStorage.getItem('nfi_bot_profiles');
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) existingProfiles = parsed;
-        }
-      } catch {}
-
-      // Share sessions are isolated. Never mutate or reuse an owner profile.
-      const newBot: BotProfile = {
-        id: `bot-url-${Date.now()}`,
-        name: urlCreds.name,
-        apiUrl: urlCreds.apiUrl,
-        username: urlCreds.username,
-        password: urlCreds.password,
-        shareToken: urlCreds.shareToken,
-        createdAt: Date.now(),
-        isShared: Boolean(urlCreds.shareToken),
-      };
-      const profiles = urlCreds.shareToken ? [newBot, ...existingProfiles] : [newBot];
-      const activeId = newBot.id;
-
-      // Share token stays in memory only. Owner profiles remain unchanged in localStorage.
-      if (!urlCreds.shareToken) {
-        localStorage.setItem('nfi_bot_profiles', JSON.stringify(profiles));
-        localStorage.setItem('nfi_active_bot_id', activeId);
-      }
-
-      try {
-        sessionStorage.setItem('nfi_url_imported_name', urlCreds.name);
-      } catch {}
-
-      try {
-        if (window.history && window.history.replaceState) {
-          const cleanUrl = window.location.origin + window.location.pathname;
-          window.history.replaceState({}, document.title, cleanUrl);
-        }
-      } catch (e) {
-        console.warn('Failed to clean URL', e);
-      }
-
-      return { profiles, activeId };
-    }
-
-    // 2. Legacy /share-api mode (?share=true without explicit url)
-    const searchParams = new URLSearchParams(window.location.search);
-    const isShare = searchParams.get('share') === 'true' || searchParams.get('mode') === 'share';
-    if (isShare) {
-      const shareBot: BotProfile = {
-        id: 'share-readonly-bot',
-        name: '实盘观摩节点 (只读)',
-        apiUrl: '/share-api',
-        username: 'share-viewer',
-        password: '',
-        createdAt: Date.now(),
-        isShared: true,
-      };
-      return { profiles: [shareBot], activeId: shareBot.id };
-    }
-
+    // Load only explicitly saved bot profiles. Deleted profiles stay deleted.
     // 3. Normal load from localStorage
     const raw = localStorage.getItem('nfi_bot_profiles');
     if (raw) {
@@ -202,7 +88,6 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
         const sanitized = parsed.map((p: BotProfile) => ({
           ...p,
           apiUrl: normalizeApiUrl(p.apiUrl === '/ft-api' ? '/owner-api' : p.apiUrl),
-          isShared: p.id?.startsWith('bot-url-') || (p.isShared === true && p.apiUrl !== '/owner-api' && p.apiUrl !== '/ft-api'),
         }));
         const activeExists = sanitized.some((p: BotProfile) => p.id === savedActive);
         return {
@@ -212,24 +97,6 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
       }
     }
 
-    // Auto-migration from legacy single config
-    const legacy = localStorage.getItem('nfi_bot_config');
-    if (legacy) {
-      const parsedLegacy = JSON.parse(legacy);
-      if (parsedLegacy.apiUrl) {
-        const migrated: BotProfile = {
-          id: `bot-${Date.now()}`,
-          name: '默认机器人',
-          apiUrl: normalizeApiUrl(parsedLegacy.apiUrl),
-          username: parsedLegacy.username || '',
-          password: parsedLegacy.password || '',
-          createdAt: Date.now(),
-        };
-        localStorage.setItem('nfi_bot_profiles', JSON.stringify([migrated]));
-        localStorage.setItem('nfi_active_bot_id', migrated.id);
-        return { profiles: [migrated], activeId: migrated.id };
-      }
-    }
   } catch (err) {
     console.error('Failed to load bot profiles', err);
   }
@@ -273,7 +140,7 @@ function saveBotSnapshot(
 }
 
 export function BotProvider({ children }: { children: ReactNode }) {
-  const { locale } = useLocale();
+  useLocale();
 
   // Theme state: 默认白天模式 (Light mode)
   const [theme, setThemeState] = useState<'dark' | 'light'>(() => {
@@ -281,29 +148,6 @@ export function BotProvider({ children }: { children: ReactNode }) {
     return saved || 'light';
   });
 
-  const [shareToast, setShareToast] = useState<string | null>(null);
-
-  // 检测新从 URL 导入的机器人提示
-  useEffect(() => {
-    try {
-      const importedName = sessionStorage.getItem('nfi_url_imported_name');
-      if (importedName) {
-        sessionStorage.removeItem('nfi_url_imported_name');
-        setShareToast(locale === 'zh'
-          ? `已自动载入「${importedName}」并安全缓存至浏览器，地址栏已恢复干净 URL`
-          : `Automatically loaded “${importedName}” into browser cache. Address bar restored to clean URL.`);
-      }
-    } catch {}
-  }, []);
-
-  // 提示 3.5 秒后自动消失，规避 React StrictMode 清除定时器的问题
-  useEffect(() => {
-    if (!shareToast) return;
-    const timer = setTimeout(() => {
-      setShareToast(null);
-    }, 3500);
-    return () => clearTimeout(timer);
-  }, [shareToast]);
 
   const setTheme = (t: 'dark' | 'light') => {
     localStorage.setItem('nfi_theme', t);
@@ -342,7 +186,6 @@ export function BotProvider({ children }: { children: ReactNode }) {
       apiUrl: activeProfile.apiUrl,
       username: activeProfile.username,
       password: activeProfile.password,
-      shareToken: activeProfile.shareToken,
       };
   }, [activeProfile]);
 
@@ -368,7 +211,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
   }, [config]);
 
   // Branch 'hide-operation-buttons': Default to Read-Only mode to hide all dangerous operation buttons
-  const isReadOnly = Boolean(activeProfile?.isShared || activeProfile?.shareToken || activeProfile?.id?.startsWith('bot-url-'));
+  const isReadOnly = false;
 
   // Global Currency Unit State: 默认 CNY 计价
   const [currencyUnit, setCurrencyUnitState] = useState<CurrencyUnit>(() => {
@@ -834,7 +677,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
     const existing = profiles.find((p) => p.id === id);
     if (!existing) return false;
 
-    const isProtected = isReadOnly || Boolean(existing.isShared) || Boolean(existing.id?.startsWith('bot-url-'));
+    const isProtected = false;
 
     // 对于受保护/分享的机器人，允许随意修改名称 (name)，但严格禁止篡改敏感连接凭据
     const safeUpdates: Partial<BotProfile> = isProtected
@@ -860,7 +703,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
       }
     }
     return true;
-  }, [profiles, activeBotId, refreshData, isReadOnly]);
+  }, [profiles, activeBotId, refreshData]);
 
   // Delete profile
   const deleteProfile = useCallback((id: string) => {
@@ -871,6 +714,8 @@ export function BotProvider({ children }: { children: ReactNode }) {
       if (nextActive) {
         switchBot(nextActive);
       } else {
+        localStorage.removeItem('nfi_bot_config');
+        localStorage.removeItem('nfi_active_bot_id');
         setIsConnected(false);
         setBotState(EMPTY_BOT_STATE);
         setActiveTrades([]);
@@ -1015,19 +860,6 @@ export function BotProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-      {shareToast && (
-        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-emerald-600/95 backdrop-blur text-white px-4 py-2 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-semibold border border-emerald-400/40 transition-all pointer-events-auto">
-          <span>✨</span>
-          <span>{shareToast}</span>
-          <button
-            onClick={() => setShareToast(null)}
-            className="ml-1 p-0.5 rounded hover:bg-emerald-700/80 text-white/80 hover:text-white transition-colors cursor-pointer text-[11px]"
-            title="关闭提示"
-          >
-            ✕
-          </button>
-        </div>
-      )}
     </BotContext.Provider>
   );
 }

@@ -12,7 +12,7 @@ interface EditBotModalProps {
 }
 
 export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
-  const { updateProfile, theme, isReadOnly } = useBot();
+  const { updateProfile, theme } = useBot();
   const [name, setName] = useState('');
   const [apiUrl, setApiUrl] = useState('');
   const [username, setUsername] = useState('');
@@ -22,7 +22,7 @@ export function EditBotModal({ bot, isOpen, onClose }: EditBotModalProps) {
 
   const isDark = theme === 'dark';
   const t = useT();
-  const isProtected = isReadOnly || Boolean(bot?.isShared) || Boolean(bot?.id?.startsWith('bot-url-'));
+  const isProtected = false;
 
   useEffect(() => {
     if (bot) {

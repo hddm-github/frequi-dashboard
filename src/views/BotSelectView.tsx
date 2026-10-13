@@ -31,7 +31,6 @@ export function BotSelectView() {
     setIsSelectingBot,
     theme,
     setTheme,
-    isReadOnly,
   } = useBot();
 
   const { locale, t } = useLocale();
@@ -411,13 +410,13 @@ export function BotSelectView() {
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400">{t('botselect.endpoint')}:</span>
                       <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[160px]">
-                        {isReadOnly || bot.isShared || bot.id?.startsWith('bot-url-') ? '●●●●●● [Protected]' : bot.apiUrl}
+                        {bot.apiUrl}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400">{t('botselect.username')}:</span>
                       <span className="font-medium text-slate-700 dark:text-slate-300">
-                        {isReadOnly || bot.isShared || bot.id?.startsWith('bot-url-') ? t('botselect.protected') : (bot.username || '-')}
+                        {bot.username || '-'}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
