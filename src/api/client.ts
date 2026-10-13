@@ -83,14 +83,17 @@ export class FreqtradeClient {
     if (raw === '/share-api' || raw.startsWith('/share-api')) {
       return '/share-api';
     }
-    // In Vite dev mode, route through universal /api-proxy to eliminate browser CORS limitations
-    if (import.meta.env.DEV) {
-      return '/api-proxy';
+    // Owner mode always uses fixed same-origin server proxy; no user-controlled target URL.
+    if (raw === '/ft-api' || raw === '/owner-api' || import.meta.env.DEV) {
+      return '/owner-api';
     }
     return raw;
   }
 
   private getAuthHeader(): Record<string, string> {
+    if (this.config.shareToken) {
+      return { 'X-Share-Token': this.config.shareToken };
+    }
     // If using server-side share-api proxy, credentials are auto-injected by Nginx
     if (this.config.apiUrl === '/share-api' || this.config.apiUrl?.startsWith('/share-api')) {
       return {};
@@ -112,7 +115,8 @@ export class FreqtradeClient {
   ): Promise<T> {
     const baseUrl = this.getBaseUrl();
     const isShareProxy = baseUrl === '/share-api' || baseUrl.startsWith('/share-api');
-    let url = isShareProxy ? `${baseUrl}/${endpoint}` : `${baseUrl}/api/v1/${endpoint}`;
+    const isOwnerProxy = baseUrl === '/owner-api' || baseUrl.startsWith('/owner-api');
+    let url = isShareProxy || isOwnerProxy ? `${baseUrl}/${endpoint}` : `${baseUrl}/api/v1/${endpoint}`;
     if (params) {
       const q = new URLSearchParams();
       Object.entries(params).forEach(([k, v]) => {
@@ -135,9 +139,6 @@ export class FreqtradeClient {
       Accept: 'application/json',
       ...this.getAuthHeader(),
     };
-    if (this.getBaseUrl() === '/api-proxy' && rawApiUrl && !isShareProxy) {
-      headers['x-target-url'] = rawApiUrl;
-    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout limit
@@ -203,16 +204,14 @@ export class FreqtradeClient {
   }
 
   private async postRequest<T>(endpoint: string, body?: any): Promise<T> {
-    const url = `${this.getBaseUrl()}/api/v1/${endpoint}`;
-    const rawApiUrl = normalizeApiUrl(this.config.apiUrl || '');
+    const baseUrl = this.getBaseUrl();
+    const isProxy = baseUrl === '/owner-api' || baseUrl.startsWith('/owner-api') || baseUrl === '/share-api' || baseUrl.startsWith('/share-api');
+    const url = isProxy ? `${baseUrl}/${endpoint}` : `${baseUrl}/api/v1/${endpoint}`;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
       ...this.getAuthHeader(),
     };
-    if (this.getBaseUrl() === '/api-proxy' && rawApiUrl) {
-      headers['x-target-url'] = rawApiUrl;
-    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -295,6 +294,32 @@ export class FreqtradeClient {
 
   async getBotState(): Promise<BotState> {
     try {
+      if (this.config.shareToken) {
+        const safe = await this.request<{
+          version?: string;
+          strategy?: string;
+          strategy_version?: string;
+          timeframe?: string;
+          state?: 'running' | 'stopped';
+          dry_run?: boolean;
+          stake_currency?: string;
+          max_open_trades?: number;
+          whitelist?: string[];
+        }>('share-summary');
+        return {
+          ...EMPTY_BOT_STATE,
+          version: safe.version || 'Freqtrade',
+          strategy: safe.strategy || 'FreqtradeStrategy',
+          strategy_version: safe.strategy_version || '',
+          timeframe: safe.timeframe || '5m',
+          state: safe.state || 'running',
+          dry_run: safe.dry_run ?? false,
+          // Share mode never exposes stake currency.
+          stake_currency: '',
+          max_open_trades: safe.max_open_trades || 0,
+          whitelist: safe.whitelist || [],
+        };
+      }
       const [versionData, configData, balanceData, whitelistData] = await Promise.all([
         this.request<{ version: string }>('version').catch(() => ({ version: 'Freqtrade' })),
         this.request<{
@@ -359,6 +384,16 @@ export class FreqtradeClient {
 
   async getActiveTrades(): Promise<Trade[]> {
     try {
+      if (this.config.shareToken) {
+        const safe = await this.request<any>('share-summary');
+        return (safe.active_trades || []).map((trade: any, index: number) => ({
+          trade_id: Number(trade.trade_id || -(index + 1)), pair: trade.pair || '', is_open: true,
+          is_short: Boolean(trade.is_short), open_date: trade.open_date || '', open_timestamp: trade.open_timestamp || (trade.open_date ? new Date(trade.open_date).getTime() : 0),
+          open_rate: Number(trade.open_rate || 0), current_rate: Number(trade.current_rate || 0), amount: Number(trade.amount || 0), stake_amount: 0,
+          enter_tag: trade.enter_tag, timeframe: trade.timeframe, orders: mapOrders(trade.orders),
+          profit_ratio: Number(trade.profit_ratio || 0), profit_pct: Number(trade.profit_pct || 0),
+        }));
+      }
       const data = await this.request<any[]>('status');
       if (!Array.isArray(data)) return [];
       return data.map((item) => ({
@@ -394,6 +429,19 @@ export class FreqtradeClient {
 
   async getProfitSummary(): Promise<ProfitSummary> {
     try {
+      if (this.config.shareToken) {
+        const raw = await this.request<any>('share-summary');
+        return {
+          profit_closed_coin: 0, profit_closed_percent_mean: Number(raw.profit_closed_ratio || 0) * 100,
+          profit_closed_ratio: Number(raw.profit_closed_ratio || 0), profit_closed_fiat: 0,
+          profit_all_coin: 0, profit_all_percent_mean: Number(raw.profit_all_ratio || 0) * 100,
+          profit_all_ratio: Number(raw.profit_all_ratio || 0), profit_all_fiat: 0,
+          trade_count: Number(raw.trade_count || 0), closed_trade_count: Number(raw.closed_trade_count || 0),
+          first_trade_date: '-', latest_trade_date: '-', avg_duration: '-', best_pair: 'REDACTED',
+          winning_trades: Number(raw.winning_trades || 0), losing_trades: Number(raw.losing_trades || 0),
+          winrate: Number(raw.winrate || 0), max_drawdown: 0, max_drawdown_pct: 0,
+        };
+      }
       const raw = await this.request<any>('profit');
       return {
         profit_closed_coin: raw.profit_closed_coin ?? 0,
@@ -444,6 +492,18 @@ export class FreqtradeClient {
 
   async getClosedTrades(limit: number = 100, orderById: boolean = false): Promise<Trade[]> {
     try {
+      if (this.config.shareToken) {
+        const data = await this.request<{ trades: any[] }>('share-summary');
+        return (data.trades || []).slice(0, limit).map((t: any, index: number) => ({
+          trade_id: Number(t.trade_id || index + 1), pair: t.pair || '', is_open: false,
+          is_short: Boolean(t.is_short), open_date: t.open_date || '', open_timestamp: t.open_date ? new Date(t.open_date).getTime() : 0,
+          close_date: t.close_date, close_timestamp: t.close_date ? new Date(t.close_date).getTime() : undefined,
+          open_rate: Number(t.open_rate || 0), close_rate: Number(t.close_rate || 0), amount: Number(t.amount || 0), stake_amount: 0,
+          enter_tag: t.enter_tag, exit_tag: t.exit_tag, exit_reason: t.exit_reason,
+          orders: mapOrders(t.orders),
+          profit_ratio: Number(t.profit_ratio || 0), profit_pct: Number(t.profit_pct || 0), profit_abs: 0,
+        }));
+      }
       const data = await this.request<{ trades: any[] }>('trades', {
         limit,
         order_by_id: orderById,
@@ -706,13 +766,7 @@ export class FreqtradeClient {
       for (const t of targets) {
         try {
           let resp: Response;
-          if (import.meta.env.DEV) {
-            resp = await fetch(`/api-proxy${t.path}`, {
-              headers: { 'x-target-url': t.host },
-            });
-          } else {
-            resp = await fetch(`${t.host}${t.path}`);
-          }
+          resp = await fetch(`${t.host}${t.path}`);
 
           if (!resp.ok) continue;
           const klines = await resp.json();

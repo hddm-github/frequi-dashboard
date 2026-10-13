@@ -28,6 +28,7 @@ export function EquityCurveView() {
     resetInitialCapitalToAuto,
     formatCurrency,
     theme,
+    isReadOnly,
   } = useBot();
 
   const isDark = theme === 'dark';
@@ -310,7 +311,7 @@ export function EquityCurveView() {
             </button>
           </div>
           <div className="text-xl font-bold font-mono text-slate-700 dark:text-slate-200 truncate">
-            {formatCurrency(initialCapital)}
+            {isReadOnly ? t('ui.hidden') : formatCurrency(initialCapital)}
           </div>
           <div className="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
             <span className="truncate">
@@ -339,12 +340,12 @@ export function EquityCurveView() {
             <Layers className="w-3.5 h-3.5 text-purple-500" />
           </div>
           <div className="text-xl font-bold font-mono text-purple-600 dark:text-purple-400 truncate">
-            {formatCurrency(currentEquity)}
+            {isReadOnly ? t('ui.hidden') : formatCurrency(currentEquity)}
           </div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-            <span>{t('equity.cash')}: {formatCurrency(botState.balance)}</span>
+            <span>{t('equity.cash')}: {isReadOnly ? t('ui.hidden') : formatCurrency(botState.balance)}</span>
             <span className={totalUnrealized >= 0 ? 'text-emerald-500' : 'text-rose-500'}>
-              {t('overview.unrealized_pnl')}: {formatCurrency(totalUnrealized, { showSign: true })}
+              {t('overview.unrealized_pnl')}: {isReadOnly ? t('ui.hidden') : formatCurrency(totalUnrealized, { showSign: true })}
             </span>
           </div>
         </div>
@@ -364,7 +365,7 @@ export function EquityCurveView() {
               isPositiveTotal ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
             }`}
           >
-            {formatCurrency(totalNetProfit, { showSign: true })}
+            {isReadOnly ? t('ui.hidden') : formatCurrency(totalNetProfit, { showSign: true })}
           </div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between font-mono">
             <span className="flex items-center gap-1">
@@ -376,7 +377,7 @@ export function EquityCurveView() {
               <span>ROI: {totalReturnPct >= 0 ? '+' : ''}{totalReturnPct.toFixed(2)}%</span>
             </span>
             <span className="text-[10px] text-slate-400" title={t('equity.realized_desc')}>
-              {t('equity.realized_short')}: {formatCurrency(closedProfit, { showSign: true })}
+              {t('equity.realized_short')}: {isReadOnly ? t('ui.hidden') : formatCurrency(closedProfit, { showSign: true })}
             </span>
           </div>
         </div>
@@ -911,7 +912,7 @@ export function EquityCurveView() {
             <div>
               {t('equity.initial_capital')}:{' '}
               <span className="text-slate-700 dark:text-slate-300 font-semibold">
-                {formatCurrency(initialCapital)}
+                {isReadOnly ? t('ui.hidden') : formatCurrency(initialCapital)}
               </span>
             </div>
             <div className="flex items-center gap-3 sm:hidden">
@@ -924,7 +925,7 @@ export function EquityCurveView() {
               <div>
                 {t('equity.current')}:{' '}
                 <span className="text-purple-500 dark:text-purple-400 font-semibold font-mono">
-                  {formatCurrency(currentEquity)}
+                  {isReadOnly ? t('ui.hidden') : formatCurrency(currentEquity)}
                 </span>
               </div>
             </div>
@@ -960,7 +961,7 @@ export function EquityCurveView() {
             <div>
               {t('equity.current')}:{' '}
               <span className="text-purple-500 dark:text-purple-400 font-semibold font-mono">
-                {formatCurrency(currentEquity)}
+                {isReadOnly ? t('ui.hidden') : formatCurrency(currentEquity)}
               </span>
             </div>
           </div>

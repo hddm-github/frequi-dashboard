@@ -40,7 +40,7 @@ export function BotSelectView() {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState('futures');
   const [name, setName] = useState(defaultFuturesName);
-  const [apiUrl, setApiUrl] = useState('/ft-api');
+  const [apiUrl, setApiUrl] = useState('/owner-api');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -257,7 +257,7 @@ export function BotSelectView() {
                         onClick={() => {
                           setSelectedPreset('futures');
                           setName(defaultFuturesName);
-                          setApiUrl('/ft-api');
+                          setApiUrl('/owner-api');
                         }}
                         className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded text-[9px] font-mono cursor-pointer"
                       >
@@ -276,7 +276,7 @@ export function BotSelectView() {
                     type="text"
                     value={apiUrl}
                     onChange={(e) => setApiUrl(e.target.value)}
-                    placeholder="/ft-api"
+                    placeholder="/owner-api"
                     className={`w-full border rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
                       isDark
                         ? 'bg-[#1a233a] border-slate-700 text-slate-100'

@@ -5,6 +5,7 @@ import { Server, ShieldCheck, AlertCircle, ArrowRight, Sun, Moon, Loader2 } from
 import { normalizeApiUrl } from '../api/client';
 import { PRESET_BOTS, getPresetDisplayName } from '../config/botPresets';
 import { useLocale } from '../i18n/LocaleContext';
+import { localizeError } from '../utils/localizeError';
 
 export function LoginGateView() {
   const { addProfile, theme, setTheme, lastError } = useBot();
@@ -12,7 +13,7 @@ export function LoginGateView() {
   const defaultFuturesName = locale === 'zh' ? '币安合约机器人' : 'Binance Futures Bot';
   const [selectedPreset, setSelectedPreset] = useState('futures');
   const [name, setName] = useState(defaultFuturesName);
-  const [apiUrl, setApiUrl] = useState('/ft-api');
+  const [apiUrl, setApiUrl] = useState('/owner-api');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -46,10 +47,10 @@ export function LoginGateView() {
       });
 
       if (!res.success) {
-        setErrorMsg(res.error || lastError || t('login.test_failed'));
+        setErrorMsg(localizeError(res.error || lastError, locale, t));
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || t('login.error_unknown'));
+      setErrorMsg(localizeError(err?.message, locale, t));
     } finally {
       setLoading(false);
     }
@@ -173,7 +174,7 @@ export function LoginGateView() {
                     onClick={() => {
                       setSelectedPreset('futures');
                       setName(defaultFuturesName);
-                      setApiUrl('/ft-api');
+                      setApiUrl('/owner-api');
                     }}
                     className="px-2 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded text-[10px] font-mono transition-colors cursor-pointer"
                   >
@@ -192,7 +193,7 @@ export function LoginGateView() {
                 type="text"
                 value={apiUrl}
                 onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="/ft-api"
+                placeholder="/owner-api"
                 className={`w-full border rounded-xl px-3.5 py-2.5 font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
                   isDark
                     ? 'bg-[#1a233a] border-slate-700 text-slate-100 placeholder:text-slate-500'

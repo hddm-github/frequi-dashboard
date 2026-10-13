@@ -17,6 +17,7 @@ import {
 import { EditBotModal } from '../components/EditBotModal';
 import { StrategyBlueprintModal } from '../components/StrategyBlueprintModal';
 import { useLocale } from '../i18n/LocaleContext';
+import { localizeError } from '../utils/localizeError';
 
 export function BotControlView() {
   const {
@@ -28,6 +29,8 @@ export function BotControlView() {
     stopBot,
     reloadConfig,
     refreshData,
+    refreshInterval,
+    setRefreshInterval,
     setSelectedPair,
     setIsSelectingBot,
     theme,
@@ -62,10 +65,27 @@ export function BotControlView() {
 
       setOpMessage(ok ? `${t('ui.operation_succeeded')} [${action}]` : `${t('ui.operation_failed')} [${action}]`);
     } catch (err: any) {
-      setOpMessage(err?.message || t('ui.operation_failed'));
+      setOpMessage(localizeError(err?.message, locale, t));
     } finally {
       setOperating(false);
     }
+  };
+
+  const updatesPaused = refreshInterval === 0;
+  const botRunning = botState.state === 'running';
+  const runtimeLabel = isConnecting
+    ? t('control.connecting')
+    : !isConnected
+      ? t('ui.disconnected_error')
+      : updatesPaused
+        ? `${botRunning ? t('control.status_running') : t('control.status_stopped')} · ${t('control.updates_paused')}`
+        : botRunning
+          ? t('control.status_running')
+          : t('control.status_stopped');
+  const runtimeTone = !isConnected ? 'bg-rose-500' : botRunning ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-slate-400';
+
+  const toggleUpdates = () => {
+    setRefreshInterval(updatesPaused ? 6 : 0);
   };
 
   return (
@@ -87,15 +107,9 @@ export function BotControlView() {
           </div>
 
           <div className="flex items-center gap-2 text-xs">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                isConnected
-                  ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]'
-                  : 'bg-rose-500'
-              }`}
-            />
+            <span className={`w-2 h-2 rounded-full ${runtimeTone}`} />
             <span className="font-bold font-mono">
-              {isConnecting ? t('control.connecting') : isConnected ? t('ui.running_online') : t('ui.disconnected_error')}
+              {runtimeLabel}
             </span>
           </div>
         </div>
@@ -117,23 +131,32 @@ export function BotControlView() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             <button
-              onClick={() => handleAction('start')}
+              onClick={() => handleAction(botRunning ? 'stop' : 'start')}
               disabled={operating || !isConnected}
-              className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
+              className={`py-2.5 px-3 rounded-xl text-white font-medium text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50 ${
+                botRunning ? 'bg-rose-600 hover:bg-rose-500' : 'bg-emerald-600 hover:bg-emerald-500'
+              }`}
             >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              <span>{t('ui.start_trading')}</span>
+              {botRunning ? <Square className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+              <span>{botRunning ? t('ui.stop_trading') : t('ui.start_trading')}</span>
             </button>
 
             <button
-              onClick={() => handleAction('stop')}
-              disabled={operating || !isConnected}
-              className="py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
+              onClick={toggleUpdates}
+              disabled={operating}
+              title={t('control.pause_updates_title')}
+              className={`py-2.5 px-3 rounded-xl border font-medium text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 ${
+                updatesPaused
+                  ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                  : isDark
+                    ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
+                    : 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800'
+              }`}
             >
-              <Square className="w-3.5 h-3.5 fill-current" />
-              <span>{t('ui.stop_trading')}</span>
+              {updatesPaused ? <Play className="w-3.5 h-3.5 fill-current" /> : <Square className="w-3.5 h-3.5 fill-current" />}
+              <span>{updatesPaused ? t('control.resume_updates') : t('control.pause_updates')}</span>
             </button>
 
             <button

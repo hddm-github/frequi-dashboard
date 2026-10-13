@@ -10,14 +10,15 @@ import type {
   Trade,
 } from '../types';
 import { FreqtradeClient, EMPTY_BOT_STATE, normalizeApiUrl } from '../api/client';
-import { decryptShareToken } from '../utils/shareCrypto';
+import { useLocale } from '../i18n/LocaleContext';
 
-export type CurrencyUnit = 'USDT' | 'USD' | 'CNY' | 'EUR';
+export type CurrencyUnit = 'USDT' | 'USD' | 'CNY' | 'EUR' | 'IDR';
 
 export interface ExchangeRates {
   USD: number;
   CNY: number;
   EUR: number;
+  IDR: number;
 }
 
 interface BotContextValue {
@@ -75,19 +76,12 @@ interface BotContextValue {
 
 const BotContext = createContext<BotContextValue | null>(null);
 
-function safeBase64Decode(str: string): string {
-  try {
-    return decodeURIComponent(escape(atob(str)));
-  } catch {
-    return atob(str);
-  }
-}
-
 function extractUrlCredentials(): {
   name: string;
   apiUrl: string;
   username: string;
   password: string;
+  shareToken?: string;
 } | null {
   try {
     const searchParams = new URLSearchParams(window.location.search);
@@ -106,38 +100,14 @@ function extractUrlCredentials(): {
       return null;
     };
 
-    // 1. Check encrypted token parameter (?token=... or #token=... or ?t=... or ?s=...)
-    const token = getVal('token', 't', 'connect', 'share_token', 's');
-    if (token) {
-      // First try frontend symmetric decryption
-      const decrypted = decryptShareToken(token);
-      if (decrypted && decrypted.apiUrl) {
-        return {
-          name: decrypted.name || '实盘观摩节点',
-          apiUrl: normalizeApiUrl(decrypted.apiUrl),
-          username: decrypted.username || '',
-          password: decrypted.password || '',
-        };
-      }
-
-      // Fallback to legacy unencrypted base64 json if present
-      try {
-        const decoded = safeBase64Decode(token);
-        const obj = JSON.parse(decoded);
-        if (obj && (obj.apiUrl || obj.url)) {
-          return {
-            name: obj.name || '实盘观摩节点',
-            apiUrl: normalizeApiUrl(obj.apiUrl || obj.url),
-            username: obj.username || obj.user || '',
-            password: obj.password || obj.pass || '',
-          };
-        }
-      } catch (e) {
-        console.warn('Failed to parse legacy connect token:', e);
-      }
+    // New secure share token: opaque token in URL fragment, no credentials in URL.
+    const secureShare = hashParams.get('share');
+    if (secureShare) {
+      return { name: 'Read-only share', apiUrl: '/share-api', username: '', password: '', shareToken: secureShare };
     }
 
-    // 2. Check plaintext query/hash parameters (?name=...&apiUrl=...&user=...&pass=...)
+    // Direct credential links intentionally disabled; connect through login UI instead.
+    // 2. Legacy /share-api mode (?share=true without explicit url)
     const apiUrl = getVal('apiUrl', 'url', 'api', 'server');
     if (apiUrl) {
       const name = getVal('name', 'n', 'bot') || '实盘观摩节点';
@@ -171,53 +141,30 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
         }
       } catch {}
 
-      // Match by both apiUrl AND name: if user shares a different bot name/url, both are preserved!
-      const foundIdx = existingProfiles.findIndex(
-        (p) => p.apiUrl === urlCreds.apiUrl && (p.name === urlCreds.name || !urlCreds.name)
-      );
-      let activeId: string;
+      // Share sessions are isolated. Never mutate or reuse an owner profile.
+      const newBot: BotProfile = {
+        id: `bot-url-${Date.now()}`,
+        name: urlCreds.name,
+        apiUrl: urlCreds.apiUrl,
+        username: urlCreds.username,
+        password: urlCreds.password,
+        shareToken: urlCreds.shareToken,
+        createdAt: Date.now(),
+        isShared: Boolean(urlCreds.shareToken),
+      };
+      const profiles = urlCreds.shareToken ? [newBot, ...existingProfiles] : [newBot];
+      const activeId = newBot.id;
 
-      if (foundIdx >= 0) {
-        // Update credentials of this existing profile
-        existingProfiles[foundIdx] = {
-          ...existingProfiles[foundIdx],
-          name: urlCreds.name || existingProfiles[foundIdx].name,
-          username: urlCreds.username,
-          password: urlCreds.password,
-          isShared: true,
-        };
-        activeId = existingProfiles[foundIdx].id;
-      } else {
-        // Create new bot profile and prepend, so all shared bots accumulate in browser
-        const newBot: BotProfile = {
-          id: `bot-url-${Date.now()}`,
-          name: urlCreds.name,
-          apiUrl: urlCreds.apiUrl,
-          username: urlCreds.username,
-          password: urlCreds.password,
-          createdAt: Date.now(),
-          isShared: true,
-        };
-        existingProfiles = [newBot, ...existingProfiles];
-        activeId = newBot.id;
+      // Share token stays in memory only. Owner profiles remain unchanged in localStorage.
+      if (!urlCreds.shareToken) {
+        localStorage.setItem('nfi_bot_profiles', JSON.stringify(profiles));
+        localStorage.setItem('nfi_active_bot_id', activeId);
       }
-
-      localStorage.setItem('nfi_bot_profiles', JSON.stringify(existingProfiles));
-      localStorage.setItem('nfi_active_bot_id', activeId);
-      localStorage.setItem(
-        'nfi_bot_config',
-        JSON.stringify({
-          apiUrl: urlCreds.apiUrl,
-          username: urlCreds.username,
-          password: urlCreds.password,
-        })
-      );
 
       try {
         sessionStorage.setItem('nfi_url_imported_name', urlCreds.name);
       } catch {}
 
-      // Clean browser address bar: removes ?name=...&apiUrl=... immediately so credentials don't stay in URL history
       try {
         if (window.history && window.history.replaceState) {
           const cleanUrl = window.location.origin + window.location.pathname;
@@ -227,7 +174,7 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
         console.warn('Failed to clean URL', e);
       }
 
-      return { profiles: existingProfiles, activeId };
+      return { profiles, activeId };
     }
 
     // 2. Legacy /share-api mode (?share=true without explicit url)
@@ -254,8 +201,8 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
         const savedActive = localStorage.getItem('nfi_active_bot_id');
         const sanitized = parsed.map((p: BotProfile) => ({
           ...p,
-          apiUrl: normalizeApiUrl(p.apiUrl),
-          isShared: p.isShared ?? (p.id?.startsWith('bot-url-') || false),
+          apiUrl: normalizeApiUrl(p.apiUrl === '/ft-api' ? '/owner-api' : p.apiUrl),
+          isShared: p.id?.startsWith('bot-url-') || (p.isShared === true && p.apiUrl !== '/owner-api' && p.apiUrl !== '/ft-api'),
         }));
         const activeExists = sanitized.some((p: BotProfile) => p.id === savedActive);
         return {
@@ -326,6 +273,8 @@ function saveBotSnapshot(
 }
 
 export function BotProvider({ children }: { children: ReactNode }) {
+  const { locale } = useLocale();
+
   // Theme state: 默认白天模式 (Light mode)
   const [theme, setThemeState] = useState<'dark' | 'light'>(() => {
     const saved = localStorage.getItem('nfi_theme') as 'dark' | 'light';
@@ -340,7 +289,9 @@ export function BotProvider({ children }: { children: ReactNode }) {
       const importedName = sessionStorage.getItem('nfi_url_imported_name');
       if (importedName) {
         sessionStorage.removeItem('nfi_url_imported_name');
-        setShareToast(`已自动载入「${importedName}」并安全缓存至浏览器，地址栏已恢复干净 URL`);
+        setShareToast(locale === 'zh'
+          ? `已自动载入「${importedName}」并安全缓存至浏览器，地址栏已恢复干净 URL`
+          : `Automatically loaded “${importedName}” into browser cache. Address bar restored to clean URL.`);
       }
     } catch {}
   }, []);
@@ -391,7 +342,8 @@ export function BotProvider({ children }: { children: ReactNode }) {
       apiUrl: activeProfile.apiUrl,
       username: activeProfile.username,
       password: activeProfile.password,
-    };
+      shareToken: activeProfile.shareToken,
+      };
   }, [activeProfile]);
 
   const [client, setClient] = useState<FreqtradeClient>(() => new FreqtradeClient(config));
@@ -416,14 +368,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
   }, [config]);
 
   // Branch 'hide-operation-buttons': Default to Read-Only mode to hide all dangerous operation buttons
-  const isReadOnly = useMemo(() => {
-    try {
-      const sp = new URLSearchParams(window.location.search);
-      return sp.get('readonly') !== 'false';
-    } catch {
-      return true;
-    }
-  }, []);
+  const isReadOnly = Boolean(activeProfile?.isShared || activeProfile?.shareToken || activeProfile?.id?.startsWith('bot-url-'));
 
   // Global Currency Unit State: 默认 CNY 计价
   const [currencyUnit, setCurrencyUnitState] = useState<CurrencyUnit>(() => {
@@ -480,10 +425,10 @@ export function BotProvider({ children }: { children: ReactNode }) {
     try {
       const saved = localStorage.getItem('frequi_exchange_rates');
       if (saved) {
-        return JSON.parse(saved);
+        return { USD: 1, CNY: 6.7025, EUR: 0.8929, IDR: 16000, ...JSON.parse(saved) };
       }
     } catch {}
-    return { USD: 1, CNY: 6.7025, EUR: 0.8929 };
+    return { USD: 1, CNY: 6.7025, EUR: 0.8929, IDR: 16000 };
   });
 
   const fetchLiveRates = useCallback(async () => {
@@ -494,7 +439,8 @@ export function BotProvider({ children }: { children: ReactNode }) {
         if (data?.rates) {
           const cny = Number((data.rates.CNY || 6.7025).toFixed(4));
           const eur = Number((data.rates.EUR || 0.8929).toFixed(4));
-          const updated: ExchangeRates = { USD: 1, CNY: cny, EUR: eur };
+          const idr = Number((data.rates.IDR || 16000).toFixed(2));
+          const updated: ExchangeRates = { USD: 1, CNY: cny, EUR: eur, IDR: idr };
           setExchangeRates(updated);
           localStorage.setItem('frequi_exchange_rates', JSON.stringify(updated));
         }
@@ -532,7 +478,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
   // Universal Dynamic Currency Formatter
   const formatCurrency = useCallback((val: number, options?: { showSign?: boolean; decimals?: number }): string => {
     if (hideBalances) return '••••••';
-    const decimals = options?.decimals ?? 2;
+    const decimals = options?.decimals ?? (currencyUnit === 'IDR' ? 0 : 2);
     let rate = 1;
     let symbol = 'USDT';
 
@@ -545,6 +491,9 @@ export function BotProvider({ children }: { children: ReactNode }) {
     } else if (currencyUnit === 'EUR') {
       rate = exchangeRates.EUR || 0.8929;
       symbol = '€';
+    } else if (currencyUnit === 'IDR') {
+      rate = exchangeRates.IDR || 16000;
+      symbol = 'Rp';
     } else {
       symbol = 'USDT';
     }

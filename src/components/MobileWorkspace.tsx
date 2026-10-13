@@ -1,4 +1,5 @@
 import { useState, useRef, lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import { useBot } from '../context/BotContext';
 import { HeaderBar } from './HeaderBar';
 import { FreqUIDashboardView } from '../views/FreqUIDashboardView';
@@ -206,13 +207,13 @@ export function MobileWorkspace() {
         {renderActiveView()}
 
         {/* More Functions Bottom Drawer */}
-        {showMoreMenu && (
+        {showMoreMenu && typeof document !== 'undefined' && createPortal(
           <div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end"
+            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex flex-col justify-end overscroll-contain"
             onClick={() => setShowMoreMenu(false)}
           >
             <div
-              className={`rounded-t-2xl p-4 border-t shadow-2xl transition-all ${
+              className={`max-h-[85dvh] overflow-y-auto rounded-t-2xl p-4 border-t shadow-2xl transition-all ${
                 isDark ? 'bg-[#131b2e] border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
               }`}
               onClick={(e) => e.stopPropagation()}
@@ -342,7 +343,8 @@ export function MobileWorkspace() {
                 {t('mobile.cancel')}
               </button>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Connect Modal for Mobile */}

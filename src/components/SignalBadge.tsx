@@ -23,9 +23,9 @@ interface SignalBadgeProps {
 
 export function SignalBadge({ tag, className = '', showIcon = true }: SignalBadgeProps) {
   const info = parseNfiSignal(tag);
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
   const category = locale === 'en' ? SIGNAL_CATEGORY_EN[info.category] || info.category : info.category;
-  const rawTag = tag || (locale === 'en' ? 'none' : '无');
+  const rawTag = tag || t('ui.hidden');
 
   return (
     <span

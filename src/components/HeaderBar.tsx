@@ -34,8 +34,8 @@ import { EditBotModal } from './EditBotModal';
 import type { BotProfile } from '../types';
 import { isNfiStrategy } from '../utils/nfiSignals';
 import { useLocale } from '../i18n/LocaleContext';
-import { buildEncryptedShareUrl } from '../utils/shareCrypto';
 import { copyToClipboard } from '../utils/clipboard';
+import { localizeError } from '../utils/localizeError';
 
 export function HeaderBar() {
   const {
@@ -95,11 +95,29 @@ export function HeaderBar() {
   }, []);
 
   const handleCopyShareLink = async () => {
-    if (!activeProfile?.apiUrl) {
-      alert(locale === 'zh' ? '暂未连接机器人，无法生成分享链接' : 'No bot connected. Cannot create a share link');
+    if (!activeProfile?.apiUrl || isReadOnly || !activeProfile.username || !activeProfile.password) {
+      alert(locale === 'zh' ? '仅管理员可创建分享链接' : 'Only an authenticated admin can create a share link');
       return;
     }
-    const shareUrl = buildEncryptedShareUrl(activeProfile);
+    const raw = window.prompt('Share duration in minutes (1-10080)', '60');
+    if (raw === null) return;
+    const minutes = Number(raw);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 10080) {
+      alert('Duration must be 1-10080 minutes');
+      return;
+    }
+    const auth = btoa(`${activeProfile.username}:${activeProfile.password}`);
+    const response = await fetch('/share-token', {
+      method: 'POST',
+      headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ minutes }),
+    });
+    if (!response.ok) {
+      alert('Unable to create temporary share link');
+      return;
+    }
+    const { token } = await response.json();
+    const shareUrl = `${window.location.origin}${window.location.pathname}#share=${encodeURIComponent(token)}`;
     await copyToClipboard(shareUrl);
     setCopiedShare(true);
     setTimeout(() => setCopiedShare(false), 2500);
@@ -333,7 +351,7 @@ export function HeaderBar() {
           {/* Desktop Expanded Action Bar (visible when screen has enough width, md and up) */}
           <div className="hidden md:flex items-center gap-1 sm:gap-1.5">
             {/* Global Currency Switcher Popover */}
-          <div className="relative group" ref={currencyDropdownRef}>
+          {!isReadOnly && <div className="relative group" ref={currencyDropdownRef}>
             <button
               type="button"
               onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
@@ -374,13 +392,13 @@ export function HeaderBar() {
                   <span>{t('dashboard.display_currency')}</span>
                   {currencyUnit !== 'USDT' && (
                     <span className="font-mono text-[9px] text-slate-500">
-                      1 USDT ≈ {currencyUnit === 'CNY' ? `¥${exchangeRates.CNY}` : `€${exchangeRates.EUR}`}
+                      1 USDT ≈ {currencyUnit === 'USD' ? '$1' : currencyUnit === 'CNY' ? `¥${exchangeRates.CNY}` : currencyUnit === 'EUR' ? `€${exchangeRates.EUR}` : `Rp${exchangeRates.IDR.toLocaleString()}`}
                     </span>
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-1 mb-2">
-                  {(['USDT', 'USD', 'CNY', 'EUR'] as const).map((unit) => (
+                  {(['USDT', 'USD', 'CNY', 'EUR', 'IDR'] as const).map((unit) => (
                     <button
                       key={unit}
                       type="button"
@@ -407,7 +425,7 @@ export function HeaderBar() {
                     <button
                       type="button"
                       onClick={() => {
-                        const current = currencyUnit === 'CNY' ? exchangeRates.CNY : exchangeRates.EUR;
+                        const current = currencyUnit === 'CNY' ? exchangeRates.CNY : currencyUnit === 'EUR' ? exchangeRates.EUR : exchangeRates.IDR;
                         const input = prompt(
                           locale === 'zh'
                             ? `自定义 1 USDT 对 ${currencyUnit} 的汇率（当前: ${current}）`
@@ -438,7 +456,7 @@ export function HeaderBar() {
               </div>
             </>
           )}
-        </div>
+        </div>}
 
           {/* Share Link Button */}
           <div className="relative group">
@@ -882,6 +900,7 @@ export function HeaderBar() {
                 </button>
               </div>
 
+              {!isReadOnly && <>
               {/* 1. Display Currency Section */}
               <div className="mb-4">
                 <div className="flex items-center justify-between text-xs font-semibold text-slate-400 mb-2">
@@ -891,12 +910,12 @@ export function HeaderBar() {
                   </span>
                   {currencyUnit !== 'USDT' && (
                     <span className="font-mono text-[10px] text-slate-500">
-                      1 USDT ≈ {currencyUnit === 'CNY' ? `¥${exchangeRates.CNY}` : `€${exchangeRates.EUR}`}
+                      1 USDT ≈ {currencyUnit === 'USD' ? '$1' : currencyUnit === 'CNY' ? `¥${exchangeRates.CNY}` : currencyUnit === 'EUR' ? `€${exchangeRates.EUR}` : `Rp${exchangeRates.IDR.toLocaleString()}`}
                     </span>
                   )}
                 </div>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {(['USDT', 'USD', 'CNY', 'EUR'] as const).map((unit) => (
+                <div className="grid grid-cols-5 gap-1.5">
+                  {(['USDT', 'USD', 'CNY', 'EUR', 'IDR'] as const).map((unit) => (
                     <button
                       key={unit}
                       type="button"
@@ -919,7 +938,7 @@ export function HeaderBar() {
                     <button
                       type="button"
                       onClick={() => {
-                        const current = currencyUnit === 'CNY' ? exchangeRates.CNY : exchangeRates.EUR;
+                        const current = currencyUnit === 'CNY' ? exchangeRates.CNY : currencyUnit === 'EUR' ? exchangeRates.EUR : exchangeRates.IDR;
                         const input = prompt(
                           locale === 'zh'
                             ? `自定义 1 USDT 对 ${currencyUnit} 的汇率（当前: ${current}）`
@@ -948,6 +967,7 @@ export function HeaderBar() {
                   </div>
                 )}
               </div>
+              </>}
 
               {/* 2. Auto-Refresh Frequency Section */}
               <div className="mb-4">
@@ -1135,7 +1155,7 @@ export function HeaderBar() {
           <div className="flex items-center gap-2 min-w-0">
             <WifiOff className="w-3.5 h-3.5 shrink-0 text-rose-500" />
             <span className="font-semibold shrink-0">{t('header.connection_interrupted')}</span>
-            <span className="truncate text-rose-400 font-mono text-[11px]">{lastError}</span>
+            <span className="truncate text-rose-400 font-mono text-[11px]">{localizeError(lastError, locale, t)}</span>
           </div>
           <button
             onClick={() => refreshData()}

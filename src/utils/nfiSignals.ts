@@ -31,9 +31,9 @@ export const SIGNAL_COLOR_STYLES = {
 export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
   if (!tag || tag.trim() === '' || tag.trim() === '-') {
     return {
-      code: '-',
-      category: '常规入场',
-      description: '常规或手动交易，无特定信号标签',
+      code: 'Hidden',
+      category: 'Hidden',
+      description: 'Hidden',
       isShort: false,
       colorClasses: SIGNAL_COLOR_STYLES.slate,
     };
