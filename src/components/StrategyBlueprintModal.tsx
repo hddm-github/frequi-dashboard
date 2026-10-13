@@ -162,7 +162,8 @@ export function StrategyBlueprintModal({
   strategyVersion = 'v18.0.124',
   botState = {},
 }: StrategyBlueprintModalProps) {
-  const { client, isReadOnly } = useBot();
+  const { client, isReadOnly, theme } = useBot();
+  const isDark = theme === 'dark';
   const { locale, toggleLocale } = useLocale();
   const isZh = locale === 'zh';
 
@@ -316,41 +317,59 @@ export function StrategyBlueprintModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md"
+      className={`fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 backdrop-blur-md transition-colors ${
+        isDark ? 'bg-black/75' : 'bg-black/45'
+      }`}
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="relative w-[calc(100vw-1.5rem)] sm:w-[calc(100vw-3rem)] max-w-[1200px] max-h-[92dvh] overflow-hidden rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-700/60 bg-gradient-to-b from-[#0f1729] via-[#0c1322] to-[#0a1020] text-slate-200"
+        className={`relative w-[calc(100vw-1.5rem)] sm:w-[calc(100vw-3rem)] max-w-[1200px] max-h-[92dvh] overflow-hidden rounded-2xl sm:rounded-3xl shadow-2xl border transition-colors ${
+          isDark
+            ? 'border-slate-700/60 bg-gradient-to-b from-[#0f1729] via-[#0c1322] to-[#0a1020] text-slate-200'
+            : 'border-slate-200 bg-white text-slate-800'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="relative px-5 sm:px-7 pt-5 pb-4 border-b border-slate-700/40">
+        <div className={`relative px-5 sm:px-7 pt-5 pb-4 border-b ${isDark ? 'border-slate-700/40' : 'border-slate-200'}`}>
           <div className="absolute inset-0 opacity-30 pointer-events-none bg-[radial-gradient(ellipse_at_top_left,_rgba(16,185,129,0.18),_transparent_55%)]" />
           <div className="relative flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-emerald-400/80 font-bold mb-1.5">
+              <div className={`flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] font-bold mb-1.5 ${isDark ? 'text-emerald-400/80' : 'text-emerald-600'}`}>
                 <BookOpen className="w-3.5 h-3.5" />
                 <span>{isZh ? '策略蓝图' : 'Strategy Blueprint'}</span>
                 {loading && <Loader2 className="w-3 h-3 animate-spin" />}
               </div>
-              <h2 className="text-lg sm:text-2xl font-bold text-white tracking-tight truncate">
+              <h2 className={`text-lg sm:text-2xl font-bold tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {strategyName}
               </h2>
               <div className="flex flex-wrap items-center gap-2 mt-2">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-mono font-semibold">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold border ${
+                  isDark
+                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                }`}>
                   <GitBranch className="w-3 h-3" />
                   {strategyVersion}
                 </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-700/50 text-slate-300 border border-slate-600/50 text-[11px] font-mono">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono border ${
+                  isDark
+                    ? 'bg-slate-700/50 text-slate-300 border-slate-600/50'
+                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                }`}>
                   <Clock className="w-3 h-3" />
                   {timeframe} · {startupCandles} {isZh ? '初始K线' : 'startup'}
                 </span>
                 <span
                   className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold border ${
                     dryRun
-                      ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-                      : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                      ? isDark
+                        ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                        : 'bg-blue-50 text-blue-700 border-blue-200'
+                      : isDark
+                        ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                        : 'bg-amber-50 text-amber-700 border-amber-200'
                   }`}
                 >
                   <Activity className="w-3 h-3" />
@@ -365,7 +384,11 @@ export function StrategyBlueprintModal({
                         ? `重新同步 (${lastFetched.toLocaleTimeString()})`
                         : `Re-sync (${lastFetched.toLocaleTimeString()})`
                     }
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-700/40 hover:bg-slate-700 text-slate-300 border border-slate-600/50 text-[10px] font-mono cursor-pointer"
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono cursor-pointer border transition-colors ${
+                      isDark
+                        ? 'bg-slate-700/40 hover:bg-slate-700 text-slate-300 border-slate-600/50'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-300'
+                    }`}
                   >
                     <RefreshCw className="w-3 h-3" />
                     live · {lastFetched.toLocaleTimeString()}
@@ -374,13 +397,17 @@ export function StrategyBlueprintModal({
                 <button
                   onClick={toggleLocale}
                   title={isZh ? 'Switch to English' : '切换为中文'}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-700/40 hover:bg-slate-700 text-slate-300 border border-slate-600/50 text-[10px] font-mono cursor-pointer"
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono cursor-pointer border transition-colors ${
+                    isDark
+                      ? 'bg-slate-700/40 hover:bg-slate-700 text-slate-300 border-slate-600/50'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-300'
+                  }`}
                 >
                   {isZh ? 'EN' : '中文'}
                 </button>
               </div>
               {error && (
-                <div className="mt-2 text-[11px] text-amber-300/90 flex items-center gap-1.5">
+                <div className="mt-2 text-[11px] text-amber-500 flex items-center gap-1.5">
                   <AlertTriangle className="w-3 h-3" />
                   <span>
                     {error} —{' '}
@@ -391,7 +418,9 @@ export function StrategyBlueprintModal({
             </div>
             <button
               onClick={onClose}
-              className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/60 transition-colors"
+              className={`shrink-0 p-1.5 rounded-lg transition-colors cursor-pointer ${
+                isDark ? 'text-slate-400 hover:text-white hover:bg-slate-700/60' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+              }`}
               aria-label={isZh ? '关闭' : 'Close'}
             >
               <X className="w-4 h-4" />
@@ -403,12 +432,12 @@ export function StrategyBlueprintModal({
         <div className="overflow-y-auto max-h-[calc(92dvh-138px)] px-4 sm:px-8 lg:px-10 py-5 sm:py-7 space-y-6 sm:space-y-8 text-[13px] leading-relaxed">
           {/* Intro */}
           <section>
-            <p className="text-slate-300">
+            <p className={isDark ? 'text-slate-300' : 'text-slate-600'}>
               {isZh ? (
                 <>
-                  <b className="text-white">{strategyName}</b>{' '}
+                  <b className={isDark ? 'text-white' : 'text-slate-900'}>{strategyName}</b>{' '}
                   是一种高频、高容忍度策略，同时扫描多个时间周期（5m/15m/1h/4h/1d）。仅当{' '}
-                  <span className="text-emerald-300 font-semibold">
+                  <span className={`font-semibold ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>
                     大多数周期达成共识
                   </span>{' '}
                   且价格处于超卖（多头）或超买（空头）时才进场。进场后，仓位通过三个专用协议进行管理：
@@ -417,10 +446,10 @@ export function StrategyBlueprintModal({
                 </>
               ) : (
                 <>
-                  <b className="text-white">{strategyName}</b> is a high-frequency,
+                  <b className={isDark ? 'text-white' : 'text-slate-900'}>{strategyName}</b> is a high-frequency,
                   high-tolerance strategy that scans multiple timeframes simultaneously
                   (5m/15m/1h/4h/1d). It enters positions only when{' '}
-                  <span className="text-emerald-300 font-semibold">
+                  <span className={`font-semibold ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>
                     the majority of timeframes agree
                   </span>{' '}
                   that the asset is oversold (long) or overbought (short). Post-entry,
@@ -508,17 +537,17 @@ export function StrategyBlueprintModal({
               icon={<Zap className="w-4 h-4 text-amber-400" />}
               title={isZh ? '进场模式' : 'Entry Modes'}
             />
-            <p className="text-slate-400 mb-2">
+            <p className={`mb-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               {isZh ? (
                 <>
-                  包含 <b className="text-white">9 种多头模式</b> 与{' '}
-                  <b className="text-white">9 种空头模式</b>
+                  包含 <b className={isDark ? 'text-white' : 'text-slate-900'}>9 种多头模式</b> 与{' '}
+                  <b className={isDark ? 'text-white' : 'text-slate-900'}>9 种空头模式</b>
                   ，分别配置了不同的指标过滤条件与行情区间。前缀标签对应运行中策略的实际信号编号。
                 </>
               ) : (
                 <>
-                  There are <b className="text-white">9 long modes</b> and{' '}
-                  <b className="text-white">9 short modes</b>, each configured with
+                  There are <b className={isDark ? 'text-white' : 'text-slate-900'}>9 long modes</b> and{' '}
+                  <b className={isDark ? 'text-white' : 'text-slate-900'}>9 short modes</b>, each configured with
                   distinct indicator filters and market conditions. Prefix tags match
                   real signal numbers parsed from the live running strategy.
                 </>
@@ -536,44 +565,44 @@ export function StrategyBlueprintModal({
           {/* Rebuy protocol */}
           <section>
             <SectionHeader
-              icon={<Repeat2 className="w-4 h-4 text-cyan-400" />}
+              icon={<Repeat2 className="w-4 h-4 text-cyan-500" />}
               title={
                 isZh ? '补仓协议（分批摊薄）' : 'Rebuy Protocol (Dollar Cost Averaging)'
               }
             />
-            <p className="text-slate-300">
+            <p className={isDark ? 'text-slate-300' : 'text-slate-600'}>
               {isZh ? (
                 <>
                   当行情逆向波动时，策略按初始本金比例{' '}
-                  <b className="font-mono text-cyan-300">[0.10, 0.10, 0.10]</b>{' '}
+                  <b className={`font-mono ${isDark ? 'text-cyan-300' : 'text-cyan-600'}`}>[0.10, 0.10, 0.10]</b>{' '}
                   进行分批补仓。每次加仓在浮动亏损触及阈值{' '}
-                  <b className="font-mono text-cyan-300">[-0.12, -0.14, -0.16]</b>{' '}
+                  <b className={`font-mono ${isDark ? 'text-cyan-300' : 'text-cyan-600'}`}>[-0.12, -0.14, -0.16]</b>{' '}
                   （合约）时触发。核心目的：快速拉低持仓均价，缩短盈亏平衡回本距离。
                 </>
               ) : (
                 <>
                   When price moves against the trade, the strategy executes DCA entries
                   with decreasing relative sizes using ratios{' '}
-                  <b className="font-mono text-cyan-300">[0.10, 0.10, 0.10]</b> of base
+                  <b className={`font-mono ${isDark ? 'text-cyan-300' : 'text-cyan-600'}`}>[0.10, 0.10, 0.10]</b> of base
                   stake. Each rebuy step triggers after floating loss crosses threshold{' '}
-                  <b className="font-mono text-cyan-300">[-0.12, -0.14, -0.16]</b>{' '}
+                  <b className={`font-mono ${isDark ? 'text-cyan-300' : 'text-cyan-600'}`}>[-0.12, -0.14, -0.16]</b>{' '}
                   (futures). Goal: lower the average entry price so break-even is reached
                   sooner.
                 </>
               )}
             </p>
-            <ul className="mt-2 space-y-1 text-slate-300 text-[12.5px]">
+            <ul className={`mt-2 space-y-1 text-[12.5px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
               <li>
                 •{' '}
                 {isZh ? (
                   <>
                     槽位要求：需至少保留{' '}
-                    <b className="text-white">2 个空闲仓位槽</b> 才能激活补仓模式。
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>2 个空闲仓位槽</b> 才能激活补仓模式。
                   </>
                 ) : (
                   <>
                     Slot requirement: requires at least{' '}
-                    <b className="text-white">2 free slots</b> for rebuy mode to
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>2 free slots</b> for rebuy mode to
                     activate.
                   </>
                 )}
@@ -583,7 +612,7 @@ export function StrategyBlueprintModal({
                 {isZh ? (
                   <>
                     补仓硬止损：
-                    <b className="font-mono text-rose-300">
+                    <b className={`font-mono ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>
                       -{stopRebuy.toFixed(2)}
                     </b>{' '}
                     （首仓金额的 100%）。
@@ -591,7 +620,7 @@ export function StrategyBlueprintModal({
                 ) : (
                   <>
                     Rebuy stop loss:{' '}
-                    <b className="font-mono text-rose-300">
+                    <b className={`font-mono ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>
                       -{stopRebuy.toFixed(2)}
                     </b>{' '}
                     (100% of initial entry).
@@ -603,7 +632,7 @@ export function StrategyBlueprintModal({
                 {isZh ? (
                   <>
                     补仓专用离场：
-                    <b className="font-mono text-emerald-300">
+                    <b className={`font-mono ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>
                       exit_long_rebuy_e_r
                     </b>{' '}
                     及其变体。
@@ -611,7 +640,7 @@ export function StrategyBlueprintModal({
                 ) : (
                   <>
                     Dedicated rebuy exits:{' '}
-                    <b className="font-mono text-emerald-300">
+                    <b className={`font-mono ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>
                       exit_long_rebuy_e_r
                     </b>{' '}
                     and its variants.
@@ -624,12 +653,12 @@ export function StrategyBlueprintModal({
           {/* Derisk protocol */}
           <section>
             <SectionHeader
-              icon={<ShieldAlert className="w-4 h-4 text-rose-400" />}
+              icon={<ShieldAlert className="w-4 h-4 text-rose-500" />}
               title={
                 isZh ? '风险剥离（止损减仓）' : 'Derisk Protocol (Capital Preservation)'
               }
             />
-            <p className="text-slate-300">
+            <p className={isDark ? 'text-slate-300' : 'text-slate-600'}>
               {isZh
                 ? '当浮亏超过警戒线时，Derisk 协议会主动减持部分仓位，从而释放保证金并为剩余头寸争取回本空间，杜绝爆仓风险。'
                 : 'Derisk sells a portion of the position once unrealized losses cross risk limits, preserving margin and buying room for the remaining position to recover without liquidation risk.'}
@@ -666,20 +695,20 @@ export function StrategyBlueprintModal({
                 }
               />
             </div>
-            <p className="text-slate-400 mt-2 text-[12px]">
+            <p className={`mt-2 text-[12px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               {isZh ? (
                 <>
                   常规减仓阈值位于{' '}
-                  <b className="font-mono text-rose-300">-0.60</b>（合约），重新进场目标位在{' '}
-                  <b className="font-mono text-rose-300">-0.08</b>
+                  <b className={`font-mono ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>-0.60</b>（合约），重新进场目标位在{' '}
+                  <b className={`font-mono ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>-0.08</b>
                   ，以便在更优价位重新建仓。
                 </>
               ) : (
                 <>
                   Regular derisk mode triggers at{' '}
-                  <b className="font-mono text-rose-300">-0.60</b> (futures), with
+                  <b className={`font-mono ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>-0.60</b> (futures), with
                   re-entry target{' '}
-                  <b className="font-mono text-rose-300">-0.08</b> to re-accumulate at
+                  <b className={`font-mono ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>-0.08</b> to re-accumulate at
                   better pricing.
                 </>
               )}
@@ -694,16 +723,16 @@ export function StrategyBlueprintModal({
                 isZh ? '研磨协议（微网格执行）' : 'Grinding Protocol (Micro-Grid Execution)'
               }
             />
-            <p className="text-slate-300">
+            <p className={isDark ? 'text-slate-300' : 'text-slate-600'}>
               {isZh ? (
                 <>
-                  Grinding v1 支持 <b>6 级子网格研磨</b>
+                  Grinding v1 支持 <b className={isDark ? 'text-white' : 'text-slate-900'}>6 级子网格研磨</b>
                   ，具备渐进递增的投入仓位与分段止盈目标。Grinding v2
                   增加了逐轮减仓防守、更大的扩展仓位与更深的回撤容忍度。下方数值均从当前运行中的策略源码（第1轮）实时提取。
                 </>
               ) : (
                 <>
-                  Grinding v1 supports <b>6 sub-grinds</b> with progressive stakes and
+                  Grinding v1 supports <b className={isDark ? 'text-white' : 'text-slate-900'}>6 sub-grinds</b> with progressive stakes and
                   variable profit targets. Grinding v2 adds round-level derisking,
                   larger stake scaling, and deeper loss tolerance. Values below are
                   parsed directly from the running strategy source (round 1).
@@ -711,17 +740,17 @@ export function StrategyBlueprintModal({
               )}
             </p>
 
-            <h4 className="text-[12px] uppercase tracking-wider text-slate-300 font-bold mt-3 mb-1.5">
+            <h4 className={`text-[12px] uppercase tracking-wider font-bold mt-3 mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
               {isZh
                 ? 'Grinding v1 — 第 1 轮（合约）'
                 : 'Grinding v1 — Round 1 (Futures)'}{' '}
               {liveData && grindFutStakes.length > 0 && (
-                <span className="text-emerald-400 normal-case">· live</span>
+                <span className={`${isDark ? 'text-emerald-400' : 'text-emerald-600'} normal-case`}>· live</span>
               )}
             </h4>
-            <div className="overflow-x-auto rounded-lg border border-slate-700/50">
+            <div className={`overflow-x-auto rounded-lg border ${isDark ? 'border-slate-700/50' : 'border-slate-200 shadow-xs'}`}>
               <table className="w-full text-[11.5px] font-mono">
-                <thead className="bg-slate-800/60 text-slate-400">
+                <thead className={isDark ? 'bg-slate-800/60 text-slate-400' : 'bg-slate-100 text-slate-600'}>
                   <tr>
                     <th className="px-2 py-1.5 text-left">
                       {isZh ? '参数' : 'Parameter'}
@@ -731,10 +760,10 @@ export function StrategyBlueprintModal({
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-700/40">
+                <tbody className={`divide-y ${isDark ? 'divide-slate-700/40 text-slate-300' : 'divide-slate-200 text-slate-700'}`}>
                   <tr>
                     <td className="px-2 py-1">{isZh ? '投入仓位' : 'Stakes'}</td>
-                    <td className="px-2 py-1 text-cyan-300">
+                    <td className={`px-2 py-1 ${isDark ? 'text-cyan-300' : 'text-cyan-600 font-semibold'}`}>
                       {grindFutStakes.length > 0
                         ? `[${grindFutStakes.join(', ')}]`
                         : '—'}
@@ -754,7 +783,7 @@ export function StrategyBlueprintModal({
                     <td className="px-2 py-1">
                       {isZh ? '止盈目标' : 'Profit target'}
                     </td>
-                    <td className="px-2 py-1 text-emerald-300">
+                    <td className={`px-2 py-1 ${isDark ? 'text-emerald-300' : 'text-emerald-600 font-semibold'}`}>
                       +{((profitFut ?? 0) * 100).toFixed(2)}%
                     </td>
                   </tr>
@@ -771,21 +800,21 @@ export function StrategyBlueprintModal({
               </table>
             </div>
 
-            <h4 className="text-[12px] uppercase tracking-wider text-slate-300 font-bold mt-3 mb-1.5">
+            <h4 className={`text-[12px] uppercase tracking-wider font-bold mt-3 mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
               Grinding v2
             </h4>
-            <ul className="space-y-1 text-slate-300 text-[12.5px]">
+            <ul className={`space-y-1 text-[12.5px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
               <li>
                 •{' '}
                 {isZh ? (
                   <>
                     逐轮减仓触发线为{' '}
-                    <b className="font-mono text-rose-300">-0.26</b>。
+                    <b className={`font-mono ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>-0.26</b>。
                   </>
                 ) : (
                   <>
                     Round-level derisk triggers at{' '}
-                    <b className="font-mono text-rose-300">-0.26</b>.
+                    <b className={`font-mono ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>-0.26</b>.
                   </>
                 )}
               </li>
@@ -794,7 +823,7 @@ export function StrategyBlueprintModal({
                 {isZh ? (
                   <>
                     上限限制：单笔持仓最多{' '}
-                    <b className="text-white">
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>
                       {liveData?.grindingV2MaxGrindsAndBuybacks ?? 20} 次网格与补仓操作
                     </b>
                     。
@@ -802,7 +831,7 @@ export function StrategyBlueprintModal({
                 ) : (
                   <>
                     Ceiling: maximum{' '}
-                    <b className="text-white">
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>
                       {liveData?.grindingV2MaxGrindsAndBuybacks ?? 20} open
                       grinds+buybacks
                     </b>{' '}
@@ -815,7 +844,7 @@ export function StrategyBlueprintModal({
                 {isZh ? (
                   <>
                     v2 总投入上限封顶为首仓的{' '}
-                    <b className="text-white">
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>
                       {liveData?.grindingV2MaxStake ?? '1.0'}x
                     </b>
                     。
@@ -823,7 +852,7 @@ export function StrategyBlueprintModal({
                 ) : (
                   <>
                     Total v2 stake capped at{' '}
-                    <b className="text-white">
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>
                       {liveData?.grindingV2MaxStake ?? '1.0'}x
                     </b>{' '}
                     initial entry.
@@ -839,9 +868,9 @@ export function StrategyBlueprintModal({
               icon={<AlertTriangle className="w-4 h-4 text-rose-400" />}
               title={isZh ? '阶梯式多级止损' : 'Multi-Tier Stop Losses'}
             />
-            <div className="overflow-x-auto rounded-lg border border-slate-700/50 mt-2">
+            <div className={`overflow-x-auto rounded-lg border mt-2 ${isDark ? 'border-slate-700/50' : 'border-slate-200 shadow-xs'}`}>
               <table className="w-full text-[11.5px] font-mono">
-                <thead className="bg-slate-800/60 text-slate-400">
+                <thead className={isDark ? 'bg-slate-800/60 text-slate-400' : 'bg-slate-100 text-slate-600'}>
                   <tr>
                     <th className="px-2 py-1.5 text-left">
                       {isZh ? '模式' : 'Mode'}
@@ -854,7 +883,7 @@ export function StrategyBlueprintModal({
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-700/40">
+                <tbody className={`divide-y ${isDark ? 'divide-slate-700/40 text-slate-300' : 'divide-slate-200 text-slate-700'}`}>
                   <tr>
                     <td className="px-2 py-1">
                       {isZh ? '常规止损' : 'Normal stop'}
@@ -893,7 +922,7 @@ export function StrategyBlueprintModal({
                 </tbody>
               </table>
             </div>
-            <p className="text-slate-400 mt-2 text-[11.5px]">
+            <p className={`mt-2 text-[11.5px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               {liveData
                 ? isZh
                   ? '✓ 上方数值均解析自当前活跃策略源码。'
@@ -910,21 +939,21 @@ export function StrategyBlueprintModal({
               icon={<Target className="w-4 h-4 text-emerald-400" />}
               title={isZh ? '分批分层离场' : 'Tiered Exit System'}
             />
-            <p className="text-slate-300">
+            <p className={isDark ? 'text-slate-300' : 'text-slate-600'}>
               {isZh
                 ? '策略从不尝试在最高点一次性平仓。它会在初始目标位先兑现部分利润，其余仓位交由动态追踪止盈保护。历史交易中的离场标签遵循以下规则：'
                 : 'The strategy avoids closing the entire position all at once. It takes partial profits at initial targets and lets the remainder ride with dynamic trailing stops. Exit tags in trade history follow this naming convention:'}
             </p>
-            <ul className="mt-2 space-y-1 text-slate-300 text-[12.5px]">
+            <ul className={`mt-2 space-y-1 text-[12.5px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
               <li>
-                • <b className="font-mono text-emerald-300">exit_long_normal_*</b> —{' '}
+                • <b className={`font-mono ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>exit_long_normal_*</b> —{' '}
                 {isZh
                   ? '常规、冲高或快速模式离场。'
                   : 'exit from normal/pump/quick modes.'}
               </li>
               <li>
                 •{' '}
-                <b className="font-mono text-emerald-300">
+                <b className={`font-mono ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>
                   exit_long_rebuy_e_r / _e_*
                 </b>{' '}
                 —{' '}
@@ -934,7 +963,7 @@ export function StrategyBlueprintModal({
               </li>
               <li>
                 •{' '}
-                <b className="font-mono text-emerald-300">
+                <b className={`font-mono ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>
                   exit_long_grind_1, grind_2, …
                 </b>{' '}
                 —{' '}
@@ -943,14 +972,14 @@ export function StrategyBlueprintModal({
                   : 'exit from grinding cycle N.'}
               </li>
               <li>
-                • <b className="font-mono text-amber-300">exit_long_tc_*</b> —{' '}
+                • <b className={`font-mono ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>exit_long_tc_*</b> —{' '}
                 {isZh
                   ? '主流币专属策略离场。'
                   : 'exit from top coins strategy.'}
               </li>
               <li>
                 •{' '}
-                <b className="font-mono text-rose-300">
+                <b className={`font-mono ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>
                   exit_long_*_stoploss_doom
                 </b>{' '}
                 —{' '}
@@ -1040,17 +1069,17 @@ export function StrategyBlueprintModal({
               icon={<Info className="w-4 h-4 text-slate-400" />}
               title={isZh ? '操盘手核心注意事项' : 'Operator Notes'}
             />
-            <ul className="mt-2 space-y-1.5 text-slate-300 text-[12.5px]">
+            <ul className={`mt-2 space-y-1.5 text-[12.5px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
               <li>
                 •{' '}
                 {isZh ? (
                   <>
-                    <b className="text-white">回撤是设计的一部分。</b>{' '}
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>回撤是设计的一部分。</b>{' '}
                     策略主动承受可控的短期浮亏以拉低持仓均价。切勿在浮亏阶段恐慌。
                   </>
                 ) : (
                   <>
-                    <b className="text-white">Drawdowns are intended.</b> The strategy
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>Drawdowns are intended.</b> The strategy
                     is engineered to absorb controlled temporary pullbacks to lower
                     average price. Avoid panicking during red days.
                   </>
@@ -1060,13 +1089,13 @@ export function StrategyBlueprintModal({
                 •{' '}
                 {isZh ? (
                   <>
-                    <b className="text-white">查看交易历史明细。</b>{' '}
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>查看交易历史明细。</b>{' '}
                     在K线图上展开订单分析，可查看 grind_4_entry、derisk_level_1 与
                     exit_long_rebuy_e_r 等标签，所有操作均透明可查。
                   </>
                 ) : (
                   <>
-                    <b className="text-white">Inspect trade history.</b> Open order
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>Inspect trade history.</b> Open order
                     breakdown details on the candle chart to inspect
                     grind_4_entry, derisk_level_1, and exit_long_rebuy_e_r tags — every
                     execution is logged.
@@ -1077,15 +1106,15 @@ export function StrategyBlueprintModal({
                 •{' '}
                 {isZh ? (
                   <>
-                    <b className="text-white">自动热更新生效中。</b> 策略由官方持续维护升级。当前版本{' '}
-                    <b className="text-white">{strategyVersion}</b>{' '}
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>自动热更新生效中。</b> 策略由官方持续维护升级。当前版本{' '}
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>{strategyVersion}</b>{' '}
                     已自动生效并重载配置，无需人工干预。
                   </>
                 ) : (
                   <>
-                    <b className="text-white">Auto-updates active.</b> Strategy is
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>Auto-updates active.</b> Strategy is
                     continuously refined upstream. Version{' '}
-                    <b className="text-white">{strategyVersion}</b> is running with
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>{strategyVersion}</b> is running with
                     configuration reloaded — zero manual intervention needed.
                   </>
                 )}
@@ -1094,11 +1123,11 @@ export function StrategyBlueprintModal({
                 •{' '}
                 {isZh ? (
                   <>
-                    <b className="text-white">蓝图数据自动实时同步。</b> 一旦部署新策略版本，本界面所有投入比例、阈值与标签均会自动通过 Freqtrade API 动态刷新。
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>蓝图数据自动实时同步。</b> 一旦部署新策略版本，本界面所有投入比例、阈值与标签均会自动通过 Freqtrade API 动态刷新。
                   </>
                 ) : (
                   <>
-                    <b className="text-white">Blueprint auto-syncs.</b> Whenever new
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>Blueprint auto-syncs.</b> Whenever new
                     strategy updates are deployed, all stakes, thresholds, and tags in
                     this modal update automatically via the Freqtrade API.
                   </>
@@ -1108,11 +1137,11 @@ export function StrategyBlueprintModal({
                 •{' '}
                 {isZh ? (
                   <>
-                    <b className="text-white">无需频繁重启。</b> 配置调整与参数更新通过 API 热重载即可生效，杜绝无谓重启。
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>无需频繁重启。</b> 配置调整与参数更新通过 API 热重载即可生效，杜绝无谓重启。
                   </>
                 ) : (
                   <>
-                    <b className="text-white">Restart only when necessary.</b>{' '}
+                    <b className={isDark ? 'text-white' : 'text-slate-900'}>Restart only when necessary.</b>{' '}
                     Configuration changes apply cleanly via runtime reloads without
                     container restarts.
                   </>
@@ -1122,15 +1151,15 @@ export function StrategyBlueprintModal({
           </section>
 
           {/* Footer */}
-          <section className="border-t border-slate-700/40 pt-4 text-[11px] text-slate-500 leading-relaxed">
+          <section className={`border-t pt-4 text-[11px] leading-relaxed ${isDark ? 'border-slate-700/40 text-slate-500' : 'border-slate-200 text-slate-500'}`}>
             {isZh ? (
               <>
                 本蓝图汇总了当前运行策略{' '}
-                <b className="text-slate-400">
+                <b className={isDark ? 'text-slate-400' : 'text-slate-700'}>
                   {strategyName} {strategyVersion}
                 </b>{' '}
                 的实盘运行参数。可自动同步的参数（投入比例、触发阈值、止盈目标、模式标签）在每次打开本弹窗时通过{' '}
-                <b className="text-slate-400">
+                <b className={isDark ? 'text-slate-400' : 'text-slate-700'}>
                   GET /api/v1/strategy/&lt;name&gt;
                 </b>{' '}
                 从策略源码实时读取。
@@ -1138,12 +1167,12 @@ export function StrategyBlueprintModal({
             ) : (
               <>
                 This blueprint summarizes live runtime parameters of the active{' '}
-                <b className="text-slate-400">
+                <b className={isDark ? 'text-slate-400' : 'text-slate-700'}>
                   {strategyName} {strategyVersion}
                 </b>{' '}
                 strategy. Synchronized fields (stakes, thresholds, profit targets, mode
                 tags) are parsed directly from strategy source via{' '}
-                <b className="text-slate-400">
+                <b className={isDark ? 'text-slate-400' : 'text-slate-700'}>
                   GET /api/v1/strategy/&lt;name&gt;
                 </b>{' '}
                 each time this modal opens.
@@ -1166,16 +1195,24 @@ function Stat({
   value: string;
   sub?: string;
 }) {
+  const { theme } = useBot();
+  const isDark = theme === 'dark';
   return (
-    <div className="rounded-lg border border-slate-700/50 bg-slate-800/40 px-3 py-2.5">
-      <div className="text-[10px] uppercase tracking-wider text-slate-500 font-sans">
+    <div
+      className={`rounded-lg border px-3 py-2.5 transition-colors ${
+        isDark
+          ? 'border-slate-700/50 bg-slate-800/40'
+          : 'border-slate-200 bg-slate-50 shadow-xs'
+      }`}
+    >
+      <div className={`text-[10px] uppercase tracking-wider font-sans ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
         {label}
       </div>
-      <div className="font-mono font-bold text-emerald-300 text-base mt-0.5">
+      <div className={`font-mono font-bold text-base mt-0.5 ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>
         {value}
       </div>
       {sub && (
-        <div className="text-[10px] text-slate-500 font-sans mt-0.5">{sub}</div>
+        <div className={`text-[10px] font-sans mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{sub}</div>
       )}
     </div>
   );
@@ -1192,30 +1229,40 @@ function Feature({
   title: string;
   desc: string;
 }) {
+  const { theme } = useBot();
+  const isDark = theme === 'dark';
   return (
     <div
-      className={`rounded-lg border px-3 py-2.5 ${
+      className={`rounded-lg border px-3 py-2.5 transition-colors ${
         active
-          ? 'border-emerald-500/30 bg-emerald-500/5'
-          : 'border-slate-700/50 bg-slate-800/30 opacity-70'
+          ? isDark
+            ? 'border-emerald-500/30 bg-emerald-500/5'
+            : 'border-emerald-300 bg-emerald-50/70 shadow-xs'
+          : isDark
+            ? 'border-slate-700/50 bg-slate-800/30 opacity-70'
+            : 'border-slate-200 bg-slate-50 opacity-70'
       }`}
     >
       <div className="flex items-center gap-2 mb-1">
-        <span className={active ? 'text-emerald-300' : 'text-slate-500'}>
+        <span className={active ? (isDark ? 'text-emerald-300' : 'text-emerald-600') : 'text-slate-400'}>
           {icon}
         </span>
-        <span className="font-semibold text-sm text-white">{title}</span>
+        <span className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{title}</span>
         <span
           className={`ml-auto inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold border ${
             active
-              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-              : 'bg-slate-700/40 text-slate-500 border-slate-600/40'
+              ? isDark
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                : 'bg-emerald-100 text-emerald-700 border-emerald-300'
+              : isDark
+                ? 'bg-slate-700/40 text-slate-500 border-slate-600/40'
+                : 'bg-slate-100 text-slate-500 border-slate-200'
           }`}
         >
           {active ? 'ON' : 'OFF'}
         </span>
       </div>
-      <p className="text-slate-400 text-[12px] leading-relaxed">{desc}</p>
+      <p className={`text-[12px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{desc}</p>
     </div>
   );
 }
@@ -1227,8 +1274,10 @@ function SectionHeader({
   icon: React.ReactNode;
   title: string;
 }) {
+  const { theme } = useBot();
+  const isDark = theme === 'dark';
   return (
-    <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-slate-300 font-bold">
+    <div className={`flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
       {icon}
       <span>{title}</span>
     </div>
@@ -1248,10 +1297,12 @@ function ModeTable({
   modeHeader: string;
   conditionHeader: string;
 }) {
+  const { theme } = useBot();
+  const isDark = theme === 'dark';
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-700/50">
+    <div className={`overflow-x-auto rounded-lg border ${isDark ? 'border-slate-700/50' : 'border-slate-200 shadow-xs'}`}>
       <table className="w-full text-[11.5px] font-mono">
-        <thead className="bg-slate-800/60 text-slate-400">
+        <thead className={isDark ? 'bg-slate-800/60 text-slate-400' : 'bg-slate-100 text-slate-600'}>
           <tr>
             <th className="px-2 py-1.5 text-left">
               {tagHeader} ({side})
@@ -1260,12 +1311,12 @@ function ModeTable({
             <th className="px-2 py-1.5 text-left">{conditionHeader}</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-700/40">
+        <tbody className={`divide-y ${isDark ? 'divide-slate-700/40' : 'divide-slate-200'}`}>
           {rows.map((r) => (
-            <tr key={r.mode}>
-              <td className="px-2 py-1.5 text-amber-300">{r.tag}</td>
-              <td className="px-2 py-1.5 text-emerald-300">{r.mode}</td>
-              <td className="px-2 py-1.5 font-sans text-slate-300">{r.desc}</td>
+            <tr key={r.mode} className={isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}>
+              <td className={`px-2 py-1.5 font-bold ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>{r.tag}</td>
+              <td className={`px-2 py-1.5 font-bold ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>{r.mode}</td>
+              <td className={`px-2 py-1.5 font-sans ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{r.desc}</td>
             </tr>
           ))}
         </tbody>
@@ -1285,16 +1336,22 @@ function DeriskCard({
   stake: string;
   desc: string;
 }) {
+  const { theme } = useBot();
+  const isDark = theme === 'dark';
   return (
-    <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 px-3 py-2.5">
+    <div
+      className={`rounded-lg border px-3 py-2.5 transition-colors ${
+        isDark ? 'border-rose-500/30 bg-rose-500/5' : 'border-rose-200 bg-rose-50/70 shadow-xs'
+      }`}
+    >
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-rose-300 font-bold text-[12px]">{level}</span>
-        <span className="ml-auto text-[10px] font-mono text-rose-300">{range}</span>
+        <span className={`font-bold text-[12px] ${isDark ? 'text-rose-300' : 'text-rose-700'}`}>{level}</span>
+        <span className={`ml-auto text-[10px] font-mono ${isDark ? 'text-rose-300' : 'text-rose-600'}`}>{range}</span>
       </div>
-      <div className="font-mono text-[12px] text-rose-200">
+      <div className={`font-mono text-[12px] ${isDark ? 'text-rose-200' : 'text-rose-800'}`}>
         Stake: {stake}
       </div>
-      <p className="text-slate-400 text-[11.5px] mt-1 leading-relaxed">{desc}</p>
+      <p className={`text-[11.5px] mt-1 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{desc}</p>
     </div>
   );
 }
@@ -1308,14 +1365,22 @@ function Step({
   title: string;
   desc: string;
 }) {
+  const { theme } = useBot();
+  const isDark = theme === 'dark';
   return (
     <li className="flex gap-3">
-      <span className="shrink-0 w-6 h-6 rounded-full bg-slate-700/60 border border-slate-600/60 text-emerald-300 font-mono font-bold text-[11px] flex items-center justify-center">
+      <span
+        className={`shrink-0 w-6 h-6 rounded-full font-mono font-bold text-[11px] flex items-center justify-center border ${
+          isDark
+            ? 'bg-slate-700/60 border-slate-600/60 text-emerald-300'
+            : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+        }`}
+      >
         {n}
       </span>
       <div className="min-w-0">
-        <div className="font-semibold text-white text-[13px]">{title}</div>
-        <div className="text-slate-400 text-[12px] leading-relaxed mt-0.5">{desc}</div>
+        <div className={`font-semibold text-[13px] ${isDark ? 'text-white' : 'text-slate-900'}`}>{title}</div>
+        <div className={`text-[12px] leading-relaxed mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{desc}</div>
       </div>
     </li>
   );
