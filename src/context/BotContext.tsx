@@ -420,6 +420,11 @@ export function BotProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, []);
 
+  const refreshIntervalRef = useRef<number>(refreshInterval);
+  useEffect(() => {
+    refreshIntervalRef.current = refreshInterval;
+  }, [refreshInterval]);
+
   // Live & Configurable Exchange Rates (defaults to real market rates: ~6.7025 for CNY, ~0.8929 for EUR)
   const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(() => {
     try {
@@ -626,7 +631,9 @@ export function BotProvider({ children }: { children: ReactNode }) {
     isRefreshingRef.current = true;
     const currentReqId = ++activeRequestIdRef.current;
     const currentActiveBotId = activeBotIdRef.current;
-    setRefreshCountdown(6);
+    if (refreshIntervalRef.current > 0) {
+      setRefreshCountdown(refreshIntervalRef.current);
+    }
 
     try {
       // ── Tier 1: 核心数据并行获取，first paint 不等待历史统计 ──
