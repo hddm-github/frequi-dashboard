@@ -79,9 +79,9 @@ export class FreqtradeClient {
   getBaseUrl(): string {
     const raw = normalizeApiUrl(this.config.apiUrl || '');
     if (!raw) return '';
-    // Owner mode always uses fixed same-origin server proxy; no user-controlled target URL.
-    if (raw === '/ft-api' || raw === '/owner-api' || import.meta.env.DEV) {
-      return '/owner-api';
+    // Browser sends Origin automatically for public URLs; target reverse proxy must allowlist this dashboard origin.
+    if (raw === '/ft-api' || raw === '/owner-api') {
+      return '/freq-trade';
     }
     return raw;
   }

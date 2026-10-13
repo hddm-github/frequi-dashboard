@@ -34,12 +34,12 @@ export function BotSelectView() {
   } = useBot();
 
   const { locale, t } = useLocale();
-  const defaultFuturesName = locale === 'zh' ? '币安合约机器人' : 'Binance Futures Bot';
+  const defaultBotName = locale === 'zh' ? 'Freqtrade 机器人' : 'freqtrade-bot';
 
   const [isAdding, setIsAdding] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState('futures');
-  const [name, setName] = useState(defaultFuturesName);
-  const [apiUrl, setApiUrl] = useState('/owner-api');
+  const [name, setName] = useState(defaultBotName);
+  const [apiUrl, setApiUrl] = useState('/freq-trade');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -255,8 +255,8 @@ export function BotSelectView() {
                         type="button"
                         onClick={() => {
                           setSelectedPreset('futures');
-                          setName(defaultFuturesName);
-                          setApiUrl('/owner-api');
+                          setName(defaultBotName);
+                          setApiUrl('/freq-trade');
                         }}
                         className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded text-[9px] font-mono cursor-pointer"
                       >
@@ -275,7 +275,7 @@ export function BotSelectView() {
                     type="text"
                     value={apiUrl}
                     onChange={(e) => setApiUrl(e.target.value)}
-                    placeholder="/owner-api"
+                    placeholder="https://your-vps.example.com/freq-trade"
                     className={`w-full border rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
                       isDark
                         ? 'bg-[#1a233a] border-slate-700 text-slate-100'
