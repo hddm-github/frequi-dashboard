@@ -87,7 +87,7 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
         const savedActive = localStorage.getItem('nfi_active_bot_id');
         const sanitized = parsed.map((p: BotProfile) => ({
           ...p,
-          apiUrl: normalizeApiUrl(p.apiUrl === '/ft-api' ? '/owner-api' : p.apiUrl),
+          apiUrl: normalizeApiUrl(p.apiUrl === '/ft-api' || p.apiUrl === '/owner-api' ? '/' : p.apiUrl),
         }));
         const activeExists = sanitized.some((p: BotProfile) => p.id === savedActive);
         return {

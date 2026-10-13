@@ -24,8 +24,10 @@ export const EMPTY_BOT_STATE: BotState = {
 };
 
 export function normalizeApiUrl(url: string): string {
-  let cleaned = (url || '').trim().replace(/\/dashboard\/?$/, '').replace(/\/+$/, '');
-  if (!cleaned) return '';
+  const trimmed = (url || '').trim().replace(/\/dashboard\/?$/, '');
+  if (!trimmed || trimmed === '/') return '/';
+  const cleaned = trimmed.replace(/\/+$/, '');
+  if (!cleaned) return '/';
   if (cleaned.startsWith('/') && !cleaned.startsWith('//')) return cleaned;
 
   // 智能清洗协议头：支持修复诸如 http://http://、http:/// 等畸形前缀，并保留原有的协议类型
@@ -34,6 +36,27 @@ export function normalizeApiUrl(url: string): string {
   const stripped = cleaned.replace(/^(?:https?:[\/\\]*)+/i, '').replace(/^[\/\\]+/, '');
 
   return `${isHttps ? 'https' : 'http'}://${stripped}`;
+}
+
+export function buildApiUrl(baseUrl: string, endpoint: string): string {
+  const trimmedBase = (baseUrl || '').trim();
+  const cleanEndpoint = endpoint.replace(/^\/+/, '');
+
+  if (!trimmedBase || trimmedBase === '/') {
+    return `/api/v1/${cleanEndpoint}`;
+  }
+
+  const cleanBase = trimmedBase.replace(/\/+$/, '');
+
+  if (cleanBase.endsWith('/api/v1')) {
+    return `${cleanBase}/${cleanEndpoint}`;
+  }
+
+  if (cleanBase === '/api-proxy') {
+    return `/api-proxy/api/v1/${cleanEndpoint}`;
+  }
+
+  return `${cleanBase}/api/v1/${cleanEndpoint}`;
 }
 
 function mapOrders(rawOrders?: any[]): any[] | undefined {
@@ -78,14 +101,17 @@ export class FreqtradeClient {
 
   getBaseUrl(): string {
     const raw = normalizeApiUrl(this.config.apiUrl || '');
-    if (!raw) return '';
-    // 保留原始的 Nginx 反向代理配置模式 (/owner-api)，绝对不改动
-    if (raw === '/owner-api' || raw.startsWith('/owner-api') || raw === '/ft-api') {
-      return '/owner-api';
-    }
-    // 本地开发模式下，针对自定义远程 IP 地址，走 /api-proxy 代理以避免浏览器 CORS 拦截
-    if (import.meta.env.DEV) {
-      return '/api-proxy';
+    if (!raw || raw === '/') return '/';
+    // Dynamic CORS reverse proxy: remote HTTP/HTTPS targets go through /api-proxy
+    if (/^https?:\/\//i.test(raw)) {
+      if (typeof window !== 'undefined') {
+        const isSameOrigin = raw.startsWith(window.location.origin);
+        if (!isSameOrigin) {
+          return '/api-proxy';
+        }
+      } else {
+        return '/api-proxy';
+      }
     }
     return raw;
   }
@@ -107,8 +133,7 @@ export class FreqtradeClient {
     params?: Record<string, string | number | boolean | undefined | null>
   ): Promise<T> {
     const baseUrl = this.getBaseUrl();
-    const isOwnerProxy = baseUrl === '/owner-api' || baseUrl.startsWith('/owner-api');
-    let url = isOwnerProxy ? `${baseUrl}/${endpoint}` : `${baseUrl}/api/v1/${endpoint}`;
+    let url = buildApiUrl(baseUrl, endpoint);
     if (params) {
       const q = new URLSearchParams();
       Object.entries(params).forEach(([k, v]) => {
@@ -131,7 +156,7 @@ export class FreqtradeClient {
       Accept: 'application/json',
       ...this.getAuthHeader(),
     };
-    if (this.getBaseUrl() === '/api-proxy' && rawApiUrl && !isOwnerProxy) {
+    if (baseUrl === '/api-proxy' && rawApiUrl) {
       headers['x-target-url'] = rawApiUrl;
     }
 
@@ -200,15 +225,14 @@ export class FreqtradeClient {
 
   private async postRequest<T>(endpoint: string, body?: any): Promise<T> {
     const baseUrl = this.getBaseUrl();
-    const isProxy = baseUrl === '/owner-api' || baseUrl.startsWith('/owner-api');
-    const url = isProxy ? `${baseUrl}/${endpoint}` : `${baseUrl}/api/v1/${endpoint}`;
+    const url = buildApiUrl(baseUrl, endpoint);
     const rawApiUrl = normalizeApiUrl(this.config.apiUrl || '');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
       ...this.getAuthHeader(),
     };
-    if (this.getBaseUrl() === '/api-proxy' && rawApiUrl && !isProxy) {
+    if (baseUrl === '/api-proxy' && rawApiUrl) {
       headers['x-target-url'] = rawApiUrl;
     }
 
