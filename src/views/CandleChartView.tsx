@@ -22,6 +22,7 @@ import {
   X,
   Crosshair,
   ChevronDown,
+  Globe,
 } from 'lucide-react';
 import type { CandleData, Trade } from '../types';
 import { parseNfiSignal, isNfiStrategy } from '../utils/nfiSignals';
@@ -145,7 +146,7 @@ function formatBarTime(sec: number): string {
   return formatUtc8(sec, 'YYYY-MM-DD HH:mm');
 }
 
-function formatDuration(openDate?: string, closeDate?: string): string {
+function formatDuration(openDate?: string, closeDate?: string, isZh = false): string {
   if (!openDate) return '-';
   const start = new Date(openDate).getTime();
   const end = closeDate ? new Date(closeDate).getTime() : Date.now();
@@ -154,8 +155,10 @@ function formatDuration(openDate?: string, closeDate?: string): string {
   const m = Math.floor((diffSec % 3600) / 60);
   if (h >= 24) {
     const d = Math.floor(h / 24);
+    if (isZh) return `${d} 天 ${h % 24} 小时 ${m} 分钟`;
     return `${d} days ${h % 24} hours ${m} min`;
   }
+  if (isZh) return `${h} 小时 ${m} 分钟`;
   return `${h} hours ${m} min`;
 }
 
@@ -204,7 +207,7 @@ function findTradesForCandle(
 export function CandleChartView() {
   const { client, botState, selectedPair, setSelectedPair, activeTrades, closedTrades, theme, formatCurrency } = useBot();
   const t = useT();
-  const { locale } = useLocale();
+  const { locale, toggleLocale } = useLocale();
   const view = useOptionalView();
   const viewPair = (view?.params as Record<string, any> | undefined)?.pair;
 
@@ -379,6 +382,8 @@ export function CandleChartView() {
       .forEach((trade) => {
         const cTime = findCandleTime(trade.open_timestamp, trade.open_date);
         if (cTime) {
+          const entryText = locale === 'zh' ? '入场' : 'Entry';
+          const buyText = locale === 'zh' ? '买入' : 'Buy';
           result.push({
             time: cTime,
             position: trade.is_short ? 'aboveBar' : 'belowBar',
@@ -388,7 +393,7 @@ export function CandleChartView() {
               : (isDark ? '#10b981' : '#047857'),
             markerType: 'entry',
             tradeId: trade.trade_id,
-            text: `#${trade.trade_id} Entry @${trade.open_rate} [${trade.enter_tag || 'Buy'}]`,
+            text: `#${trade.trade_id} ${entryText} @${trade.open_rate} [${trade.enter_tag || buyText}]`,
             size: 2,
           });
         }
@@ -402,6 +407,7 @@ export function CandleChartView() {
         if (trade.open_timestamp || trade.open_date) {
           const openTime = findCandleTime(trade.open_timestamp, trade.open_date);
           if (openTime) {
+            const entryText = locale === 'zh' ? '入场' : 'Entry';
             result.push({
               time: openTime,
               position: trade.is_short ? 'aboveBar' : 'belowBar',
@@ -411,7 +417,7 @@ export function CandleChartView() {
                 : (isDark ? '#34d399' : '#047857'),
               markerType: 'entry',
               tradeId: trade.trade_id,
-              text: `#${trade.trade_id} Entry @${trade.open_rate} [${trade.enter_tag || ''}]`,
+              text: `#${trade.trade_id} ${entryText} @${trade.open_rate} [${trade.enter_tag || ''}]`,
               size: 1.5,
             });
           }
@@ -421,6 +427,7 @@ export function CandleChartView() {
           const closeTime = findCandleTime(trade.close_timestamp, trade.close_date);
           if (closeTime) {
             const isProfit = (trade.profit_pct ?? 0) >= 0;
+            const exitText = locale === 'zh' ? '平仓' : 'Close';
             result.push({
               time: closeTime,
               position: trade.is_short ? 'belowBar' : 'aboveBar',
@@ -430,7 +437,7 @@ export function CandleChartView() {
                 : (isDark ? '#ef4444' : '#dc2626'),
               markerType: 'exit',
               tradeId: trade.trade_id,
-              text: `#${trade.trade_id} Close @${trade.close_rate} (${isProfit ? '+' : ''}${trade.profit_pct}% ${trade.exit_reason || ''})`,
+              text: `#${trade.trade_id} ${exitText} @${trade.close_rate} (${isProfit ? '+' : ''}${trade.profit_pct}% ${trade.exit_reason || ''})`,
               size: 2,
             });
           }
@@ -854,7 +861,7 @@ export function CandleChartView() {
           >
             {availablePairs.map((pair) => (
               <option key={pair} value={pair}>
-                {pair} {activeTrades.some((tr) => tr.pair === pair) ? `★ (${t('candle.open')})` : ''}
+                {pair} {activeTrades.some((tr) => tr.pair === pair) ? `★ (${t('candle.open_position')})` : ''}
               </option>
             ))}
           </select>
@@ -877,7 +884,7 @@ export function CandleChartView() {
                   title={isStrategyTf ? t('candle.native_timeframe') : `${t('candle.market_timeframe')} ${tf}`}
                 >
                   <span>{tf}</span>
-                  {isStrategyTf && <span className="text-[9px] opacity-75">Strategy</span>}
+                  {isStrategyTf && <span className="text-[9px] opacity-75">{t('candle.strategy_tf')}</span>}
                 </button>
               );
             })}
@@ -974,13 +981,13 @@ export function CandleChartView() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {pairTrades.map((t) => {
-                      const isProfit = (t.profit_pct ?? 0) >= 0;
-                      const hasOrders = Array.isArray(t.orders) && t.orders.length > 0;
+                    {pairTrades.map((tr) => {
+                      const isProfit = (tr.profit_pct ?? 0) >= 0;
+                      const hasOrders = Array.isArray(tr.orders) && tr.orders.length > 0;
                       return (
                         <div
-                          key={t.trade_id}
-                          onClick={() => focusTradeOnChart(t)}
+                          key={tr.trade_id}
+                          onClick={() => focusTradeOnChart(tr)}
                           className={`p-2 rounded-lg border cursor-pointer transition-colors ${
                             isDark
                               ? 'bg-slate-800/50 hover:bg-slate-800 border-slate-700/60'
@@ -989,24 +996,24 @@ export function CandleChartView() {
                         >
                           <div className="flex items-center justify-between mb-1">
                             <span className="font-mono font-bold text-[11px] flex items-center gap-1">
-                              #{t.trade_id}
+                              #{tr.trade_id}
                               <span
                                 className={`text-[10px] px-1 py-0.2 rounded font-semibold ${
-                                  t.is_short
+                                  tr.is_short
                                     ? 'bg-rose-500/20 text-rose-400'
                                     : 'bg-emerald-500/20 text-emerald-400'
                                 }`}
                               >
-                                {t.is_short ? 'Short' : 'Long'}
+                                {tr.is_short ? t('candle.short') : t('candle.long')}
                               </span>
                               <span
                                 className={`text-[10px] px-1 py-0.2 rounded ${
-                                  t.is_open
+                                  tr.is_open
                                     ? 'bg-amber-500/20 text-amber-400'
                                     : 'bg-slate-600/30 text-slate-400'
                                 }`}
                               >
-                                {t.is_open ? 'Open' : 'Closed'}
+                                {tr.is_open ? t('candle.open_position') : t('candle.closed_position')}
                               </span>
                             </span>
                             <span
@@ -1015,25 +1022,26 @@ export function CandleChartView() {
                               }`}
                             >
                               {isProfit ? '+' : ''}
-                              {t.profit_pct}%
+                              {tr.profit_pct}%
                             </span>
                           </div>
 
                           <div className="text-[10px] text-slate-400 flex items-center justify-between font-mono mb-1">
-                            <span>Open: {t.open_rate}</span>
-                            {t.close_rate && <span>Close: {t.close_rate}</span>}
-                            <span className="text-cyan-400 font-semibold">{t.enter_tag || t.exit_reason || 'Signal'}</span>
+                            <span>{t('candle.open_price')}: {tr.open_rate}</span>
+                            {tr.close_rate && <span>{t('candle.avg_close')}: {tr.close_rate}</span>}
+                            <span className="text-cyan-400 font-semibold">{tr.enter_tag || tr.exit_reason || (locale === 'zh' ? '策略信号' : 'Signal')}</span>
                           </div>
 
                           {/* Orders breakdown (Grinding / Rebuy / Derisk / Exit orders) */}
                           {hasOrders && (
                             <div className="mt-1.5 pt-1.5 border-t border-slate-700/40 space-y-1">
                               <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                                <span>Order Execution History ({t.orders!.length})</span>
+                                <span>{t('candle.order_history')} ({tr.orders!.length})</span>
                               </div>
-                              {t.orders!.map((ord, idx) => {
+                              {tr.orders!.map((ord, idx) => {
                                 const isBuy = ord.ft_order_side === 'buy';
-                                const tag = ord.ft_order_tag || (isBuy ? 'Entry' : 'Exit');
+                                const defaultTag = isBuy ? (locale === 'zh' ? '入场' : 'Entry') : (locale === 'zh' ? '平仓' : 'Exit');
+                                const tag = ord.ft_order_tag || defaultTag;
                                 const isGrind = tag.includes('grind');
                                 const isRebuy = tag.includes('rebuy') || tag === 'r';
                                 const isDerisk = tag.includes('derisk');
@@ -1051,7 +1059,7 @@ export function CandleChartView() {
                                   >
                                     <div className="flex items-center gap-1.5 truncate min-w-0">
                                       <span className={`px-1 py-0.2 rounded text-[8.5px] font-bold shrink-0 ${badgeColor}`}>
-                                        {isBuy ? 'BUY' : 'SELL'}
+                                        {isBuy ? (locale === 'zh' ? '买入' : 'BUY') : (locale === 'zh' ? '卖出' : 'SELL')}
                                       </span>
                                       <span className="text-slate-300 font-medium truncate shrink min-w-0" title={tag}>
                                         {tag}
@@ -1100,9 +1108,9 @@ export function CandleChartView() {
                 isDark ? 'bg-[#1a233a] border-slate-700 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'
               }`}
             >
-              <span className="text-slate-500 dark:text-slate-400">Entry price:</span>
+              <span className="text-slate-500 dark:text-slate-400">{t('candle.entry_price')}:</span>
               <span className="font-semibold text-slate-900 dark:text-slate-100">{activeTrade.open_rate}</span>
-              <span className="text-slate-500 dark:text-slate-400">Unrealized P&L:</span>
+              <span className="text-slate-500 dark:text-slate-400">{t('candle.unrealized_pnl')}:</span>
               <span
                 className={`font-bold ${
                   activeTrade.profit_pct >= 0
@@ -1122,7 +1130,7 @@ export function CandleChartView() {
               </span>
               {activeTrade.stop_loss_abs && (
                 <>
-                  <span className="text-slate-500 dark:text-slate-400">Stop-loss:</span>
+                  <span className="text-slate-500 dark:text-slate-400">{t('candle.stop_loss')}:</span>
                   <span className="text-rose-600 dark:text-rose-400 font-semibold">{activeTrade.stop_loss_abs}</span>
                 </>
               )}
@@ -1140,6 +1148,23 @@ export function CandleChartView() {
             title={t('candle.refresh_candles')}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-500' : ''}`} />
+          </button>
+
+          {/* Quick Locale Toggle (EN / 中文) */}
+          <button
+            type="button"
+            onClick={toggleLocale}
+            className={`px-2 py-1 rounded-lg border text-xs flex items-center gap-1 transition-colors cursor-pointer font-medium active:scale-95 ${
+              isDark
+                ? 'border-slate-700 bg-[#1a233a] hover:bg-[#202b46] text-cyan-400'
+                : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-cyan-700'
+            }`}
+            title={t('header.tooltip_language')}
+          >
+            <Globe className="w-3.5 h-3.5 shrink-0" />
+            <span className="font-mono text-[11px] font-bold">
+              {locale === 'zh' ? '中文' : 'EN'}
+            </span>
           </button>
         </div>
       </div>
@@ -1197,7 +1222,7 @@ export function CandleChartView() {
             <div className="flex justify-between items-center">
               <span className="text-slate-500 dark:text-slate-400">{t('candle.duration')}:</span>
               <span className="text-slate-700 dark:text-slate-300">
-                {formatDuration(selectedTrade.open_date, selectedTrade.close_date)}
+                {formatDuration(selectedTrade.open_date, selectedTrade.close_date, locale === 'zh')}
               </span>
             </div>
 
@@ -1273,7 +1298,7 @@ export function CandleChartView() {
                   {selectedTrade.enter_tag}
                   {isNfiStrategy(botState.strategy) && (
                     <span className="ml-1 text-[10px] opacity-80 font-normal">
-                      ({parseNfiSignal(selectedTrade.enter_tag).category})
+                      ({parseNfiSignal(selectedTrade.enter_tag, locale === 'zh').category})
                     </span>
                   )}
                 </span>
@@ -1426,7 +1451,7 @@ export function CandleChartView() {
                 {hoveredTrades.map(({ trade, type }, idx) => {
                   const isProfit = (trade.profit_pct ?? 0) >= 0;
                   const isNfi = isNfiStrategy(botState.strategy);
-                  const nfiSignal = isNfi ? parseNfiSignal(trade.enter_tag) : null;
+                  const nfiSignal = isNfi ? parseNfiSignal(trade.enter_tag, locale === 'zh') : null;
 
                   return (
                     <div
@@ -1481,7 +1506,7 @@ export function CandleChartView() {
                       {/* Profit for Close */}
                       {type === 'close' && (
                         <span className="font-mono font-bold">
-                          {t('candle.unrealized_pnl')}:{' '}
+                          {t('closed.realized_pnl')}:{' '}
                           <span className={isProfit ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}>
                             {isProfit ? '+' : ''}
                             {trade.profit_pct}%
@@ -1499,7 +1524,7 @@ export function CandleChartView() {
                       {trade.enter_tag && (
                         <span className="px-1.5 py-0.5 rounded bg-cyan-100/80 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-500/30 font-mono text-[11px]">
                           {t('candle.entry_signal')}: {trade.enter_tag}
-                          {nfiSignal && nfiSignal.category !== 'Standard entry' && (
+                          {nfiSignal && nfiSignal.category !== (locale === 'zh' ? '常规入场' : 'Standard entry') && (
                             <span className="ml-1 font-sans text-[10px] opacity-90 font-normal">
                               ({nfiSignal.category})
                             </span>
