@@ -86,6 +86,19 @@ export class FreqtradeClient {
   private config: BotConfig;
   public lastError: string | null = null;
   private inFlightRequests: Map<string, Promise<any>> = new Map();
+  private cachedStaticState: {
+    version: string;
+    strategy: string;
+    strategy_version: string;
+    timeframe: string;
+    state: 'running' | 'stopped';
+    dry_run: boolean;
+    stake_currency: string;
+    max_open_trades: number;
+    stake_amount: number | string;
+    whitelist: string[];
+  } | null = null;
+  private lastStaticFetchTime: number = 0;
 
   constructor(config: BotConfig) {
     this.config = config;
@@ -305,9 +318,14 @@ export class FreqtradeClient {
     }
   }
 
-  async getBotState(): Promise<BotState> {
+  async getStaticBotConfig(forceRefresh: boolean = false) {
+    const now = Date.now();
+    if (this.cachedStaticState && !forceRefresh && now - this.lastStaticFetchTime < 600000) {
+      return this.cachedStaticState;
+    }
+
     try {
-      const [versionData, configData, balanceData, whitelistData] = await Promise.all([
+      const [versionData, configData, whitelistData] = await Promise.all([
         this.request<{ version: string }>('version').catch(() => ({ version: 'Freqtrade' })),
         this.request<{
           strategy?: string;
@@ -319,11 +337,10 @@ export class FreqtradeClient {
           max_open_trades?: number;
           stake_amount?: number | string;
         }>('show_config').catch(() => ({} as any)),
-        this.request<{ total: number; free?: number }>('balance').catch(() => ({ total: 0, free: 0 })),
         this.request<{ whitelist: string[] }>('whitelist').catch(() => ({ whitelist: [] })),
       ]);
 
-      return {
+      this.cachedStaticState = {
         version: versionData.version || 'Freqtrade',
         strategy: configData.strategy || 'FreqtradeStrategy',
         strategy_version: configData.strategy_version || '',
@@ -332,10 +349,49 @@ export class FreqtradeClient {
         dry_run: configData.dry_run ?? true,
         stake_currency: configData.stake_currency || 'USDT',
         max_open_trades: configData.max_open_trades || 5,
-        balance: balanceData.total ?? 0,
-        free_balance: balanceData.free ?? balanceData.total ?? 0,
         stake_amount: configData.stake_amount ?? 0,
         whitelist: whitelistData.whitelist || [],
+      };
+      this.lastStaticFetchTime = now;
+      return this.cachedStaticState;
+    } catch (err: any) {
+      console.warn('getStaticBotConfig failed:', err);
+      if (this.cachedStaticState) return this.cachedStaticState;
+      return {
+        version: 'Freqtrade',
+        strategy: 'FreqtradeStrategy',
+        strategy_version: '',
+        timeframe: '5m',
+        state: 'running' as const,
+        dry_run: true,
+        stake_currency: 'USDT',
+        max_open_trades: 5,
+        stake_amount: 0,
+        whitelist: [],
+      };
+    }
+  }
+
+  async getBotState(forceRefreshStatic: boolean = false): Promise<BotState> {
+    try {
+      const [staticConfig, balanceData] = await Promise.all([
+        this.getStaticBotConfig(forceRefreshStatic),
+        this.request<{ total: number; free?: number }>('balance').catch(() => ({ total: 0, free: 0 })),
+      ]);
+
+      return {
+        version: staticConfig.version,
+        strategy: staticConfig.strategy,
+        strategy_version: staticConfig.strategy_version,
+        timeframe: staticConfig.timeframe,
+        state: staticConfig.state,
+        dry_run: staticConfig.dry_run,
+        stake_currency: staticConfig.stake_currency,
+        max_open_trades: staticConfig.max_open_trades,
+        balance: balanceData.total ?? 0,
+        free_balance: balanceData.free ?? balanceData.total ?? 0,
+        stake_amount: staticConfig.stake_amount,
+        whitelist: staticConfig.whitelist,
       };
     } catch (err: any) {
       console.warn('Real API getBotState failed:', err);

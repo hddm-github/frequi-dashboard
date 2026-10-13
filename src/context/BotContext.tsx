@@ -227,18 +227,19 @@ export function BotProvider({ children }: { children: ReactNode }) {
   // Mobile App active tab state
   const [mobileTab, setMobileTab] = useState<string>('frequi_dashboard');
 
-  // Configurable auto-refresh interval (defaults to 6s, 0 means manual, persisted to localStorage)
+  // Configurable auto-refresh interval (defaults to 2s micro-heartbeat, 0 means manual, persisted to localStorage)
   const [refreshInterval, setRefreshIntervalState] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('frequi_refresh_interval');
       if (saved !== null) {
         const parsed = parseInt(saved, 10);
         if (!isNaN(parsed) && parsed >= 0) {
+          if (parsed === 6) return 2; // Auto-upgrade old 6s default to 2s
           return parsed;
         }
       }
     } catch {}
-    return 6;
+    return 2;
   });
 
   const [refreshCountdown, setRefreshCountdown] = useState<number>(() => {
@@ -247,11 +248,12 @@ export function BotProvider({ children }: { children: ReactNode }) {
       if (saved !== null) {
         const parsed = parseInt(saved, 10);
         if (!isNaN(parsed) && parsed >= 0) {
+          if (parsed === 6) return 2;
           return parsed;
         }
       }
     } catch {}
-    return 6;
+    return 2;
   });
 
   const setRefreshInterval = useCallback((seconds: number) => {
@@ -437,6 +439,8 @@ export function BotProvider({ children }: { children: ReactNode }) {
   // Concurrency & Mutex Locks (生命周期互斥锁，彻底杜绝并发请求压垮 SQLite 连接池)
   const isRefreshingRef = useRef<boolean>(false);
   const lastSecondaryFetchTimeRef = useRef<number>(0);
+  const lastBotStateFetchTimeRef = useRef<number>(0);
+  const botStateRef = useRef<BotState | null>(null);
   const prevActiveTradeCountRef = useRef<number>(-1);
   const prevActiveTradeIdsRef = useRef<string>('');
   const closedTradesRef = useRef<Trade[]>([]);
@@ -479,22 +483,37 @@ export function BotProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // ── Tier 1: 核心数据并行获取，first paint 不等待历史统计 ──
+      const now = Date.now();
+      const timeSinceLastState = now - lastBotStateFetchTimeRef.current;
+      const shouldFetchBotState =
+        forceAll ||
+        !botStateRef.current ||
+        lastBotStateFetchTimeRef.current === 0 ||
+        timeSinceLastState > 20000;
+
+      // ── Tier 1: Micro-Heartbeat vs Ticker ──
+      // Real-time (1-2s): getActiveTrades() ONLY (<1KB, ~15ms, 0 SQLite load)
+      // Periodic balance (20s): getBotState() with memory-cached static config
       const [state, active] = await Promise.all([
-        targetClient.getBotState(),
+        shouldFetchBotState ? targetClient.getBotState(forceAll) : Promise.resolve(null),
         targetClient.getActiveTrades(),
       ]);
       if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
 
-      setBotState(state);
+      if (state) {
+        lastBotStateFetchTimeRef.current = now;
+        botStateRef.current = state;
+        setBotState(state);
+      }
       setActiveTrades(active);
 
       // Smart pair sync
+      const currentActiveState = state || botStateRef.current;
       setSelectedPair((prev) => {
-        const isValid = prev && (active.some((t) => t.pair === prev) || state.whitelist.includes(prev));
+        const isValid = prev && (active.some((t) => t.pair === prev) || (currentActiveState && currentActiveState.whitelist.includes(prev)));
         if (isValid) return prev;
         if (active.length > 0 && active[0].pair) return active[0].pair;
-        if (state.whitelist.length > 0) return state.whitelist[0];
+        if (currentActiveState && currentActiveState.whitelist.length > 0) return currentActiveState.whitelist[0];
         return '';
       });
 
@@ -502,14 +521,15 @@ export function BotProvider({ children }: { children: ReactNode }) {
       setLastError(null);
 
       // ── SWR: persist snapshot for instant next-load ──
-      saveBotSnapshot(activeBotIdRef.current, { botState: state, activeTrades: active });
+      if (state) {
+        saveBotSnapshot(activeBotIdRef.current, { botState: state, activeTrades: active });
+      }
 
-      // ── Tier 2 & 3: 历史数据在核心 UI 已可用后后台同步 ──
-      const now = Date.now();
+      // ── Tier 2 & 3: Event-Driven DB Sync ──
       const timeSinceLastSecondary = now - lastSecondaryFetchTimeRef.current;
       const currentTradeIds = active.map((t) => t.trade_id).sort().join(',');
-      const tradeIdsChanged = prevActiveTradeIdsRef.current !== '' && prevActiveTradeIdsRef.current !== currentTradeIds;
       const tradeCountChanged = prevActiveTradeCountRef.current !== -1 && prevActiveTradeCountRef.current !== active.length;
+      const hadTradeClosed = prevActiveTradeCountRef.current !== -1 && active.length < prevActiveTradeCountRef.current;
       prevActiveTradeCountRef.current = active.length;
       prevActiveTradeIdsRef.current = currentTradeIds;
 
@@ -517,9 +537,9 @@ export function BotProvider({ children }: { children: ReactNode }) {
         forceAll ||
         lastSecondaryFetchTimeRef.current === 0 ||
         closedTradesRef.current.length === 0 ||
-        tradeCountChanged ||
-        tradeIdsChanged ||
-        (document.visibilityState === 'visible' && timeSinceLastSecondary > 30000);
+        hadTradeClosed ||
+        (tradeCountChanged && active.length > 0) ||
+        (document.visibilityState === 'visible' && timeSinceLastSecondary > 45000);
 
       if (shouldFetchSecondary) {
         lastSecondaryFetchTimeRef.current = now;
