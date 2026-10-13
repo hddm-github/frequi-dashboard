@@ -18,7 +18,7 @@ import { SignalBadge } from '../components/SignalBadge';
 import { formatUtc8 } from '../utils/dateUtils';
 
 import { useOptionalWorkspace } from '@danfessler/trellis-react';
-import { useT } from '../i18n/LocaleContext';
+import { useLocale } from '../i18n/LocaleContext';
 
 export function FreqUIDashboardView() {
   const {
@@ -40,7 +40,8 @@ export function FreqUIDashboardView() {
   } = useBot();
 
   const ws = useOptionalWorkspace();
-  const t = useT();
+  const { t, locale } = useLocale();
+  const isZh = locale === 'zh';
   const [isLogScale, setIsLogScale] = useState(true);
 
   const handleViewChart = (pair: string) => {
@@ -439,7 +440,7 @@ export function FreqUIDashboardView() {
           </div>
 
           <div
-            className={`h-[185px] sm:h-[200px] shrink-0 flex items-end justify-around gap-1.5 pt-2 px-1 border-b pb-1 ${
+            className={`flex-1 min-h-[190px] flex items-end justify-around gap-1.5 pt-2 px-1 border-b pb-1 ${
               isDark ? 'border-slate-800/60' : 'border-slate-200'
             }`}
           >
@@ -492,7 +493,7 @@ export function FreqUIDashboardView() {
 
           {/* 10-Day Trading Performance Summary Grid */}
           {sortedDaily.length > 0 && (
-            <div className="flex-1 min-h-0 flex flex-col justify-between pt-2 gap-2">
+            <div className="shrink-0 flex flex-col gap-2 pt-2.5">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
                 {/* 10日累计盈亏 */}
                 <div
@@ -510,7 +511,7 @@ export function FreqUIDashboardView() {
                         : 'text-rose-500 dark:text-rose-400'
                     }`}
                   >
-                    {formatCurrency(dailyStats.totalProfit, { showSign: true })}
+                    {isReadOnly ? t('ui.hidden') : formatCurrency(dailyStats.totalProfit, { showSign: true })}
                   </span>
                 </div>
 
@@ -530,7 +531,7 @@ export function FreqUIDashboardView() {
                         : 'text-rose-500 dark:text-rose-400'
                     }`}
                   >
-                    {formatCurrency(dailyStats.avgDailyProfit, { showSign: true })}
+                    {isReadOnly ? t('ui.hidden') : formatCurrency(dailyStats.avgDailyProfit, { showSign: true })}
                   </span>
                 </div>
 
@@ -548,7 +549,7 @@ export function FreqUIDashboardView() {
                       {dailyStats.dailyWinrate}%
                     </span>
                     <span className="text-[10px] text-slate-400">
-                      ({dailyStats.winDays}胜/{dailyStats.lossDays}负)
+                      ({dailyStats.winDays}{isZh ? '胜' : 'W'}/{dailyStats.lossDays}{isZh ? '负' : 'L'})
                     </span>
                   </div>
                 </div>
@@ -577,10 +578,13 @@ export function FreqUIDashboardView() {
                 }`}
               >
                 <span>
-                  共平仓 {dailyStats.totalTrades} 笔 · 笔均 {formatCurrency(dailyStats.avgTradeProfit, { showSign: true })}
+                  {isZh
+                    ? `共平仓 ${dailyStats.totalTrades} 笔 · 笔均 `
+                    : `Closed ${dailyStats.totalTrades} trades · Avg `}
+                  {formatCurrency(dailyStats.avgTradeProfit, { showSign: true })}
                 </span>
                 <span>
-                  单日最大回撤:{' '}
+                  {isZh ? '单日最大回撤: ' : 'Max day drawdown: '}
                   <span className="text-rose-500 font-semibold">
                     {dailyStats.worstDay < 0 ? formatCurrency(dailyStats.worstDay) : '$0.00'}
                   </span>

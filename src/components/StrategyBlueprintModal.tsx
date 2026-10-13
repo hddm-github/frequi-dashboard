@@ -396,14 +396,14 @@ export function StrategyBlueprintModal({
                 )}
                 <button
                   onClick={toggleLocale}
-                  title={isZh ? 'Switch to English' : '切换为中文'}
+                  title={isZh ? '切换为 English' : 'Switch to Chinese'}
                   className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono cursor-pointer border transition-colors ${
                     isDark
                       ? 'bg-slate-700/40 hover:bg-slate-700 text-slate-300 border-slate-600/50'
                       : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-300'
                   }`}
                 >
-                  {isZh ? 'EN' : '中文'}
+                  {isZh ? '中文' : 'EN'}
                 </button>
               </div>
               {error && (

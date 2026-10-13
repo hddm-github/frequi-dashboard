@@ -321,6 +321,11 @@ export const zh: Record<string, string> = {
   'dashboard.best_day': '单日最高',
   'dashboard.max_drawdown_day': '单日最大回撤',
   'dashboard.avg_per_trade': '笔均盈亏',
+  'dashboard.clear_selection': '清除选中状态',
+  'dashboard.win_short': '胜',
+  'dashboard.loss_short': '负',
+  'dashboard.total_closed': '共平仓',
+  'dashboard.max_drawdown_label': '单日最大回撤',
 
   // Closed Trades View
   'closed.no_history': '暂无已平仓交易记录',

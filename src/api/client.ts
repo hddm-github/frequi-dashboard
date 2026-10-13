@@ -11,7 +11,7 @@ import type {
 
 export const EMPTY_BOT_STATE: BotState = {
   version: '-',
-  strategy: '未连接',
+  strategy: 'Disconnected',
   timeframe: '5m',
   state: 'stopped',
   dry_run: true,
@@ -169,11 +169,11 @@ export class FreqtradeClient {
         if (!res.ok) {
           let msg = `API [${endpoint}] HTTP ${res.status}: ${res.statusText}`;
           if (res.status === 401) {
-            msg = '身份认证失败 (401 Unauthorized)：API 用户名或密码错误，请检查机器人配置';
+            msg = 'Authentication failed (401 Unauthorized): Check API credentials';
           } else if (res.status === 404) {
-            msg = `接口未找到 (404 Not Found): ${endpoint}`;
+            msg = `Endpoint not found (404 Not Found): ${endpoint}`;
           } else if (res.status === 502 || res.status === 504) {
-            msg = `网关异常 (HTTP ${res.status})：无法连通目标服务器`;
+            msg = `Gateway error (HTTP ${res.status}): Unable to reach target server`;
           }
           this.lastError = msg;
           throw new Error(msg);
@@ -182,7 +182,7 @@ export class FreqtradeClient {
         const contentType = res.headers.get('content-type') || '';
         if (contentType.includes('text/html')) {
           const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-          const errMsg = `目标地址返回了 HTML 网页而非 Freqtrade API 数据 (HTTP ${res.status})。请确认填写的端口是 Freqtrade 机器人 API 端口（如 8080/8989），而不是前端网页端口（${currentOrigin}）。`;
+          const errMsg = `Target returned HTML page instead of JSON API (HTTP ${res.status}). Verify API port, not web UI port (${currentOrigin}).`;
           this.lastError = errMsg;
           throw new Error(errMsg);
         }
@@ -191,24 +191,19 @@ export class FreqtradeClient {
         try {
           return (await res.json()) as T;
         } catch (jsonErr: any) {
-          const errMsg = 'API 返回的数据不是合法 JSON 格式，请检查该地址与端口是否为 Freqtrade 服务';
+          const errMsg = 'API response is not valid JSON. Verify target service is Freqtrade API.';
           this.lastError = errMsg;
           throw new Error(errMsg);
         }
       } catch (err: any) {
         if (err.name === 'AbortError') {
-          const timeoutMsg = `请求超时 (12s)：API [${endpoint}] 响应过慢，已自动熔断`;
+          const timeoutMsg = `Request timeout (12s): API [${endpoint}] response took too long`;
           this.lastError = timeoutMsg;
           throw new Error(timeoutMsg);
         }
         if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
-          const origin = typeof window !== 'undefined' ? window.location.origin : '';
           const targetUrl = this.getBaseUrl();
-          const fetchMsg = `连接失败 (Failed to fetch)：无法访问目标地址「${targetUrl}」。
-可能原因：
-1. 目标服务未启动、端口未开放或防火墙拦截
-2. 跨域 (CORS) 限制：请确认在机器人的 config.json 中，已将「${origin}」加入 api_server.CORS_origins 列表并重启机器人
-3. 协议或证书错误（例如 HTTPS 站点直接请求 HTTP 接口被浏览器拦截）`;
+          const fetchMsg = `Failed to fetch: Unable to reach target address [${targetUrl}]. Check host, CORS origins, and SSL protocol.`;
           this.lastError = fetchMsg;
           throw new Error(fetchMsg);
         }
@@ -249,9 +244,9 @@ export class FreqtradeClient {
 
       if (!res.ok) {
         const text = await res.text().catch(() => '');
-        let msg = `POST [${endpoint}] 失败 (${res.status}): ${text || res.statusText}`;
+        let msg = `POST [${endpoint}] failed (${res.status}): ${text || res.statusText}`;
         if (res.status === 401) {
-          msg = '操作失败：401 Unauthorized 认证失败';
+          msg = 'Operation failed: 401 Unauthorized';
         }
         this.lastError = msg;
         throw new Error(msg);
@@ -259,7 +254,7 @@ export class FreqtradeClient {
 
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('text/html')) {
-        const errMsg = `目标地址返回了 HTML 网页而非 Freqtrade API 数据 (HTTP ${res.status})。请确认填写的端口是 Freqtrade 机器人 API 端口。`;
+        const errMsg = `Target returned HTML page instead of JSON API (HTTP ${res.status}). Verify API port.`;
         this.lastError = errMsg;
         throw new Error(errMsg);
       }
@@ -272,18 +267,13 @@ export class FreqtradeClient {
       }
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        const timeoutMsg = `POST [${endpoint}] 请求超时 (15s)`;
+        const timeoutMsg = `POST [${endpoint}] timeout (15s)`;
         this.lastError = timeoutMsg;
         throw new Error(timeoutMsg);
       }
       if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
-        const origin = typeof window !== 'undefined' ? window.location.origin : '';
         const targetUrl = this.getBaseUrl();
-        const fetchMsg = `连接失败 (Failed to fetch)：无法访问目标地址「${targetUrl}」。
-可能原因：
-1. 目标服务未启动、端口未开放或防火墙拦截
-2. 跨域 (CORS) 限制：请确认在机器人的 config.json 中，已将「${origin}」加入 api_server.CORS_origins 列表并重启机器人
-3. 协议或证书错误（例如 HTTPS 站点直接请求 HTTP 接口被浏览器拦截）`;
+        const fetchMsg = `Failed to fetch: Unable to reach target [${targetUrl}]. Check network or CORS.`;
         this.lastError = fetchMsg;
         throw new Error(fetchMsg);
       }
@@ -298,7 +288,7 @@ export class FreqtradeClient {
       await this.request('ping');
       return true;
     } catch (err: any) {
-      this.lastError = err?.message || '无法连接到该端点';
+      this.lastError = err?.message || 'Unable to connect to endpoint';
       return false;
     }
   }
@@ -311,7 +301,7 @@ export class FreqtradeClient {
       await this.request('show_config');
       return { ok: true };
     } catch (err: any) {
-      return { ok: false, message: err?.message || '连接或认证失败' };
+      return { ok: false, message: err?.message || 'Connection or authentication failed' };
     }
   }
 
@@ -545,7 +535,7 @@ export class FreqtradeClient {
 
       closed.forEach((t) => {
         // Look up signal identifier from enter_tag, exit_tag, or exit_reason
-        const tag = t.enter_tag || t.exit_tag || t.exit_reason || 'Manual / 未标记';
+        const tag = t.enter_tag || t.exit_tag || t.exit_reason || 'Manual / Untagged';
         const cur = map.get(tag) || { total: 0, wins: 0, loss: 0, profits: [] };
         cur.total++;
         if (t.profit_ratio >= 0) cur.wins++;

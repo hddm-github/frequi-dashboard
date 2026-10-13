@@ -558,7 +558,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
       if (activeRequestIdRef.current === currentReqId && activeBotIdRef.current === currentActiveBotId) {
         console.warn('Refresh data failed:', err);
         setIsConnected(false);
-        setLastError(err?.message || '获取数据失败');
+        setLastError(err?.message || 'Failed to fetch data');
       }
     } finally {
       if (activeRequestIdRef.current === currentReqId) {
@@ -584,10 +584,10 @@ export function BotProvider({ children }: { children: ReactNode }) {
     setIsConnecting(true);
     setLastError(null);
 
-    // 立即清空历史策略数据并给出友好过渡提示，杜绝旧策略残影
+    // Set neutral connecting strategy state
     setBotState({
       ...EMPTY_BOT_STATE,
-      strategy: '正在连接策略...',
+      strategy: 'Connecting...',
     });
     setActiveTrades([]);
     setClosedTrades([]);
@@ -618,13 +618,12 @@ export function BotProvider({ children }: { children: ReactNode }) {
     if (ok) {
       setIsConnected(true);
       setLastError(null);
-      // 切换成功后立即全量同步新机器人的策略与全层数据
       await refreshData(newClient, true);
       setIsSelectingBot(false);
       return true;
     } else {
       setIsConnected(false);
-      const errMsg = newClient.lastError || '无法连接该机器人节点 (网络超时或认证失败)';
+      const errMsg = newClient.lastError || 'Unable to connect to bot node (timeout or auth error)';
       setLastError(errMsg);
       return false;
     }
@@ -647,7 +646,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
     const verify = await tempClient.verifyAuth();
     if (!verify.ok) {
       setIsConnecting(false);
-      const errMsg = verify.message || '连接失败，请检查地址或用户名密码';
+      const errMsg = verify.message || 'Connection failed, please check address or credentials';
       setLastError(errMsg);
       return { success: false, error: errMsg };
     }

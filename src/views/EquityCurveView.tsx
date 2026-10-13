@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useBot } from '../context/BotContext';
-import { useT } from '../i18n/LocaleContext';
+import { useLocale } from '../i18n/LocaleContext';
 import {
   TrendingUp,
   DollarSign,
@@ -33,7 +33,8 @@ export function EquityCurveView() {
   } = useBot();
 
   const isDark = theme === 'dark';
-  const t = useT();
+  const { t, locale } = useLocale();
+  const isZh = locale === 'zh';
 
   // Controls: Composite View Mode and Time Range Filter
   const [viewMode, setViewMode] = useState<'dual' | 'curve' | 'bars'>('dual');
@@ -413,7 +414,7 @@ export function EquityCurveView() {
               {isReadOnly ? t('ui.hidden') : formatCurrency(initialCapital)}
             </div>
             <div className="text-[9px] text-slate-400 mt-0.5 flex items-center justify-center gap-1">
-              <span>{isManualCapital ? t('equity.manual_baseline') : '自动'}</span>
+              <span>{isManualCapital ? t('equity.manual_baseline') : (isZh ? '自动' : 'Auto')}</span>
               {isManualCapital && (
                 <button
                   onClick={() => resetInitialCapitalToAuto()}
