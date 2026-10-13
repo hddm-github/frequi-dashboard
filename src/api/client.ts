@@ -28,9 +28,9 @@ export function normalizeApiUrl(url: string): string {
   if (!cleaned) return '';
   if (cleaned.startsWith('/') && !cleaned.startsWith('//')) return cleaned;
 
-  // 智能清洗协议头：支持修复诸如 http://http://、http:/// 等畸形前缀，并保留原有的协议类型
+  // 智能清洗协议头：支持直接输入域名或 IP，如 tes.yuasa.com 或 203.0.113.10:8081
   const prefixMatch = cleaned.match(/^(?:https?:[\/\\]*)+/i);
-  const isHttps = prefixMatch ? /https:/i.test(prefixMatch[0]) : false;
+  let isHttps = prefixMatch ? /https:/i.test(prefixMatch[0]) : (typeof window !== 'undefined' ? window.location.protocol === 'https:' : false);
   const stripped = cleaned.replace(/^(?:https?:[\/\\]*)+/i, '').replace(/^[\/\\]+/, '');
 
   return `${isHttps ? 'https' : 'http'}://${stripped}`;

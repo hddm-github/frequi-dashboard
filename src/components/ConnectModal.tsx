@@ -163,7 +163,7 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
               type="text"
               value={apiUrl}
               onChange={(e) => setApiUrl(e.target.value)}
-              placeholder="https://your-vps.example.com/freq-trade"
+              placeholder="https://bot.example.com/freq-trade or http://PUBLIC_IP:8081"
               className={`w-full border rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
                 isDark ? 'bg-[#1a233a] border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
               }`}
