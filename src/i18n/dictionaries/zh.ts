@@ -29,8 +29,6 @@ export const zh: Record<string, string> = {
   'header.settings_title': '打开快捷设置面板',
   'header.sync_now': '立即同步数据',
   'header.refresh_live_rate': '刷新实时汇率',
-  'header.pull_to_refresh': '下拉刷新数据',
-  'header.release_to_refresh': '释放立即刷新',
   'header.mode_theme': '界面主题',
   'header.language': '语言',
   'header.custom_rate_prompt': '自定义 1 USDT 对 {currency} 的汇率（当前: {current}）',

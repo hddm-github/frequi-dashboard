@@ -30,8 +30,6 @@ export const en: Record<string, string> = {
   'header.settings_title': 'Open quick settings panel',
   'header.sync_now': 'Sync Data Now',
   'header.refresh_live_rate': 'Refresh Live Rates',
-  'header.pull_to_refresh': 'Pull down to refresh',
-  'header.release_to_refresh': 'Release to refresh',
   'header.mode_theme': 'Theme',
   'header.language': 'Language',
   'header.custom_rate_prompt': 'Custom conversion rate for 1 USDT to {currency} (current: {current})',
