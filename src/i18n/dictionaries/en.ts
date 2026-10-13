@@ -29,8 +29,6 @@ export const en: Record<string, string> = {
   'header.quick_settings': 'Quick Settings',
   'header.settings_title': 'Open quick settings panel',
   'header.sync_now': 'Sync Data Now',
-  'header.share_panel': 'Share Read-Only Panel',
-  'header.share_panel_desc': 'Generate encrypted read-only link for friends',
   'header.refresh_live_rate': 'Refresh Live Rates',
   'header.pull_to_refresh': 'Pull down to refresh',
   'header.release_to_refresh': 'Release to refresh',
@@ -318,11 +316,6 @@ export const en: Record<string, string> = {
   'dashboard.total_records': 'Total {count} records',
   'dashboard.reference_rate': 'Reference rate',
   'dashboard.edit': 'Edit',
-  'dashboard.share': 'Share',
-  'dashboard.copied': 'Copied',
-  'dashboard.create_share': 'Create read-only share link',
-  'dashboard.share_copied': 'Read-only link copied!',
-  'dashboard.share_tooltip': 'Share read-only dashboard with friends',
   'dashboard.sync_tooltip': 'Sync latest trade records',
 
   // Closed Trades View
@@ -417,7 +410,6 @@ export const en: Record<string, string> = {
   'botselect.edit_name': 'Edit bot name',
   'botselect.edit_details': 'Edit bot details',
   'botselect.credentials_protected': 'Connection credentials are protected',
-  'botselect.credentials_protected_desc': 'This shared node protects its API endpoint and credentials with encryption. You may customize its local display name.',
   'botselect.delete_confirm_prefix': 'Delete',
   'botselect.view_chart': 'View chart',
   'botselect.name_required': 'Bot name cannot be empty',

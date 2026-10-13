@@ -131,7 +131,7 @@ export function BotControlView() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
             <button
               onClick={() => handleAction(botRunning ? 'stop' : 'start')}
               disabled={operating || !isConnected}
@@ -344,13 +344,13 @@ export function BotControlView() {
           <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
             <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">{t('ui.endpoint_base_url')}</span>
             <span className="font-bold text-slate-900 dark:text-slate-100 truncate block">
-              {isReadOnly || activeProfile?.isShared || activeProfile?.id?.startsWith('bot-url-') ? `●●●●●● ${t('ui.protected')}` : activeProfile?.apiUrl || '-'}
+              {activeProfile?.apiUrl || '-'}
             </span>
           </div>
           <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
             <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-sans">{t('ui.api_identity')}</span>
             <span className="font-bold text-slate-900 dark:text-slate-100 block">
-              {isReadOnly || activeProfile?.isShared || activeProfile?.id?.startsWith('bot-url-') ? t('ui.readonly_guest') : activeProfile?.username || '-'}
+              {activeProfile?.username || '-'}
             </span>
           </div>
         </div>
