@@ -79,9 +79,13 @@ export class FreqtradeClient {
   getBaseUrl(): string {
     const raw = normalizeApiUrl(this.config.apiUrl || '');
     if (!raw) return '';
-    // Owner mode always uses fixed same-origin server proxy; no user-controlled target URL.
-    if (raw === '/ft-api' || raw === '/owner-api' || import.meta.env.DEV) {
+    // 保留原始的 Nginx 反向代理配置模式 (/owner-api)，绝对不改动
+    if (raw === '/owner-api' || raw.startsWith('/owner-api') || raw === '/ft-api') {
       return '/owner-api';
+    }
+    // 本地开发模式下，针对自定义远程 IP 地址，走 /api-proxy 代理以避免浏览器 CORS 拦截
+    if (import.meta.env.DEV) {
+      return '/api-proxy';
     }
     return raw;
   }
@@ -127,6 +131,9 @@ export class FreqtradeClient {
       Accept: 'application/json',
       ...this.getAuthHeader(),
     };
+    if (this.getBaseUrl() === '/api-proxy' && rawApiUrl && !isOwnerProxy) {
+      headers['x-target-url'] = rawApiUrl;
+    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout limit
@@ -195,11 +202,15 @@ export class FreqtradeClient {
     const baseUrl = this.getBaseUrl();
     const isProxy = baseUrl === '/owner-api' || baseUrl.startsWith('/owner-api');
     const url = isProxy ? `${baseUrl}/${endpoint}` : `${baseUrl}/api/v1/${endpoint}`;
+    const rawApiUrl = normalizeApiUrl(this.config.apiUrl || '');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
       ...this.getAuthHeader(),
     };
+    if (this.getBaseUrl() === '/api-proxy' && rawApiUrl && !isProxy) {
+      headers['x-target-url'] = rawApiUrl;
+    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);

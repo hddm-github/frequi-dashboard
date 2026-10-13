@@ -17,19 +17,24 @@ export default defineConfig({
         // Universal dynamic proxy for development mode:
         // Automatically proxies requests to whichever target Freqtrade node the user enters in FreqUI,
         // eliminating browser CORS preflight blocks without any hardcoded server IP.
-        server.middlewares.use('/api-proxy', async (req, res) => {
-          const targetUrl = (req.headers['x-target-url'] as string) || '';
+        const createProxy = (isOwnerApi: boolean) => async (req: any, res: any) => {
+          let targetUrl = (req.headers['x-target-url'] as string) || '';
+          if (!targetUrl && isOwnerApi) {
+            targetUrl = process.env.FREQTRADE_BACKEND || 'http://127.0.0.1:8080';
+          }
           if (!targetUrl) {
             res.statusCode = 400;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ error: 'Missing x-target-url header' }));
+            res.end(JSON.stringify({ error: 'Missing target URL or x-target-url header' }));
             return;
           }
 
           try {
             const subPath = req.url || '';
             const cleanTarget = targetUrl.replace(/\/+$/, '');
-            const destUrl = `${cleanTarget}${subPath}`;
+            const destUrl = isOwnerApi
+              ? `${cleanTarget}/api/v1${subPath}`
+              : `${cleanTarget}${subPath}`;
 
             const headers: Record<string, string> = {};
             for (const [k, v] of Object.entries(req.headers)) {
@@ -70,9 +75,12 @@ export default defineConfig({
           } catch (err: any) {
             res.statusCode = 502;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ error: 'Universal Proxy request failed', message: err?.message }));
+            res.end(JSON.stringify({ error: 'Proxy request failed', message: err?.message }));
           }
-        });
+        };
+
+        server.middlewares.use('/api-proxy', createProxy(false));
+        server.middlewares.use('/owner-api', createProxy(true));
       },
     },
   ],

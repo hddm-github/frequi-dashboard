@@ -29,19 +29,23 @@ const server = http.createServer(async (req, res) => {
   const reqUrl = req.url || '/';
 
   // 1. Universal Freqtrade API 跨域中转代理 (与开发模式完全一致，彻底消除浏览器 CORS 限制)
-  if (reqUrl.startsWith('/api-proxy')) {
-    const targetUrl = req.headers['x-target-url'] || '';
+  if (reqUrl.startsWith('/api-proxy') || reqUrl.startsWith('/owner-api')) {
+    const isOwnerApi = reqUrl.startsWith('/owner-api');
+    let targetUrl = req.headers['x-target-url'] || '';
+    if (!targetUrl && isOwnerApi) {
+      targetUrl = process.env.FREQTRADE_BACKEND || 'http://127.0.0.1:8080';
+    }
     if (!targetUrl) {
       res.statusCode = 400;
       res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({ error: 'Missing x-target-url header' }));
+      res.end(JSON.stringify({ error: 'Missing target URL or x-target-url header' }));
       return;
     }
 
     try {
-      const subPath = reqUrl.replace(/^\/api-proxy/, '') || '';
+      const subPath = isOwnerApi ? (reqUrl.replace(/^\/owner-api/, '') || '') : (reqUrl.replace(/^\/api-proxy/, '') || '');
       const cleanTarget = targetUrl.replace(/\/+$/, '');
-      const destUrl = `${cleanTarget}${subPath}`;
+      const destUrl = isOwnerApi ? `${cleanTarget}/api/v1${subPath}` : `${cleanTarget}${subPath}`;
 
       const headers = {};
       for (const [k, v] of Object.entries(req.headers)) {
