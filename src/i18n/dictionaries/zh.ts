@@ -309,6 +309,11 @@ export const zh: Record<string, string> = {
   'dashboard.reference_rate': '参考汇率',
   'dashboard.edit': '编辑',
   'dashboard.sync_tooltip': '立即同步最新历史',
+  'dashboard.avg_daily_profit': '日均收益',
+  'dashboard.daily_winrate': '日胜率',
+  'dashboard.best_day': '单日最高',
+  'dashboard.max_drawdown_day': '单日最大回撤',
+  'dashboard.avg_per_trade': '笔均盈亏',
 
   // Closed Trades View
   'closed.no_history': '暂无已平仓交易记录',

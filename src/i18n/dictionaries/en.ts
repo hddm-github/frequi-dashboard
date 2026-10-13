@@ -317,6 +317,11 @@ export const en: Record<string, string> = {
   'dashboard.reference_rate': 'Reference rate',
   'dashboard.edit': 'Edit',
   'dashboard.sync_tooltip': 'Sync latest trade records',
+  'dashboard.avg_daily_profit': 'Daily Avg',
+  'dashboard.daily_winrate': 'Daily Win Rate',
+  'dashboard.best_day': 'Best Day',
+  'dashboard.max_drawdown_day': 'Max Day Drawdown',
+  'dashboard.avg_per_trade': 'Avg / Trade',
 
   // Closed Trades View
   'closed.no_history': 'No closed trade history',

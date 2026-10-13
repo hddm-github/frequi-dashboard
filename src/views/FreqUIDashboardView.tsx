@@ -76,7 +76,25 @@ export function FreqUIDashboardView() {
     const totalTrades = sortedDaily.reduce((sum, d) => sum + (d.trade_count || 0), 0);
     const winDays = sortedDaily.filter((d) => (d.trade_count || 0) > 0 && d.abs_profit >= 0).length;
     const lossDays = sortedDaily.filter((d) => (d.trade_count || 0) > 0 && d.abs_profit < 0).length;
-    return { totalProfit, totalTrades, winDays, lossDays };
+    const daysCount = sortedDaily.length || 1;
+    const avgDailyProfit = totalProfit / daysCount;
+    const activeTradingDays = winDays + lossDays;
+    const dailyWinrate = activeTradingDays > 0 ? Math.round((winDays / activeTradingDays) * 1000) / 10 : 0;
+    const profits = sortedDaily.map((d) => d.abs_profit || 0);
+    const bestDay = profits.length > 0 ? Math.max(...profits) : 0;
+    const worstDay = profits.length > 0 ? Math.min(...profits) : 0;
+    const avgTradeProfit = totalTrades > 0 ? totalProfit / totalTrades : 0;
+    return {
+      totalProfit,
+      totalTrades,
+      winDays,
+      lossDays,
+      avgDailyProfit,
+      dailyWinrate,
+      bestDay,
+      worstDay,
+      avgTradeProfit,
+    };
   }, [sortedDaily]);
 
   const [isRefreshingHistory, setIsRefreshingHistory] = useState(false);
@@ -421,7 +439,7 @@ export function FreqUIDashboardView() {
           </div>
 
           <div
-            className={`flex-1 min-h-[160px] flex items-end justify-around gap-1.5 pt-3 px-1 border-b pb-1.5 ${
+            className={`h-[185px] sm:h-[200px] shrink-0 flex items-end justify-around gap-1.5 pt-2 px-1 border-b pb-1 ${
               isDark ? 'border-slate-800/60' : 'border-slate-200'
             }`}
           >
@@ -472,33 +490,101 @@ export function FreqUIDashboardView() {
             )}
           </div>
 
+          {/* 10-Day Trading Performance Summary Grid */}
           {sortedDaily.length > 0 && (
-            <div
-              className={`mt-1.5 pt-1.5 flex items-center justify-between text-[11px] font-mono shrink-0 border-t ${
-                isDark ? 'border-slate-800/60 text-slate-400' : 'border-slate-100 text-slate-500'
-              }`}
-            >
-              <div>
-                {t('dashboard.ten_day_pnl')}:{' '}
-                <span
-                  className={`font-bold ${
-                    dailyStats.totalProfit >= 0
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-rose-600 dark:text-rose-400'
+            <div className="flex-1 min-h-0 flex flex-col justify-between pt-2 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+                {/* 10日累计盈亏 */}
+                <div
+                  className={`p-2 rounded-lg border flex flex-col justify-between ${
+                    isDark ? 'bg-[#0f1626]/70 border-slate-800/80' : 'bg-slate-50 border-slate-200/80'
                   }`}
                 >
-                  {formatCurrency(dailyStats.totalProfit, { showSign: true })}
-                </span>
+                  <span className="text-[10px] text-slate-500 font-medium truncate">
+                    {t('dashboard.ten_day_pnl')}
+                  </span>
+                  <span
+                    className={`font-mono font-bold text-xs sm:text-sm mt-0.5 truncate ${
+                      dailyStats.totalProfit >= 0
+                        ? 'text-emerald-500 dark:text-emerald-400'
+                        : 'text-rose-500 dark:text-rose-400'
+                    }`}
+                  >
+                    {formatCurrency(dailyStats.totalProfit, { showSign: true })}
+                  </span>
+                </div>
+
+                {/* 日均收益 */}
+                <div
+                  className={`p-2 rounded-lg border flex flex-col justify-between ${
+                    isDark ? 'bg-[#0f1626]/70 border-slate-800/80' : 'bg-slate-50 border-slate-200/80'
+                  }`}
+                >
+                  <span className="text-[10px] text-slate-500 font-medium truncate">
+                    {t('dashboard.avg_daily_profit')}
+                  </span>
+                  <span
+                    className={`font-mono font-bold text-xs sm:text-sm mt-0.5 truncate ${
+                      dailyStats.avgDailyProfit >= 0
+                        ? 'text-emerald-500 dark:text-emerald-400'
+                        : 'text-rose-500 dark:text-rose-400'
+                    }`}
+                  >
+                    {formatCurrency(dailyStats.avgDailyProfit, { showSign: true })}
+                  </span>
+                </div>
+
+                {/* 日胜率 */}
+                <div
+                  className={`p-2 rounded-lg border flex flex-col justify-between ${
+                    isDark ? 'bg-[#0f1626]/70 border-slate-800/80' : 'bg-slate-50 border-slate-200/80'
+                  }`}
+                >
+                  <span className="text-[10px] text-slate-500 font-medium truncate">
+                    {t('dashboard.daily_winrate')}
+                  </span>
+                  <div className="flex items-baseline gap-1 mt-0.5 font-mono truncate">
+                    <span className="text-cyan-500 font-bold text-xs sm:text-sm">
+                      {dailyStats.dailyWinrate}%
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      ({dailyStats.winDays}胜/{dailyStats.lossDays}负)
+                    </span>
+                  </div>
+                </div>
+
+                {/* 单日最高 */}
+                <div
+                  className={`p-2 rounded-lg border flex flex-col justify-between ${
+                    isDark ? 'bg-[#0f1626]/70 border-slate-800/80' : 'bg-slate-50 border-slate-200/80'
+                  }`}
+                >
+                  <span className="text-[10px] text-slate-500 font-medium truncate">
+                    {t('dashboard.best_day')}
+                  </span>
+                  <span className="font-mono font-bold text-xs sm:text-sm mt-0.5 text-emerald-500 dark:text-emerald-400 truncate">
+                    +{formatCurrency(dailyStats.bestDay)}
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  {dailyStats.winDays} {t('dashboard.win_days')}
-                </span>{' '}
-                /{' '}
-                <span className="text-rose-600 dark:text-rose-400 font-medium">
-                  {dailyStats.lossDays} {t('dashboard.loss_days')}
-                </span>{' '}
-                · {t('dashboard.total_trades').replace('{count}', String(dailyStats.totalTrades))}
+
+              {/* 底部详细统计小字条 */}
+              <div
+                className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-mono flex items-center justify-between shrink-0 ${
+                  isDark
+                    ? 'bg-[#0f1626]/40 border-slate-800/60 text-slate-400'
+                    : 'bg-slate-50/60 border-slate-200/60 text-slate-600'
+                }`}
+              >
+                <span>
+                  共平仓 {dailyStats.totalTrades} 笔 · 笔均 {formatCurrency(dailyStats.avgTradeProfit, { showSign: true })}
+                </span>
+                <span>
+                  单日最大回撤:{' '}
+                  <span className="text-rose-500 font-semibold">
+                    {dailyStats.worstDay < 0 ? formatCurrency(dailyStats.worstDay) : '$0.00'}
+                  </span>
+                </span>
               </div>
             </div>
           )}
