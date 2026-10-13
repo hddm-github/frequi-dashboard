@@ -19,8 +19,6 @@ import { EditBotModal } from '../components/EditBotModal';
 import { normalizeApiUrl } from '../api/client';
 import type { BotProfile } from '../types';
 
-import { PRESET_BOTS, getPresetDisplayName } from '../config/botPresets';
-
 export function BotSelectView() {
   const {
     profiles,
@@ -33,13 +31,12 @@ export function BotSelectView() {
     setTheme,
   } = useBot();
 
-  const { locale, t } = useLocale();
-  const defaultBotName = locale === 'zh' ? 'Freqtrade 机器人' : 'freqtrade-bot';
+  const { t } = useLocale();
 
   const [isAdding, setIsAdding] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState('futures');
-  const [name, setName] = useState(defaultBotName);
-  const [apiUrl, setApiUrl] = useState('/');
+  // Both fields start empty — the user fills them in manually.
+  const [name, setName] = useState('');
+  const [apiUrl, setApiUrl] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -48,18 +45,6 @@ export function BotSelectView() {
   const [editingBot, setEditingBot] = useState<BotProfile | null>(null);
 
   const isDark = theme === 'dark';
-
-  const handlePresetChange = (presetId: string) => {
-    setSelectedPreset(presetId);
-    const preset = PRESET_BOTS.find((p) => p.id === presetId);
-    if (preset && preset.id !== 'custom') {
-      setName(getPresetDisplayName(preset, locale));
-      setApiUrl(preset.apiUrl);
-    } else if (presetId === 'custom') {
-      setName('');
-      setApiUrl('');
-    }
-  };
 
   const handleSelect = async (id: string) => {
     setErrorMsg(null);
@@ -210,39 +195,18 @@ export function BotSelectView() {
                   <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
                     {t('botselect.display_name')}
                   </label>
-                  <select
-                    value={selectedPreset}
-                    onChange={(e) => handlePresetChange(e.target.value)}
-                    className={`w-full border rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer ${
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder={t('botselect.custom_placeholder')}
+                    className={`w-full border rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-emerald-500 transition-colors ${
                       isDark
-                        ? 'bg-[#1a233a] border-slate-700 text-slate-100'
-                        : 'bg-slate-50 border-slate-300 text-slate-900'
+                        ? 'bg-[#1a233a] border-slate-700 text-slate-100 placeholder:text-slate-500'
+                        : 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400'
                     }`}
-                  >
-                    {PRESET_BOTS.map((preset) => {
-                      const displayName = getPresetDisplayName(preset, locale);
-                      return (
-                        <option key={preset.id} value={preset.id}>
-                          {displayName}
-                        </option>
-                      );
-                    })}
-                  </select>
-
-                  {selectedPreset === 'custom' && (
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder={t('botselect.custom_placeholder')}
-                      className={`mt-2 w-full border rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-emerald-500 transition-colors ${
-                        isDark
-                          ? 'bg-[#1a233a] border-slate-700 text-slate-100'
-                          : 'bg-slate-50 border-slate-300 text-slate-900'
-                      }`}
-                      required
-                    />
-                  )}
+                    required
+                  />
                 </div>
 
                 <div>

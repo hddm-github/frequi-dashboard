@@ -120,10 +120,11 @@ node server.js
 
 1. Open the dashboard in your browser.
 2. If this is your first visit, the connection dialog will appear automatically. You can also click the bot selector in the top bar to **"Add / Connect Bot"**.
-3. Enter your Freqtrade API information:
+3. Enter your Freqtrade API information (both fields start **empty** — fill them in yourself):
    - **Bot Alias**: Custom name (e.g., `NFIX8-Production`)
    - **Service Address**: the Freqtrade API base URL. Two common cases:
-     - **Same server / same reverse proxy as this dashboard** → enter `/`.
+     - **Same server / same reverse proxy as this dashboard** → click the
+       **`This server (/)`** quick-fill button (or type `/`).
        The dashboard calls the standard Freqtrade path `/api/v1` on its own origin.
      - **Remote bot (its own domain or IP)** → enter the full address, e.g.
        `https://bot1.example.com` or `http://203.0.113.10:8081`. The dashboard
