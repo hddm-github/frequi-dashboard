@@ -90,7 +90,7 @@ export function BotControlView() {
 
   return (
     <div
-      className={`w-full p-4 pb-24 md:pb-4 space-y-4 select-text transition-colors md:h-full md:overflow-y-auto ${
+      className={`w-full p-4 pb-4 md:pb-4 space-y-4 select-text transition-colors md:h-full md:overflow-y-auto ${
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-50 text-slate-800'
       }`}
     >
@@ -232,7 +232,7 @@ export function BotControlView() {
                     : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
                 }`}
               >
-                {botState.dry_run ? t('ui.dry_run') : (locale === 'zh' ? '实盘运行' : 'LIVE')}
+                {botState.dry_run ? t('ui.dry_run') : t('ui.live')}
               </span>
             </div>
           </div>

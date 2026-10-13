@@ -388,9 +388,9 @@ export function HeaderBar() {
                       onClick={() => {
                         const current = currencyUnit === 'CNY' ? exchangeRates.CNY : currencyUnit === 'EUR' ? exchangeRates.EUR : exchangeRates.IDR;
                         const input = prompt(
-                          locale === 'zh'
-                            ? `自定义 1 USDT 对 ${currencyUnit} 的汇率（当前: ${current}）`
-                            : `Custom conversion rate for 1 USDT to ${currencyUnit} (current: ${current})`,
+                          t('header.custom_rate_prompt')
+                            .replace('{currency}', currencyUnit)
+                            .replace('{current}', String(current)),
                           String(current)
                         );
                         if (input) {
@@ -408,7 +408,7 @@ export function HeaderBar() {
                       type="button"
                       onClick={() => fetchLiveRates()}
                       className="hover:text-emerald-500 cursor-pointer p-0.5 rounded"
-                      title="刷新实时汇率"
+                      title={t('header.refresh_live_rate')}
                     >
                       <RefreshCw className="w-3 h-3 inline" />
                     </button>
@@ -455,7 +455,9 @@ export function HeaderBar() {
                 }`}
                 title={t('header.tooltip_refresh_settings')}
               >
-                <span>{refreshing ? '···' : refreshInterval > 0 ? `${refreshCountdown}s` : t('header.refresh_manual')}</span>
+                <span className={`tabular-nums text-center ${refreshInterval > 0 ? 'w-[26px] inline-block' : ''}`}>
+                  {refreshing ? '···' : refreshInterval > 0 ? `${refreshCountdown}s` : t('header.refresh_manual')}
+                </span>
                 <ChevronDown className="w-3 h-3 text-slate-400 opacity-80" />
               </button>
             </div>
@@ -507,7 +509,7 @@ export function HeaderBar() {
                   </button>
 
                   <div className="text-[10px] text-slate-400 px-1 mb-1 font-medium">
-                    {locale === 'zh' ? '选择自动刷新频率：' : 'Select interval:'}
+                    {t('header.select_interval')}
                   </div>
                   <div className="grid grid-cols-3 gap-1.5 mb-2.5">
                     {[
@@ -558,9 +560,7 @@ export function HeaderBar() {
                       type="button"
                       onClick={() => {
                         const input = prompt(
-                          locale === 'zh'
-                            ? `输入自定义刷新间隔（秒，例如 15）`
-                            : `Enter custom refresh interval in seconds (e.g. 15)`,
+                          t('header.custom_interval_prompt'),
                           String(refreshInterval > 0 ? refreshInterval : 10)
                         );
                         if (input) {
@@ -770,7 +770,7 @@ export function HeaderBar() {
               title={t('header.tooltip_refresh_click')}
             >
               <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${refreshing ? 'animate-spin' : ''}`} />
-              <span className="font-mono text-[11px] font-bold">
+              <span className={`font-mono text-[11px] font-bold tabular-nums text-center ${refreshInterval > 0 ? 'w-[26px] inline-block' : ''}`}>
                 {refreshing ? '···' : refreshInterval > 0 ? `${refreshCountdown}s` : t('header.refresh')}
               </span>
             </button>
@@ -864,9 +864,9 @@ export function HeaderBar() {
                       onClick={() => {
                         const current = currencyUnit === 'CNY' ? exchangeRates.CNY : currencyUnit === 'EUR' ? exchangeRates.EUR : exchangeRates.IDR;
                         const input = prompt(
-                          locale === 'zh'
-                            ? `自定义 1 USDT 对 ${currencyUnit} 的汇率（当前: ${current}）`
-                            : `Custom conversion rate for 1 USDT to ${currencyUnit} (current: ${current})`,
+                          t('header.custom_rate_prompt')
+                            .replace('{currency}', currencyUnit)
+                            .replace('{current}', String(current)),
                           String(current)
                         );
                         if (input) {
@@ -900,8 +900,14 @@ export function HeaderBar() {
                     <RefreshCw className="w-3.5 h-3.5 text-cyan-500" />
                     <span>{t('header.refresh_interval_setting')}</span>
                   </span>
-                  <span className="font-mono text-xs font-bold text-emerald-500">
-                    {refreshInterval > 0 ? `${refreshCountdown}s / ${refreshInterval}s` : t('header.refresh_manual')}
+                  <span className="font-mono text-xs font-bold text-emerald-500 tabular-nums">
+                    {refreshInterval > 0 ? (
+                      <span>
+                        <span className="w-[18px] inline-block text-right">{refreshCountdown}</span>s / {refreshInterval}s
+                      </span>
+                    ) : (
+                      t('header.refresh_manual')
+                    )}
                   </span>
                 </div>
 
@@ -919,7 +925,7 @@ export function HeaderBar() {
                       key={opt.val}
                       type="button"
                       onClick={() => setRefreshInterval(opt.val)}
-                      className={`py-2 px-1 rounded-xl font-mono text-xs font-bold flex items-center justify-center transition-all cursor-pointer ${
+                      className={`h-9 px-1 rounded-xl font-mono text-xs font-bold flex items-center justify-center transition-all cursor-pointer whitespace-nowrap overflow-hidden ${
                         refreshInterval === opt.val
                           ? 'bg-emerald-600 text-white shadow-xs'
                           : isDark
@@ -927,16 +933,14 @@ export function HeaderBar() {
                           : 'bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
-                      {opt.label}
+                      <span className="truncate">{opt.label}</span>
                     </button>
                   ))}
                   <button
                     type="button"
                     onClick={() => {
                       const input = prompt(
-                        locale === 'zh'
-                          ? `输入自定义刷新间隔（秒，例如 15）`
-                          : `Enter custom refresh interval in seconds (e.g. 15)`,
+                        t('header.custom_interval_prompt'),
                         String(refreshInterval > 0 ? refreshInterval : 10)
                       );
                       if (input) {
@@ -946,9 +950,9 @@ export function HeaderBar() {
                         }
                       }
                     }}
-                    className={`py-2 px-1 rounded-xl font-mono text-xs font-bold flex items-center justify-center transition-all cursor-pointer text-cyan-500 border border-cyan-500/30 hover:bg-cyan-500/10`}
+                    className={`h-9 px-1 rounded-xl font-mono text-xs font-bold flex items-center justify-center transition-all cursor-pointer text-cyan-500 border border-cyan-500/30 hover:bg-cyan-500/10 whitespace-nowrap overflow-hidden`}
                   >
-                    {t('header.refresh_custom')}
+                    <span className="truncate">{t('header.refresh_custom')}</span>
                   </button>
                 </div>
 

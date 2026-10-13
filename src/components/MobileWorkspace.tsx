@@ -184,7 +184,7 @@ export function MobileWorkspace() {
         className={`flex-1 w-full min-h-0 relative select-text transition-colors ${
           isFixedViewportView
             ? 'flex flex-col overflow-hidden'
-            : 'overflow-y-auto overflow-x-hidden overscroll-y-contain [-webkit-overflow-scrolling:touch] pb-24'
+            : 'overflow-y-auto overflow-x-hidden overscroll-y-contain [-webkit-overflow-scrolling:touch]'
         }`}
       >
         {/* Pull Down to Refresh Visual Indicator */}

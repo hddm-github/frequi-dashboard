@@ -73,7 +73,7 @@ export function ClosedTradesView() {
 
   return (
     <div
-      className={`w-full flex flex-col transition-colors select-text md:h-full pb-24 md:pb-0 ${
+      className={`w-full flex flex-col transition-colors select-text md:h-full pb-3 md:pb-0 ${
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-white text-slate-800'
       }`}
     >
