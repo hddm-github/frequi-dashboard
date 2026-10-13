@@ -41,7 +41,7 @@ export function FreqUIDashboardView() {
 
   const ws = useOptionalWorkspace();
   const t = useT();
-  const [chartMode, setChartMode] = useState<'bar' | 'line'>('bar');
+  const [isLogScale, setIsLogScale] = useState(true);
 
   const handleViewChart = (pair: string) => {
     setSelectedPair(pair);
@@ -69,14 +69,6 @@ export function FreqUIDashboardView() {
     if (sortedDaily.length === 0) return 1;
     const vals = sortedDaily.map((r) => Math.abs(r.abs_profit));
     return Math.max(...vals, 1);
-  }, [sortedDaily]);
-
-  const linePoints = useMemo(() => {
-    if (!sortedDaily.length) return '';
-    const max = Math.max(...sortedDaily.map((d) => Math.abs(d.abs_profit)), 1);
-    return sortedDaily
-      .map((d, i) => `${((i + 0.5) / sortedDaily.length) * 100},${50 - (d.abs_profit / max) * 42}`)
-      .join(' ');
   }, [sortedDaily]);
 
   const dailyStats = useMemo(() => {
@@ -111,7 +103,7 @@ export function FreqUIDashboardView() {
 
   return (
     <div
-      className={`w-full flex flex-col p-2.5 sm:p-4 pb-24 md:pb-8 gap-2.5 sm:gap-3 select-text transition-colors md:h-full md:overflow-y-auto md:overflow-x-hidden [-webkit-overflow-scrolling:touch] ${
+      className={`w-full flex flex-col p-2.5 sm:p-4 pb-24 md:pb-4 gap-2.5 sm:gap-3 select-text transition-colors h-full md:h-full overflow-y-auto [-webkit-overflow-scrolling:touch] ${
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-100/70 text-slate-800'
       }`}
     >
@@ -383,10 +375,10 @@ export function FreqUIDashboardView() {
       </div>
 
       {/* 3. Daily Profit Distribution & Recent History */}
-      <div className="w-full min-w-0 grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-3 shrink-0">
+      <div className="w-full min-w-0 grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-3 flex-1 min-h-[320px]">
         {/* Daily PnL Chart */}
         <div
-          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border transition-colors flex flex-col h-[300px] sm:h-[320px] shrink-0 ${
+          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border transition-colors flex flex-col flex-1 min-h-[300px] h-full ${
             isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
@@ -402,24 +394,26 @@ export function FreqUIDashboardView() {
                 }`}
               >
                 <button
-                  onClick={() => setChartMode('bar')}
+                  onClick={() => setIsLogScale(true)}
                   className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
-                    chartMode === 'bar'
+                    isLogScale
                       ? 'bg-cyan-600 text-white font-bold shadow-xs'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
+                  title={t('dashboard.log_title')}
                 >
-                  {t('dashboard.bar')}
+                  {t('dashboard.log')}
                 </button>
                 <button
-                  onClick={() => setChartMode('line')}
+                  onClick={() => setIsLogScale(false)}
                   className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
-                    chartMode === 'line'
+                    !isLogScale
                       ? 'bg-cyan-600 text-white font-bold shadow-xs'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
+                  title={t('dashboard.linear_title')}
                 >
-                  {t('dashboard.line')}
+                  {t('dashboard.linear')}
                 </button>
               </div>
               <span className="text-slate-500">{t('dashboard.unit')}: {currencyUnit}</span>
@@ -433,22 +427,6 @@ export function FreqUIDashboardView() {
           >
             {sortedDaily.length === 0 ? (
               <div className="w-full text-center text-xs text-slate-400 my-auto py-4">{t('dashboard.no_performance')}</div>
-            ) : chartMode === 'line' ? (
-              <div className="w-full h-full relative">
-                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible">
-                  <line x1="0" y1="50" x2="100" y2="50" stroke="currentColor" strokeOpacity="0.15" strokeDasharray="1 2" />
-                  <polyline points={linePoints} fill="none" stroke="#06b6d4" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-                  {sortedDaily.map((d, i) => {
-                    const max = Math.max(...sortedDaily.map((item) => Math.abs(item.abs_profit)), 1);
-                    const y = 50 - (d.abs_profit / max) * 42;
-                    const x = ((i + 0.5) / sortedDaily.length) * 100;
-                    return <circle key={d.date} cx={x} cy={y} r="1.5" fill={d.abs_profit >= 0 ? '#10b981' : '#f43f5e'} />;
-                  })}
-                </svg>
-                <div className="absolute inset-x-0 bottom-0 flex justify-around">
-                  {sortedDaily.map((d) => <span key={d.date} className="text-[10px] text-slate-500 font-mono">{d.date.slice(5)}</span>)}
-                </div>
-              </div>
             ) : (
               sortedDaily.map((d) => {
                 const isPos = d.abs_profit >= 0;
@@ -456,7 +434,14 @@ export function FreqUIDashboardView() {
                 const hasTrade = (d.trade_count && d.trade_count > 0) || absVal > 0;
                 let heightPct: number;
 
-                heightPct = Math.round((absVal / maxDailyVal) * 80);
+                if (isLogScale) {
+                  // 对数高度映射：采用 log10(val + 1)，确保小额盈亏明显可见，大额适度延展
+                  const logVal = Math.log10(absVal + 1);
+                  const logMax = Math.log10(maxDailyVal + 1);
+                  heightPct = logMax > 0 ? Math.round((logVal / logMax) * 78) + 12 : 10;
+                } else {
+                  heightPct = Math.round((absVal / maxDailyVal) * 80);
+                }
                 heightPct = Math.min(Math.max(heightPct, 6), 92);
 
                 return (
@@ -521,7 +506,7 @@ export function FreqUIDashboardView() {
 
         {/* Recent Closed Trades summary */}
         <div
-          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border flex flex-col h-[300px] sm:h-[320px] shrink-0 transition-colors ${
+          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border flex flex-col flex-1 min-h-[300px] h-full transition-colors ${
             isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
