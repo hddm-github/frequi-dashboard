@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useBot } from '../context/BotContext';
 import { useT } from '../i18n/LocaleContext';
 import {
@@ -14,6 +14,7 @@ import {
   Calendar,
   BarChart3,
   Activity,
+  X,
 } from 'lucide-react';
 
 export function EquityCurveView() {
@@ -40,6 +41,40 @@ export function EquityCurveView() {
   const [showConfig, setShowConfig] = useState(false);
   const [tempCapital, setTempCapital] = useState(String(initialCapital));
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  // Responsive container width tracking via ResizeObserver
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      return Math.min(window.innerWidth - 32, 800);
+    }
+    return 800;
+  });
+
+  useEffect(() => {
+    const el = chartContainerRef.current;
+    if (!el) return;
+
+    const updateWidth = () => {
+      const w = el.clientWidth;
+      if (w > 0) {
+        setContainerWidth(Math.round(w));
+      }
+    };
+
+    updateWidth();
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const w = entry.contentRect.width;
+        if (w > 0) {
+          setContainerWidth(Math.round(w));
+        }
+      }
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Current equity calculation: balance + unrealized PnL
   const totalUnrealized = activeTrades.reduce((sum, tr) => sum + (tr.profit_abs || 0), 0);
@@ -148,28 +183,49 @@ export function EquityCurveView() {
     return filteredRecords.filter((r) => r.abs_profit < 0).length;
   }, [filteredRecords]);
 
-  // Compute SVG polyline and bar coordinates
-  const svgWidth = 800;
-  const svgHeight = viewMode === 'dual' ? 360 : 300;
-  const paddingLeft = 50;
-  const paddingRight = 45;
-  const chartW = svgWidth - paddingLeft - paddingRight;
+  // Dynamic responsive SVG dimensions (1:1 screen pixel coordinates)
+  const isMobile = containerWidth < 540;
+  const svgWidth = Math.max(280, containerWidth);
+  const svgHeight = isMobile
+    ? (viewMode === 'dual' ? 290 : 230)
+    : (viewMode === 'dual' ? 360 : 300);
 
-  // Tier 1: Curve bounds
-  const curveTop = viewMode === 'bars' ? 0 : 25;
-  const curveHeight = viewMode === 'dual' ? 140 : viewMode === 'curve' ? 220 : 0;
+  // Responsive chart horizontal paddings
+  const paddingLeft = isMobile ? 24 : 48;
+  const paddingRight = isMobile ? 24 : 45;
+  const chartW = Math.max(10, svgWidth - paddingLeft - paddingRight);
+
+  // Responsive Tier Heights:
+  // Mobile: dual (curve 122, bar 74, axis 276); single (165, axis 216)
+  // Desktop: dual (curve 140, bar 95, axis 336); single (220, axis 280)
+  const curveTop = viewMode === 'bars' ? 0 : (isMobile ? 20 : 25);
+  const curveHeight = viewMode === 'dual'
+    ? (isMobile ? 122 : 140)
+    : viewMode === 'curve'
+    ? (isMobile ? 165 : 220)
+    : 0;
   const curveBottom = curveTop + curveHeight;
 
   // Divider (only in dual mode)
-  const midY = 185;
+  const midY = isMobile ? curveBottom + 16 : 185;
 
   // Tier 2: Daily bars bounds
-  const barTop = viewMode === 'dual' ? 205 : viewMode === 'bars' ? 35 : 0;
-  const barHeight = viewMode === 'dual' ? 95 : viewMode === 'bars' ? 210 : 0;
+  const barTop = viewMode === 'dual'
+    ? (isMobile ? midY + 16 : 205)
+    : viewMode === 'bars'
+    ? (isMobile ? 25 : 35)
+    : 0;
+  const barHeight = viewMode === 'dual'
+    ? (isMobile ? 74 : 95)
+    : viewMode === 'bars'
+    ? (isMobile ? 155 : 210)
+    : 0;
   const barBottom = barTop + barHeight;
 
   // Bottom Timeline axis Y
-  const axisY = viewMode === 'dual' ? 332 : 278;
+  const axisY = isMobile
+    ? (viewMode === 'dual' ? 276 : 216)
+    : (viewMode === 'dual' ? 336 : 280);
 
   // Cumulative equity ranges
   const values = equityPoints.map((p) => p.value);
@@ -199,7 +255,10 @@ export function EquityCurveView() {
 
   // Pre-calculate bar width and column width
   const rawColWidth = chartW / Math.max(1, equityPoints.length - 1);
-  const barWidth = Math.max(5, Math.min(24, rawColWidth * 0.65));
+  const barWidth = Math.max(
+    isMobile ? 5 : 6,
+    Math.min(isMobile ? 18 : 24, rawColWidth * 0.55)
+  );
 
   // Compute all points coordinates
   const coords = equityPoints.map((p, idx) => {
@@ -235,22 +294,23 @@ export function EquityCurveView() {
   const isPositiveTotal = totalNetProfit >= 0;
   const strokeColor = isPositiveTotal ? '#10b981' : '#f43f5e';
 
-  // Evenly spaced date ticks along the X-axis
+  // Evenly spaced date ticks along the X-axis (responsive to prevent mobile collisions)
   const dateTickIndices = useMemo(() => {
     const total = coords.length;
-    if (total <= 12) {
-      return coords.map((_, i) => i);
+    if (total <= 1) return [0];
+
+    const maxTicks = isMobile ? (total <= 7 ? total : 5) : (total <= 10 ? total : 7);
+    if (total <= maxTicks) {
+      return Array.from({ length: total }, (_, i) => i);
     }
-    const step = Math.ceil(total / 7);
+    const step = (total - 1) / (maxTicks - 1);
     const indices: number[] = [];
-    for (let i = 0; i < total; i += step) {
-      indices.push(i);
+    for (let i = 0; i < maxTicks - 1; i++) {
+      indices.push(Math.round(i * step));
     }
-    if (indices[indices.length - 1] !== total - 1) {
-      indices.push(total - 1);
-    }
-    return indices;
-  }, [coords]);
+    indices.push(total - 1);
+    return Array.from(new Set(indices)).sort((a, b) => a - b);
+  }, [coords.length, isMobile]);
 
   const handleSaveCapital = () => {
     const num = parseFloat(tempCapital);
@@ -289,8 +349,106 @@ export function EquityCurveView() {
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-50 text-slate-800'
       }`}
     >
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
+      {/* Mobile Compact Overview Card (< sm) */}
+      <div
+        className={`sm:hidden p-3 rounded-xl border transition-colors ${
+          isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
+        }`}
+      >
+        {/* Top Row: Total Net Equity on left, Cumulative Profit + ROI on right */}
+        <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800/80">
+          <div>
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium mb-0.5">
+              <Layers className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+              <span>{t('equity.current_total')}</span>
+              <button
+                onClick={() => {
+                  setTempCapital(String(initialCapital));
+                  setShowConfig(!showConfig);
+                }}
+                className="p-0.5 rounded text-slate-400 hover:text-emerald-500 transition-colors cursor-pointer ml-0.5"
+                title={t('equity.adjust_baseline')}
+              >
+                <SlidersHorizontal className="w-3 h-3" />
+              </button>
+            </div>
+            <div className="text-xl font-bold font-mono tracking-tight text-purple-600 dark:text-purple-400">
+              {isReadOnly ? t('ui.hidden') : formatCurrency(currentEquity)}
+            </div>
+            <div className="text-[10px] text-slate-400 font-mono mt-0.5 flex items-center gap-2">
+              <span>{t('equity.cash')}: {isReadOnly ? t('ui.hidden') : formatCurrency(botState.balance)}</span>
+              {totalUnrealized !== 0 && (
+                <span className={totalUnrealized > 0 ? 'text-emerald-500' : 'text-rose-500'}>
+                  {t('overview.unrealized_pnl')}: {isReadOnly ? t('ui.hidden') : formatCurrency(totalUnrealized, { showSign: true })}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="text-right shrink-0">
+            <div className="flex items-center justify-end gap-1 text-[11px] text-slate-500 font-medium mb-0.5">
+              <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span>{t('equity.cumulative_profit')}</span>
+            </div>
+            <div
+              className={`text-xl font-bold font-mono tracking-tight ${
+                isPositiveTotal ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+              }`}
+            >
+              {isReadOnly ? t('ui.hidden') : formatCurrency(totalNetProfit, { showSign: true })}
+            </div>
+            <div className="text-[10px] font-mono flex items-center justify-end gap-1 mt-0.5">
+              <span className={`font-semibold ${isPositiveTotal ? 'text-emerald-500' : 'text-rose-500'}`}>
+                ROI: {totalReturnPct >= 0 ? '+' : ''}{totalReturnPct.toFixed(2)}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Row: 3 micro columns (Initial Capital, Win Rate, Max Drawdown) */}
+        <div className="grid grid-cols-3 gap-1 pt-2 text-center">
+          <div className="px-1 border-r border-slate-100 dark:border-slate-800/80">
+            <div className="text-[10px] text-slate-400 truncate">{t('equity.initial_capital')}</div>
+            <div className="text-xs font-bold font-mono text-slate-700 dark:text-slate-200 mt-0.5 truncate">
+              {isReadOnly ? t('ui.hidden') : formatCurrency(initialCapital)}
+            </div>
+            <div className="text-[9px] text-slate-400 mt-0.5 flex items-center justify-center gap-1">
+              <span>{isManualCapital ? t('equity.manual_baseline') : '自动'}</span>
+              {isManualCapital && (
+                <button
+                  onClick={() => resetInitialCapitalToAuto()}
+                  className="text-cyan-500 hover:underline cursor-pointer"
+                >
+                  {t('equity.restore')}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="px-1 border-r border-slate-100 dark:border-slate-800/80">
+            <div className="text-[10px] text-slate-400 truncate">{t('signals.win_rate')}</div>
+            <div className="text-xs font-bold font-mono text-blue-500 dark:text-blue-400 mt-0.5 truncate">
+              {winRate}%
+            </div>
+            <div className="text-[9px] text-slate-400 mt-0.5 truncate">
+              {profitSummary?.winning_trades || 0}W / {profitSummary?.losing_trades || 0}L
+            </div>
+          </div>
+
+          <div className="px-1">
+            <div className="text-[10px] text-slate-400 truncate">{t('equity.drawdown')}</div>
+            <div className="text-xs font-bold font-mono text-rose-500 dark:text-rose-400 mt-0.5 truncate">
+              {profitSummary?.max_drawdown_pct ? `${profitSummary.max_drawdown_pct.toFixed(2)}%` : '< 2.5%'}
+            </div>
+            <div className="text-[9px] text-slate-400 mt-0.5 truncate">
+              {profitSummary?.closed_trade_count || 0} {t('ui.trades')}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop KPI Cards Grid (sm and up) */}
+      <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
         {/* Initial Capital Card */}
         <div
           className={`p-3.5 rounded-xl border relative transition-colors ${
@@ -310,7 +468,7 @@ export function EquityCurveView() {
               <SlidersHorizontal className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="text-xl font-bold font-mono text-slate-700 dark:text-slate-200 truncate">
+          <div className="text-lg xl:text-xl font-bold font-mono text-slate-700 dark:text-slate-200 truncate">
             {isReadOnly ? t('ui.hidden') : formatCurrency(initialCapital)}
           </div>
           <div className="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
@@ -339,7 +497,7 @@ export function EquityCurveView() {
             <span className="font-medium">{t('equity.current_total')}</span>
             <Layers className="w-3.5 h-3.5 text-purple-500" />
           </div>
-          <div className="text-xl font-bold font-mono text-purple-600 dark:text-purple-400 truncate">
+          <div className="text-lg xl:text-xl font-bold font-mono text-purple-600 dark:text-purple-400 truncate">
             {isReadOnly ? t('ui.hidden') : formatCurrency(currentEquity)}
           </div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
@@ -361,7 +519,7 @@ export function EquityCurveView() {
             <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
           </div>
           <div
-            className={`text-xl font-bold font-mono truncate ${
+            className={`text-lg xl:text-xl font-bold font-mono truncate ${
               isPositiveTotal ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
             }`}
           >
@@ -392,7 +550,7 @@ export function EquityCurveView() {
             <span className="font-medium">{t('equity.win_drawdown')}</span>
             <ShieldAlert className="w-3.5 h-3.5 text-blue-500" />
           </div>
-          <div className="text-xl font-bold font-mono text-blue-600 dark:text-blue-400 truncate">
+          <div className="text-lg xl:text-xl font-bold font-mono text-blue-600 dark:text-blue-400 truncate">
             {winRate}%{' '}
             <span className="text-xs font-normal text-slate-400">
               ({profitSummary?.closed_trade_count || 0} {t('ui.trades')})
@@ -461,12 +619,115 @@ export function EquityCurveView() {
 
       {/* Main Dual Composite Chart Card */}
       <div
-        className={`flex-1 min-h-[380px] rounded-xl border p-4 flex flex-col justify-between transition-colors relative ${
+        className={`flex-1 min-h-[340px] sm:min-h-[380px] rounded-xl border p-3 sm:p-4 flex flex-col justify-between transition-colors relative ${
           isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
         }`}
       >
-        {/* Chart Header & Controls Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 mb-2 shrink-0">
+        {/* Mobile Header & Controls (2 compact, clean rows) */}
+        <div className="sm:hidden flex flex-col gap-2 mb-2 shrink-0">
+          {/* Row 1: Title + Win/Loss Pill + Time Range */}
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Activity className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span className="font-bold text-xs truncate">{t('equity.composite_title_short')}</span>
+              {filteredRecords.length > 0 && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-mono bg-slate-100 dark:bg-slate-800/80 text-slate-500 shrink-0">
+                  <span className="w-1 h-1 rounded-full bg-emerald-500" />
+                  {periodWinDays}W/{periodLossDays}L
+                </span>
+              )}
+            </div>
+
+            {/* Time Range Filter (Compact) */}
+            <div
+              className={`flex items-center p-0.5 rounded-lg border text-[10px] font-medium shrink-0 ${
+                isDark ? 'bg-[#0f1626] border-slate-800' : 'bg-slate-100 border-slate-200'
+              }`}
+            >
+              <button
+                onClick={() => setTimeRange('all')}
+                className={`px-1.5 py-0.5 rounded-md transition-all cursor-pointer ${
+                  timeRange === 'all'
+                    ? 'bg-slate-700 text-white shadow-xs font-semibold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {t('equity.range_all')}
+              </button>
+              <button
+                onClick={() => setTimeRange('30d')}
+                className={`px-1.5 py-0.5 rounded-md transition-all cursor-pointer ${
+                  timeRange === '30d'
+                    ? 'bg-slate-700 text-white shadow-xs font-semibold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {t('equity.range_30d_short')}
+              </button>
+              <button
+                onClick={() => setTimeRange('7d')}
+                className={`px-1.5 py-0.5 rounded-md transition-all cursor-pointer ${
+                  timeRange === '7d'
+                    ? 'bg-slate-700 text-white shadow-xs font-semibold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {t('equity.range_7d_short')}
+              </button>
+            </div>
+          </div>
+
+          {/* Row 2: View Mode Tabs + Peak */}
+          <div className="flex items-center justify-between gap-1.5">
+            <div
+              className={`flex items-center p-0.5 rounded-lg border text-[10px] font-medium ${
+                isDark ? 'bg-[#0f1626] border-slate-800' : 'bg-slate-100 border-slate-200'
+              }`}
+            >
+              <button
+                onClick={() => setViewMode('dual')}
+                className={`px-2 py-0.5 rounded-md transition-all cursor-pointer flex items-center gap-1 ${
+                  viewMode === 'dual'
+                    ? 'bg-emerald-600 text-white shadow-xs font-semibold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Layers className="w-2.5 h-2.5 shrink-0" />
+                <span>{t('equity.view_dual_short')}</span>
+              </button>
+              <button
+                onClick={() => setViewMode('curve')}
+                className={`px-2 py-0.5 rounded-md transition-all cursor-pointer flex items-center gap-1 ${
+                  viewMode === 'curve'
+                    ? 'bg-emerald-600 text-white shadow-xs font-semibold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <TrendingUp className="w-2.5 h-2.5 shrink-0" />
+                <span>{t('equity.view_curve_short')}</span>
+              </button>
+              <button
+                onClick={() => setViewMode('bars')}
+                className={`px-2 py-0.5 rounded-md transition-all cursor-pointer flex items-center gap-1 ${
+                  viewMode === 'bars'
+                    ? 'bg-emerald-600 text-white shadow-xs font-semibold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <BarChart3 className="w-2.5 h-2.5" />
+                <span>{t('equity.view_bars_short')}</span>
+              </button>
+            </div>
+
+            <div className="text-[10px] font-mono text-slate-400">
+              <span>{t('equity.peak')}: </span>
+              <span className="text-emerald-500 font-semibold">{formatCurrency(maxVal)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Header & Controls Bar (sm and up) */}
+        <div className="hidden sm:flex sm:items-center sm:justify-between gap-2 sm:gap-3 mb-2 shrink-0">
           <div className="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
             <div className="flex items-center gap-1.5 sm:gap-2">
               <Activity className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -565,12 +826,57 @@ export function EquityCurveView() {
           </div>
         </div>
 
+        {/* Mobile Live Inspector Strip (Appears above chart on tap/drag, never blocks the SVG) */}
+        {activePoint && (
+          <div
+            className={`sm:hidden mb-2 px-2.5 py-1.5 rounded-lg border text-[11px] font-mono flex items-center justify-between gap-2 animate-in fade-in transition-all ${
+              isDark
+                ? 'bg-[#1a233a] border-emerald-500/40 text-slate-100 shadow-md'
+                : 'bg-emerald-50/90 border-emerald-300 text-slate-800 shadow-xs'
+            }`}
+          >
+            <div className="flex items-center gap-1.5 min-w-0 truncate">
+              <Calendar className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span className="font-sans font-semibold text-slate-700 dark:text-slate-200 truncate">
+                {activePoint.fullDate}
+              </span>
+              {!activePoint.isStart && (
+                <span
+                  className={`font-bold shrink-0 ${
+                    activePoint.dailyPnl >= 0 ? 'text-emerald-500' : 'text-rose-500'
+                  }`}
+                >
+                  {formatCurrency(activePoint.dailyPnl, { showSign: true })}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="text-right">
+                <span className="text-slate-400 text-[10px] mr-1">{t('equity.total')}:</span>
+                <span className="font-bold text-purple-500 dark:text-purple-400">
+                  {formatCurrency(activePoint.value)}
+                </span>
+              </div>
+              <button
+                onClick={() => setHoveredIdx(null)}
+                className="p-0.5 rounded text-slate-400 hover:text-slate-200 cursor-pointer"
+                title={t('dashboard.clear_selection')}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* SVG Equity Area & Daily Bars Composite Chart */}
-        <div className="flex-1 w-full h-full min-h-[250px] relative flex items-center justify-center">
-          {/* Synchronized Floating Tooltip Card */}
+        <div
+          ref={chartContainerRef}
+          className="w-full relative flex items-center justify-center select-none min-h-[270px] sm:min-h-[340px]"
+        >
+          {/* Synchronized Floating Tooltip Card (Desktop only: hover with mouse) */}
           {activePoint && activeCoord && (
             <div
-              className={`absolute pointer-events-none z-20 px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl shadow-2xl border text-xs font-mono transition-all duration-75 max-w-[290px] sm:max-w-none ${
+              className={`hidden sm:block absolute pointer-events-none z-20 px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl shadow-2xl border text-xs font-mono transition-all duration-75 max-w-[290px] sm:max-w-none ${
                 isDark
                   ? 'bg-[#0f1626]/95 border-emerald-500/40 text-slate-100 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.6)]'
                   : 'bg-white/95 border-slate-300 text-slate-800 backdrop-blur-md shadow-slate-300 shadow-xl'
@@ -664,8 +970,8 @@ export function EquityCurveView() {
 
           <svg
             viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-            className="w-full h-full overflow-visible touch-none"
-            preserveAspectRatio="none"
+            className="w-full overflow-visible touch-none"
+            style={{ height: `${svgHeight}px` }}
             onTouchStart={handleTouchChart}
             onTouchMove={handleTouchChart}
             onTouchEnd={() => setTimeout(() => setHoveredIdx(null), 3000)}
@@ -717,11 +1023,11 @@ export function EquityCurveView() {
                       strokeDasharray="3 3"
                     />
                     <text
-                      x={svgWidth - paddingRight + 4}
-                      y={baselineY + 3}
+                      x={isMobile ? svgWidth - paddingRight : svgWidth - paddingRight + 4}
+                      y={isMobile ? baselineY - 4 : baselineY + 3}
                       fill="#94a3b8"
-                      fontSize="9"
-                      textAnchor="start"
+                      fontSize={isMobile ? "9.5" : "10"}
+                      textAnchor={isMobile ? "end" : "start"}
                       fontFamily="monospace"
                     >
                       {t('equity.baseline_label')}
@@ -737,7 +1043,7 @@ export function EquityCurveView() {
                   points={pointsString}
                   fill="none"
                   stroke={strokeColor}
-                  strokeWidth="2.5"
+                  strokeWidth={isMobile ? "2.5" : "3"}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
@@ -745,13 +1051,16 @@ export function EquityCurveView() {
                 {/* Dots on the polyline */}
                 {coords.map((c, i) => {
                   const isHovered = hoveredIdx === i;
+                  const showDot = coords.length <= 12 || isHovered || c.isPeak;
+                  if (!showDot && !isHovered) return null;
+
                   return (
                     <g key={`dot-${i}`}>
                       {isHovered && (
                         <circle
                           cx={c.x}
                           cy={c.curveY}
-                          r="10"
+                          r={isMobile ? 8 : 10}
                           fill={strokeColor}
                           opacity="0.3"
                           className="pointer-events-none transition-all duration-150"
@@ -760,10 +1069,10 @@ export function EquityCurveView() {
                       <circle
                         cx={c.x}
                         cy={c.curveY}
-                        r={isHovered ? 5.5 : c.isPeak ? 4.5 : 3}
+                        r={isHovered ? (isMobile ? 5 : 5.5) : c.isPeak ? (isMobile ? 4 : 4.5) : (isMobile ? 2.5 : 3)}
                         fill={c.isPeak ? '#eab308' : strokeColor}
                         stroke={isDark ? '#131b2e' : '#ffffff'}
-                        strokeWidth={isHovered ? 2 : 1}
+                        strokeWidth={isHovered ? 2 : 1.5}
                         className="pointer-events-none transition-all duration-150"
                       />
                     </g>
@@ -772,35 +1081,16 @@ export function EquityCurveView() {
               </g>
             )}
 
-            {/* MIDDLE DIVIDER & SECTION LABELS (Dual mode only) */}
+            {/* MIDDLE DIVIDER (Dual mode only - clean dashed line, no text collision) */}
             {viewMode === 'dual' && (
-              <g>
-                <line
-                  x1={paddingLeft}
-                  y1={midY}
-                  x2={svgWidth - paddingRight}
-                  y2={midY}
-                  stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}
-                />
-                <text
-                  x={paddingLeft}
-                  y={midY - 5}
-                  fill="#94a3b8"
-                  fontSize="10"
-                  fontWeight="600"
-                >
-                  📈 {t('equity.curve_section')}
-                </text>
-                <text
-                  x={paddingLeft}
-                  y={midY + 13}
-                  fill="#94a3b8"
-                  fontSize="10"
-                  fontWeight="600"
-                >
-                  📊 {t('equity.daily_section')}
-                </text>
-              </g>
+              <line
+                x1={paddingLeft}
+                y1={midY}
+                x2={svgWidth - paddingRight}
+                y2={midY}
+                stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}
+                strokeDasharray="3 3"
+              />
             )}
 
             {/* LOWER TIER: Daily PnL Bars (if dual or bars) */}
@@ -816,11 +1106,11 @@ export function EquityCurveView() {
                   strokeDasharray="3 3"
                 />
                 <text
-                  x={svgWidth - paddingRight + 4}
-                  y={zeroLineY + 3}
+                  x={isMobile ? svgWidth - paddingRight : svgWidth - paddingRight + 4}
+                  y={isMobile ? zeroLineY - 4 : zeroLineY + 3}
                   fill="#94a3b8"
-                  fontSize="9"
-                  textAnchor="start"
+                  fontSize={isMobile ? "9.5" : "10"}
+                  textAnchor={isMobile ? "end" : "start"}
                   fontFamily="monospace"
                 >
                   0.00
@@ -841,7 +1131,7 @@ export function EquityCurveView() {
                         y={c.barY}
                         width={barWidth}
                         height={c.barH}
-                        rx="2"
+                        rx={isMobile ? "2.5" : "3"}
                         fill={barFill}
                         opacity={hoveredIdx === null || isHovered ? (isHovered ? 1 : 0.85) : 0.35}
                         stroke={isHovered ? (isDark ? '#ffffff' : '#0f172a') : 'none'}
@@ -884,20 +1174,24 @@ export function EquityCurveView() {
               />
             ))}
 
-            {/* X-AXIS DATE LABELS */}
+            {/* X-AXIS DATE LABELS (Dynamic alignment prevents clipping on mobile) */}
             {dateTickIndices.map((idx) => {
               const c = coords[idx];
               if (!c) return null;
+              const isFirst = idx === 0;
+              const isLast = idx === coords.length - 1;
+              const anchor = isFirst ? 'start' : isLast ? 'end' : 'middle';
+
               return (
                 <text
                   key={`date-${idx}`}
                   x={c.x}
                   y={axisY}
                   fill="#94a3b8"
-                  fontSize="9.5"
-                  textAnchor="middle"
+                  fontSize={isMobile ? "10" : "11"}
+                  textAnchor={anchor}
                   fontFamily="monospace"
-                  className="pointer-events-none"
+                  className="pointer-events-none select-none"
                 >
                   {c.point.date}
                 </text>
@@ -907,50 +1201,36 @@ export function EquityCurveView() {
         </div>
 
         {/* Bottom Legend and Axis Metrics Bar */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-[11px] font-mono text-slate-500 pt-2.5 border-t border-slate-100 dark:border-slate-800 gap-2 shrink-0">
-          <div className="flex items-center justify-between w-full sm:w-auto gap-4">
-            <div>
-              {t('equity.initial_capital')}:{' '}
-              <span className="text-slate-700 dark:text-slate-300 font-semibold">
-                {isReadOnly ? t('ui.hidden') : formatCurrency(initialCapital)}
-              </span>
-            </div>
-            <div className="flex items-center gap-3 sm:hidden">
-              <div>
-                {t('equity.peak')}:{' '}
-                <span className="text-emerald-500 font-semibold font-mono">
-                  {formatCurrency(maxVal)}
-                </span>
-              </div>
-              <div>
-                {t('equity.current')}:{' '}
-                <span className="text-purple-500 dark:text-purple-400 font-semibold font-mono">
-                  {isReadOnly ? t('ui.hidden') : formatCurrency(currentEquity)}
-                </span>
-              </div>
-            </div>
+        <div className="flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800 gap-1.5 sm:gap-2 shrink-0">
+          {/* Desktop Left Metric: Initial Capital Baseline */}
+          <div className="hidden sm:block">
+            {t('equity.initial_capital')}:{' '}
+            <span className="text-slate-700 dark:text-slate-300 font-semibold">
+              {isReadOnly ? t('ui.hidden') : formatCurrency(initialCapital)}
+            </span>
           </div>
 
           {/* Central Legend indicators */}
-          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-[10px] sm:text-[11px]">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] w-full sm:w-auto">
             <div className="flex items-center gap-1">
-              <span className="w-3 h-0.5 bg-emerald-500 inline-block rounded" />
+              <span className="w-2.5 h-0.5 bg-emerald-500 inline-block rounded" />
               <span>{t('equity.curve_section')}</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded bg-emerald-500 inline-block" />
+              <span className="w-1.5 h-1.5 rounded bg-emerald-500 inline-block" />
               <span>{t('equity.daily_profit')}</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded bg-rose-500 inline-block" />
+              <span className="w-1.5 h-1.5 rounded bg-rose-500 inline-block" />
               <span>{t('equity.daily_loss')}</span>
             </div>
             <div className="flex items-center gap-1 text-slate-400">
-              <span className="w-2.5 border-t border-dashed border-slate-400 inline-block" />
+              <span className="w-2 border-t border-dashed border-slate-400 inline-block" />
               <span>{t('equity.zero_line')}</span>
             </div>
           </div>
 
+          {/* Desktop Right Metrics: Peak & Current */}
           <div className="hidden sm:flex items-center gap-3">
             <div>
               {t('equity.peak')}:{' '}
