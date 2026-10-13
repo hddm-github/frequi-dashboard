@@ -17,6 +17,18 @@ export const SIGNAL_COLOR_STYLES = {
   slate: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700',
 };
 
+export const SIGNAL_CATEGORY_EN: Record<string, string> = {
+  '常规入场': 'Regular entry',
+  '做空信号体系': 'Short signal system',
+  '高频超短头皮': 'High-frequency scalping',
+  '头部主流大币': 'Large-cap leaders',
+  '趋势波段多头': 'Trend swing long',
+  '放量拉升追多': 'Volume breakout long',
+  '超跌快速反弹': 'Oversold rebound',
+  '回调低吸加仓': 'Pullback accumulation',
+  '策略信号': 'Strategy signal',
+};
+
 /**
  * 📖 NFI / E0V1E / 通用策略入场信号智能解析速查字典：
  * • 支持结构化带方括号标签（如：buy_new [深度重挫：跌破SMA15均线4.0%强力抄底]）
@@ -28,12 +40,12 @@ export const SIGNAL_COLOR_STYLES = {
  * • 161~173：高频超短头皮
  * • 500+：做空信号体系
  */
-export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
+export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo {
   if (!tag || tag.trim() === '' || tag.trim() === '-') {
     return {
       code: 'Hidden',
-      category: 'Hidden',
-      description: 'Hidden',
+      category: isZh ? '未公开' : 'Hidden',
+      description: isZh ? '策略信号已隐藏' : 'Hidden strategy signal',
       isShort: false,
       colorClasses: SIGNAL_COLOR_STYLES.slate,
     };
@@ -113,8 +125,8 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
     if (num >= 500) {
       return {
         code: `${num}`,
-        category: '做空信号体系',
-        description: '高位顶背离与反转做空信号体系',
+        category: isZh ? '做空信号体系' : (SIGNAL_CATEGORY_EN['做空信号体系'] || 'Short system'),
+        description: isZh ? '高位顶背离与反转做空信号体系' : 'High top-divergence & reversal short system',
         isShort: true,
         colorClasses: SIGNAL_COLOR_STYLES.rose,
       };
@@ -124,8 +136,8 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
     if (num >= 161 && num <= 173) {
       return {
         code: `${num}`,
-        category: '高频超短头皮',
-        description: '微观结构快速剥头皮套利',
+        category: isZh ? '高频超短头皮' : (SIGNAL_CATEGORY_EN['高频超短头皮'] || 'High-frequency scalp'),
+        description: isZh ? '微观结构快速剥头皮套利' : 'Microstructure quick scalping arbitrage',
         isShort: false,
         colorClasses: SIGNAL_COLOR_STYLES.pink,
       };
@@ -135,8 +147,8 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
     if (num >= 141 && num <= 145) {
       return {
         code: `${num}`,
-        category: '头部主流大币',
-        description: 'BTC/ETH 主流核心资产专属做多信号',
+        category: isZh ? '头部主流大币' : (SIGNAL_CATEGORY_EN['头部主流大币'] || 'Top leader coins'),
+        description: isZh ? 'BTC/ETH 主流核心资产专属做多信号' : 'BTC/ETH major assets dedicated long signals',
         isShort: false,
         colorClasses: SIGNAL_COLOR_STYLES.purple,
       };
@@ -146,8 +158,8 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
     if ((num >= 1 && num <= 13) || num === 120 || num === 12) {
       return {
         code: `${num}`,
-        category: '趋势波段多头',
-        description: '大级别均线顺势波段多头',
+        category: isZh ? '趋势波段多头' : (SIGNAL_CATEGORY_EN['趋势波段多头'] || 'Trend wave long'),
+        description: isZh ? '大级别均线顺势波段多头' : 'Higher timeframe MA trend swing long',
         isShort: false,
         colorClasses: SIGNAL_COLOR_STYLES.emerald,
       };
@@ -157,8 +169,8 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
     if (num >= 21 && num <= 26) {
       return {
         code: `${num}`,
-        category: '放量拉升追多',
-        description: '成交量异动放大与突破追强',
+        category: isZh ? '放量拉升追多' : (SIGNAL_CATEGORY_EN['放量拉升追多'] || 'Volume breakout long'),
+        description: isZh ? '成交量异动放大与突破追强' : 'Volume spike & breakout momentum long',
         isShort: false,
         colorClasses: SIGNAL_COLOR_STYLES.cyan,
       };
@@ -168,8 +180,8 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
     if (num >= 41 && num <= 53) {
       return {
         code: `${num}`,
-        category: '超跌快速反弹',
-        description: '极端下挫超卖快速抢反弹',
+        category: isZh ? '超跌快速反弹' : (SIGNAL_CATEGORY_EN['超跌快速反弹'] || 'Oversold quick bounce'),
+        description: isZh ? '极端下挫超卖快速抢反弹' : 'Extreme drop & oversold bounce entry',
         isShort: false,
         colorClasses: SIGNAL_COLOR_STYLES.amber,
       };
@@ -179,8 +191,8 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
     if (num >= 61 && num <= 68) {
       return {
         code: `${num}`,
-        category: '回调低吸加仓',
-        description: '稳健支撑均线回踩低吸',
+        category: isZh ? '回调低吸加仓' : (SIGNAL_CATEGORY_EN['回调低吸加仓'] || 'Pullback DCA entry'),
+        description: isZh ? '稳健支撑均线回踩低吸' : 'Support MA retest & low-absorption entry',
         isShort: false,
         colorClasses: SIGNAL_COLOR_STYLES.blue,
       };
@@ -191,8 +203,8 @@ export function parseNfiSignal(tag?: string | null): NfiSignalInfo {
   const isShort = cleanTag.toLowerCase().includes('short') || cleanTag.includes('做空');
   return {
     code: cleanTag.length > 14 ? `${cleanTag.slice(0, 12)}…` : cleanTag,
-    category: '策略信号',
-    description: `策略入场信号: ${cleanTag}`,
+    category: isZh ? '策略信号' : 'Strategy signal',
+    description: isZh ? `策略入场信号: ${cleanTag}` : `Strategy entry signal: ${cleanTag}`,
     isShort,
     colorClasses: isShort ? SIGNAL_COLOR_STYLES.rose : SIGNAL_COLOR_STYLES.cyan,
   };
