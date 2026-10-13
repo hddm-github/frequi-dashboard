@@ -30,10 +30,40 @@ export function normalizeApiUrl(url: string): string {
 
   // 智能清洗协议头：支持直接输入域名或 IP，如 tes.yuasa.com 或 203.0.113.10:8081
   const prefixMatch = cleaned.match(/^(?:https?:[\/\\]*)+/i);
-  let isHttps = prefixMatch ? /https:/i.test(prefixMatch[0]) : (typeof window !== 'undefined' ? window.location.protocol === 'https:' : false);
   const stripped = cleaned.replace(/^(?:https?:[\/\\]*)+/i, '').replace(/^[\/\\]+/, '');
+  const isIpWithPort = /^(?:127\.0\.0\.1|localhost|(?:\d{1,3}\.){3}\d{1,3}):\d+/i.test(stripped);
+  const isHttps = prefixMatch
+    ? /https:/i.test(prefixMatch[0])
+    : isIpWithPort
+    ? false
+    : typeof window !== 'undefined'
+    ? window.location.protocol === 'https:'
+    : false;
 
   return `${isHttps ? 'https' : 'http'}://${stripped}`;
+}
+
+export function buildApiUrl(baseUrl: string, endpoint: string): string {
+  const cleanBase = (baseUrl || '').trim().replace(/\/+$/, '');
+  const cleanEndpoint = endpoint.replace(/^\/+/, '');
+  if (!cleanBase) return cleanEndpoint;
+
+  // If base already points to an API path
+  if (cleanBase.endsWith('/api/v1')) {
+    return `${cleanBase}/${cleanEndpoint}`;
+  }
+
+  // Reverse proxy endpoints that rewrite internally to /api/v1
+  if (
+    cleanBase === '/freq-trade' ||
+    cleanBase.endsWith('/freq-trade') ||
+    cleanBase === '/owner-api' ||
+    cleanBase.endsWith('/owner-api')
+  ) {
+    return `${cleanBase}/${cleanEndpoint}`;
+  }
+
+  return `${cleanBase}/api/v1/${cleanEndpoint}`;
 }
 
 function mapOrders(rawOrders?: any[]): any[] | undefined {
@@ -103,8 +133,7 @@ export class FreqtradeClient {
     params?: Record<string, string | number | boolean | undefined | null>
   ): Promise<T> {
     const baseUrl = this.getBaseUrl();
-    const isOwnerProxy = baseUrl === '/owner-api' || baseUrl.startsWith('/owner-api');
-    let url = isOwnerProxy ? `${baseUrl}/${endpoint}` : `${baseUrl}/api/v1/${endpoint}`;
+    let url = buildApiUrl(baseUrl, endpoint);
     if (params) {
       const q = new URLSearchParams();
       Object.entries(params).forEach(([k, v]) => {
@@ -193,8 +222,7 @@ export class FreqtradeClient {
 
   private async postRequest<T>(endpoint: string, body?: any): Promise<T> {
     const baseUrl = this.getBaseUrl();
-    const isProxy = baseUrl === '/owner-api' || baseUrl.startsWith('/owner-api');
-    const url = isProxy ? `${baseUrl}/${endpoint}` : `${baseUrl}/api/v1/${endpoint}`;
+    const url = buildApiUrl(baseUrl, endpoint);
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
