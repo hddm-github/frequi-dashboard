@@ -72,6 +72,11 @@ export function FreqUIDashboardView() {
     return Math.max(...vals, 1);
   }, [sortedDaily]);
 
+  // Check if any day has negative profit to activate dynamic centered zero-baseline
+  const hasLossDays = useMemo(() => {
+    return sortedDaily.some((d) => (d.abs_profit || 0) < 0);
+  }, [sortedDaily]);
+
   const dailyStats = useMemo(() => {
     const totalProfit = sortedDaily.reduce((sum, d) => sum + (d.abs_profit || 0), 0);
     const totalTrades = sortedDaily.reduce((sum, d) => sum + (d.trade_count || 0), 0);
@@ -440,10 +445,19 @@ export function FreqUIDashboardView() {
           </div>
 
           <div
-            className={`flex-1 min-h-[190px] flex items-end justify-around gap-1.5 pt-2 px-1 border-b pb-1 ${
+            className={`relative flex-1 min-h-[190px] flex items-stretch justify-around gap-1.5 pt-2 px-1 border-b pb-1 ${
               isDark ? 'border-slate-800/60' : 'border-slate-200'
             }`}
           >
+            {/* Zero-baseline center line when there are loss days */}
+            {hasLossDays && sortedDaily.length > 0 && (
+              <div
+                className={`absolute left-0 right-0 top-[calc(50%-10px)] h-px border-t border-dashed pointer-events-none z-0 ${
+                  isDark ? 'border-slate-700/70' : 'border-slate-300'
+                }`}
+              />
+            )}
+
             {sortedDaily.length === 0 ? (
               <div className="w-full text-center text-xs text-slate-400 my-auto py-4">{t('dashboard.no_performance')}</div>
             ) : (
@@ -454,36 +468,64 @@ export function FreqUIDashboardView() {
                 let heightPct: number;
 
                 if (isLogScale) {
-                  // 对数高度映射：采用 log10(val + 1)，确保小额盈亏明显可见，大额适度延展
                   const logVal = Math.log10(absVal + 1);
                   const logMax = Math.log10(maxDailyVal + 1);
-                  heightPct = logMax > 0 ? Math.round((logVal / logMax) * 78) + 12 : 10;
+                  heightPct = logMax > 0 ? Math.round((logVal / logMax) * (hasLossDays ? 82 : 78)) + (hasLossDays ? 10 : 12) : 10;
                 } else {
-                  heightPct = Math.round((absVal / maxDailyVal) * 80);
+                  heightPct = Math.round((absVal / maxDailyVal) * (hasLossDays ? 86 : 80));
                 }
-                heightPct = Math.min(Math.max(heightPct, 6), 92);
+                heightPct = Math.min(Math.max(heightPct, 6), 94);
 
                 return (
-                  <div key={d.date} className="flex-1 flex flex-col items-center h-full justify-end group min-w-[24px] max-w-[48px]">
+                  <div key={d.date} className="flex-1 flex flex-col items-center h-full justify-between group min-w-[24px] max-w-[48px] relative z-10">
+                    {/* Tooltip on hover */}
                     {hasTrade && (
-                      <div className="text-[10px] text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1 font-mono text-center whitespace-nowrap z-10 bg-black/70 text-white px-1.5 py-0.5 rounded shadow pointer-events-none shrink-0">
+                      <div className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity mb-1 font-mono text-center whitespace-nowrap z-20 bg-black/85 text-white px-1.5 py-0.5 rounded shadow-lg pointer-events-none absolute -top-5">
                         {isReadOnly ? t('ui.hidden') : formatCurrency(d.abs_profit, { showSign: true })} ({d.trade_count} {t('dashboard.trades_count')})
                       </div>
                     )}
-                    <div className="flex-1 w-full flex items-end justify-center">
-                      {hasTrade ? (
-                        <div
-                          className={`w-full max-w-[32px] rounded-t transition-all ${
-                            isPos
-                              ? 'bg-emerald-500 hover:bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
-                              : 'bg-rose-500 hover:bg-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
-                          }`}
-                          style={{ height: `${heightPct}%` }}
-                        />
-                      ) : (
-                        <div className="w-full max-w-[32px] h-0" />
-                      )}
-                    </div>
+
+                    {!hasLossDays ? (
+                      /* ALL PROFIT DAYS: Full height bottom-to-top layout */
+                      <div className="flex-1 w-full flex items-end justify-center">
+                        {hasTrade ? (
+                          <div
+                            className="w-full max-w-[32px] rounded-t bg-emerald-500 hover:bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)] transition-all"
+                            style={{ height: `${heightPct}%` }}
+                          />
+                        ) : (
+                          <div className="w-full max-w-[32px] h-0" />
+                        )}
+                      </div>
+                    ) : (
+                      /* MIXED PROFIT / LOSS DAYS: Center zero-baseline layout */
+                      <div className="flex-1 w-full flex flex-col justify-center">
+                        {/* Upper Half: Positive profits growing upwards from center */}
+                        <div className="flex-1 w-full flex items-end justify-center">
+                          {hasTrade && isPos ? (
+                            <div
+                              className="w-full max-w-[32px] rounded-t bg-emerald-500 hover:bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)] transition-all"
+                              style={{ height: `${heightPct}%` }}
+                            />
+                          ) : (
+                            <div className="w-full max-w-[32px] h-0" />
+                          )}
+                        </div>
+
+                        {/* Lower Half: Negative losses growing downwards from center */}
+                        <div className="flex-1 w-full flex items-start justify-center">
+                          {hasTrade && !isPos ? (
+                            <div
+                              className="w-full max-w-[32px] rounded-b bg-rose-500 hover:bg-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.3)] transition-all"
+                              style={{ height: `${heightPct}%` }}
+                            />
+                          ) : (
+                            <div className="w-full max-w-[32px] h-0" />
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <span className="text-[10px] text-slate-500 mt-1 font-mono shrink-0">{d.date.slice(5)}</span>
                   </div>
                 );
