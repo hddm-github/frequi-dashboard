@@ -17,7 +17,7 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
   const defaultBotName = locale === 'zh' ? 'Freqtrade 机器人' : 'freqtrade-bot';
   const [selectedPreset, setSelectedPreset] = useState('futures');
   const [name, setName] = useState(defaultBotName);
-  const [apiUrl, setApiUrl] = useState('/freq-trade');
+  const [apiUrl, setApiUrl] = useState('/');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -141,10 +141,10 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
               <div className="flex gap-1">
                 <button
                   type="button"
-                  onClick={() => setApiUrl('/freq-trade')}
+                  onClick={() => setApiUrl('/')}
                   className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded text-[9px] font-mono cursor-pointer"
                 >
-                  /freq-trade
+                  {t('connect.local_default')}
                 </button>
                 <button
                   type="button"
@@ -159,7 +159,7 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
               type="text"
               value={apiUrl}
               onChange={(e) => setApiUrl(e.target.value)}
-              placeholder="https://bot.example.com/freq-trade or http://PUBLIC_IP:8081"
+              placeholder="https://bot.example.com or http://PUBLIC_IP:8081"
               className={`w-full border rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
                 isDark ? 'bg-[#1a233a] border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
               }`}

@@ -87,9 +87,11 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
         const savedActive = localStorage.getItem('nfi_active_bot_id');
         const sanitized = parsed.map((p: BotProfile) => ({
           ...p,
-          apiUrl: normalizeApiUrl(
-            p.apiUrl === '/ft-api' || p.apiUrl === '/owner-api' ? '/freq-trade' : p.apiUrl
-          ),
+          // Migrate legacy internal path aliases to the same-origin standard API ("/").
+          apiUrl:
+            p.apiUrl === '/ft-api' || p.apiUrl === '/owner-api' || p.apiUrl === '/freq-trade'
+              ? '/'
+              : normalizeApiUrl(p.apiUrl),
         }));
         const activeExists = sanitized.some((p: BotProfile) => p.id === savedActive);
         return {

@@ -12,9 +12,9 @@ export const PRESET_BOTS: BotPreset[] = [
     id: 'futures',
     name: 'freqtrade-bot',
     nameZh: 'Freqtrade 机器人',
-    apiUrl: '/freq-trade',
-    description: 'Freqtrade Bot (/freq-trade)',
-    descriptionZh: 'Freqtrade 机器人 (/freq-trade)',
+    apiUrl: '/',
+    description: 'This server (standard /api/v1)',
+    descriptionZh: '本服务器（标准 /api/v1）',
   },
   {
     id: 'custom',

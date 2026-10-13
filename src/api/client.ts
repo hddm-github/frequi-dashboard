@@ -24,7 +24,11 @@ export const EMPTY_BOT_STATE: BotState = {
 };
 
 export function normalizeApiUrl(url: string): string {
-  let cleaned = (url || '').trim().replace(/\/dashboard\/?$/, '').replace(/\/+$/, '');
+  const trimmed = (url || '').trim();
+  // "/" is the same-origin marker: the Freqtrade bot runs on this very server,
+  // served behind the same reverse proxy as this dashboard (standard /api/v1).
+  if (trimmed === '/') return '/';
+  let cleaned = trimmed.replace(/\/dashboard\/?$/, '').replace(/\/+$/, '');
   if (!cleaned) return '';
   if (cleaned.startsWith('/') && !cleaned.startsWith('//')) return cleaned;
 
@@ -48,18 +52,17 @@ export function buildApiUrl(baseUrl: string, endpoint: string): string {
   const cleanEndpoint = endpoint.replace(/^\/+/, '');
   if (!cleanBase) return cleanEndpoint;
 
-  // If base already points to an API path
+  // Same-origin marker: bot lives behind this same host/proxy → standard /api/v1.
+  if (cleanBase === '/') return `/api/v1/${cleanEndpoint}`;
+
+  // If base already points to an API path, use it as-is.
   if (cleanBase.endsWith('/api/v1')) {
     return `${cleanBase}/${cleanEndpoint}`;
   }
 
-  // Reverse proxy endpoints that rewrite internally to /api/v1
-  if (
-    cleanBase === '/freq-trade' ||
-    cleanBase.endsWith('/freq-trade') ||
-    cleanBase === '/owner-api' ||
-    cleanBase.endsWith('/owner-api')
-  ) {
+  // Any other custom path (reverse-proxy prefix, subpath, etc.) is used verbatim:
+  // the operator is responsible for making that path reach the Freqtrade API.
+  if (cleanBase.startsWith('/')) {
     return `${cleanBase}/${cleanEndpoint}`;
   }
 
@@ -109,10 +112,11 @@ export class FreqtradeClient {
   getBaseUrl(): string {
     const raw = normalizeApiUrl(this.config.apiUrl || '');
     if (!raw) return '';
-    // Browser sends Origin automatically for public URLs; target reverse proxy must allowlist this dashboard origin.
-    if (raw === '/ft-api' || raw === '/owner-api') {
-      return '/freq-trade';
+    // Legacy internal path aliases now resolve to the same-origin standard API.
+    if (raw === '/ft-api' || raw === '/owner-api' || raw === '/freq-trade') {
+      return '/';
     }
+    // Browser sends Origin automatically for public URLs; target reverse proxy must allowlist this dashboard origin.
     return raw;
   }
 

@@ -13,7 +13,7 @@ export function LoginGateView() {
   const defaultBotName = locale === 'zh' ? 'Freqtrade 机器人' : 'freqtrade-bot';
   const [selectedPreset, setSelectedPreset] = useState('futures');
   const [name, setName] = useState(defaultBotName);
-  const [apiUrl, setApiUrl] = useState('/freq-trade');
+  const [apiUrl, setApiUrl] = useState('/');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -171,10 +171,10 @@ export function LoginGateView() {
                 <div className="flex gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setApiUrl('/freq-trade')}
+                    onClick={() => setApiUrl('/')}
                     className="px-2 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded text-[10px] font-mono transition-colors cursor-pointer"
                   >
-                    {t('login.futures_default')}
+                    {t('login.local_default')}
                   </button>
                   <button
                     type="button"
@@ -189,7 +189,7 @@ export function LoginGateView() {
                 type="text"
                 value={apiUrl}
                 onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="https://bot.example.com/freq-trade or http://PUBLIC_IP:8081"
+                placeholder="https://bot.example.com or http://PUBLIC_IP:8081"
                 className={`w-full border rounded-xl px-3.5 py-2.5 font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
                   isDark
                     ? 'bg-[#1a233a] border-slate-700 text-slate-100 placeholder:text-slate-500'
