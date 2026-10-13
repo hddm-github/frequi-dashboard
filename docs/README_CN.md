@@ -112,7 +112,7 @@ pnpm build
 ```bash
 node server.js
 ```
-内置自带 `/api-proxy` 中转代理，彻底消除跨域限制。
+该脚本内置静态托管与 SPA 回退，并支持 `/api-proxy` 反向代理（用于消除跨域限制）。
 
 ---
 
@@ -124,14 +124,42 @@ node server.js
 2. 首次进入将弹出连接引导，或点击顶部机器人菜单选择 **「添加 / 连接新机器人」**；
 3. 输入你的 Freqtrade 配置：
    - **机器人备注名**：自定义别名（例如 `NFIX8-实盘1号`）
-   - **API 节点地址**：Freqtrade 访问地址（例如 `http://127.0.0.1:8080` 或 `http://你的服务器IP:8080`）
+   - **服务地址**：Freqtrade API 基础地址。两种常见情况：
+     - **机器人与本看板在同一台服务器、共用同一反向代理** → 填 `/`。
+       看板会在自身域名下调用标准路径 `/api/v1`。
+     - **远程机器人（独立域名或 IP）** → 填完整地址，例如
+       `https://bot1.example.com` 或 `http://203.0.113.10:8081`。看板会自动补上 `/api/v1`。
    - **API 账号**：Freqtrade 的 username
    - **API 密码**：Freqtrade 的 password
 4. 点击 **「保存并连接」**。
 
-### ⚠️ 关键步骤：在 Freqtrade 中开放跨域白名单 (CORS)
+> 💡 **地址解析规则**
+> - `/` → 看板自身域名下的 `/api/v1/...`（机器人与本看板共用同一代理时首选）
+> - `https://bot1.example.com` → `https://bot1.example.com/api/v1/...`
+> - `https://freq.example.com/bot1`（子路径） → `https://freq.example.com/bot1/api/v1/...`
+> - `http://127.0.0.1:8080/api/v1` → 原样使用
+>
+> 以 `/` 开头的地址视为「同源路径」，原样拼接（需由反向代理转发到机器人）；
+> 其余地址视为「主机」，自动追加 `/api/v1`。
 
-因为看板前端与 Freqtrade API 处于不同端口或域名，浏览器的跨域安全策略会发起 OPTIONS 预检请求。**必须在服务器的 Freqtrade `config.json` 中配置白名单**。
+### 单服务器多机器人
+
+FreqUI 支持任意数量的机器人。按你的反向代理已有的路由方式选择即可：
+
+| 路由方式 | 看板地址 | 机器人服务地址填写 |
+|---|---|---|
+| 每个机器人一个子域名（最常用） | `freq.example.com` | `https://bot1.example.com`、`https://bot2.example.com` |
+| 一个域名下的子路径 | `freq.example.com` | `https://freq.example.com/bot1`、`https://freq.example.com/bot2` |
+| 单机器人、共用代理 | `trading.example.com` | `/` |
+
+远程机器人（子域名 / 其他主机）需在该机器人的 `api_server.CORS_origins` 中加入看板地址。
+同源 `/` 与同主机子路径**无需** CORS，因为浏览器视为同一来源。
+
+### ⚠️ 关键步骤：在 Freqtrade 中开放跨域白名单 (CORS)（仅远程机器人需要）
+
+当看板来源与机器人来源不同时（例如 `freq.example.com` 调用 `bot1.example.com`），
+浏览器的跨域安全策略会发起 OPTIONS 预检请求，**必须在服务器的 Freqtrade `config.json`
+中配置白名单**。若使用 `/`（同源）或同主机子路径，则无需配置 CORS。
 
 打开服务器上的 `user_data/config.json`，在 `api_server` 中添加你的看板访问地址：
 
@@ -211,18 +239,32 @@ FreqUI 提供了两种互补的只读分享方案：
   - 打开后即时净化 URL，浏览器历史记录不留底；
   - 访客可将该机器人保存至其本地浏览器，并随时给不同机器人添加自定义备注名。
 
-### 方案 2：服务器网关级 Nginx 安全反向代理 (`/share-api/`)
-- 在 [`nginx.conf`](../nginx.conf) 中配置只读反向代理：
-  ```nginx
-  location /share-api/ {
-      limit_except GET OPTIONS {
-          deny all; # 网关层面彻底拦截除 GET 外的所有写请求，杜绝平仓
-      }
-      proxy_pass http://127.0.0.1:8989/api/v1/;
-      proxy_set_header Authorization "Basic <BASE64凭据>";
-  }
-  ```
-- 访客直接访问 `http://你的域名/?share=true`，完全免输密码，且在浏览器 DevTools 中完全看不到真实账密。
+### 方案 2：服务器网关级 Nginx 只读代理
+
+仓库自带的 [`nginx.conf`](../nginx.conf) 已把标准 Freqtrade API 代理到
+`location /api/v1/`。若要在此基础上把该同源网关变成「只读」，加上
+`limit_except` 守卫，仅放行 `GET`/`OPTIONS`：
+
+```nginx
+location /api/v1/ {
+    limit_except GET OPTIONS {
+        deny all; # 网关层面彻底拦截除 GET 外的所有写请求，杜绝平仓
+    }
+    proxy_pass http://freqtrade_backend;
+    # ... 保留原有的 proxy_set_header 配置 ...
+}
+```
+
+之后访客使用同一服务器地址即可：
+
+- 在看板中新增机器人，服务地址填 `/`（同源，标准 `/api/v1`）；
+- 或直接打开分享链接：`http://你的域名/?share=true`。
+
+加守卫后，机器人的写接口（启动/停止、强制平仓等）在网关层被彻底拦截，
+即使拿到分享链接也无法下单，浏览器中也完全看不到真实账密。
+
+> 若在同一主机下运行多个机器人，为每个子路径各加一段这样的 `location`
+> （例如 `/bot1/api/v1/`），分别指向各自的上游。
 
 ---
 

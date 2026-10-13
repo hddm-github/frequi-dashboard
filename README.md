@@ -122,14 +122,47 @@ node server.js
 2. If this is your first visit, the connection dialog will appear automatically. You can also click the bot selector in the top bar to **"Add / Connect Bot"**.
 3. Enter your Freqtrade API information:
    - **Bot Alias**: Custom name (e.g., `NFIX8-Production`)
-   - **Base URL**: Freqtrade API address (e.g., `http://127.0.0.1:8080` or `http://YOUR_SERVER_IP:8080`)
+   - **Service Address**: the Freqtrade API base URL. Two common cases:
+     - **Same server / same reverse proxy as this dashboard** → enter `/`.
+       The dashboard calls the standard Freqtrade path `/api/v1` on its own origin.
+     - **Remote bot (its own domain or IP)** → enter the full address, e.g.
+       `https://bot1.example.com` or `http://203.0.113.10:8081`. The dashboard
+       appends `/api/v1` automatically.
    - **API Username**: Freqtrade API username
    - **API Password**: Freqtrade API password
 4. Click **"Save & Connect"**.
 
-### ⚠️ Crucial: Configure Freqtrade CORS Settings
+> 💡 **How the address is resolved**
+> - `/` → `/api/v1/...` on the dashboard's own origin (best when the bot sits behind the same proxy).
+> - `https://bot1.example.com` → `https://bot1.example.com/api/v1/...`
+> - `https://freq.example.com/bot1` (sub-path) → `https://freq.example.com/bot1/api/v1/...`
+> - `http://127.0.0.1:8080/api/v1` → used as-is.
+>
+> Anything that starts with `/` is treated as a same-origin path and used verbatim
+> (the proxy must route it to the bot). Anything else is treated as a host and gets
+> `/api/v1` appended.
 
-Freqtrade enforces cross-origin request validation. Since the dashboard runs on a different port or domain from the Freqtrade API, you **must** add the dashboard's URL to Freqtrade's `config.json`.
+### Multi-Bot on One Server
+
+FreqUI supports any number of bots. Pick whichever routing layout your reverse
+proxy already uses:
+
+| Layout | Dashboard | Bot endpoint to enter |
+|---|---|---|
+| Subdomain per bot (most common) | `freq.example.com` | `https://bot1.example.com`, `https://bot2.example.com` |
+| Sub-path under one domain | `freq.example.com` | `https://freq.example.com/bot1`, `https://freq.example.com/bot2` |
+| Single bot, shared proxy | `trading.example.com` | `/` |
+
+Remote bots (subdomains / other hosts) require that bot's `api_server.CORS_origins`
+to include the dashboard origin. Same-origin `/` and same-host sub-paths do **not**
+need CORS, because the browser sees a single origin.
+
+### ⚠️ Crucial: Configure Freqtrade CORS Settings (remote bots only)
+
+Freqtrade enforces cross-origin request validation. When the dashboard origin differs
+from the bot's origin (e.g. `freq.example.com` calling `bot1.example.com`), you
+**must** add the dashboard's URL to Freqtrade's `config.json`. If you use `/`
+(same origin) or a same-host sub-path, no CORS entry is needed.
 
 In your server's `user_data/config.json`:
 
@@ -207,18 +240,33 @@ FreqUI includes two complementary read-only sharing mechanisms:
   - No Force Exit buttons, no bot start/stop controls, and credentials cannot be revealed.
   - The URL Hash is automatically cleaned after bookmarking to prevent browser history leaks.
 
-### Method B: Server-Side Nginx Gateway Proxy (`/share-api/`)
-- Configure [`nginx.conf`](./nginx.conf):
-  ```nginx
-  location /share-api/ {
-      limit_except GET OPTIONS {
-          deny all; # Physically blocks any POST/DELETE/PUT write operations
-      }
-      proxy_pass http://127.0.0.1:8989/api/v1/;
-      proxy_set_header Authorization "Basic <BASE64_CREDENTIALS>";
-  }
-  ```
-- Visitors navigate to `http://YOUR_HOST/?share=true`. Nginx injects credentials in the background. Visitors never see the credentials in their browser DevTools.
+### Method B: Server-Side Nginx Read-Only Gateway
+
+The included [`nginx.conf`](./nginx.conf) already proxies the standard Freqtrade API
+at `location /api/v1/`. To make that same-origin gateway strictly read-only, add a
+`limit_except` guard so only `GET`/`OPTIONS` reach the bot:
+
+```nginx
+location /api/v1/ {
+    limit_except GET OPTIONS {
+        deny all; # Physically blocks any POST/DELETE/PUT write operations
+    }
+    proxy_pass http://freqtrade_backend;
+    # ... keep the existing proxy_set_header lines ...
+}
+```
+
+Then visitors use the same server address:
+
+- In the dashboard, add a bot with the service address `/` (same origin, standard `/api/v1`).
+- Or open a share link: `http://YOUR_HOST/?share=true`.
+
+With the guard in place, the bot's write endpoints (start/stop, force-exit, etc.) are
+blocked at the gateway, so even a share link cannot place orders. No credentials are
+exposed in the browser.
+
+> If you run multiple bots behind one host, add one such `location` per sub-path
+> (e.g. `/bot1/api/v1/`) and point each at its own upstream.
 
 ---
 

@@ -48,12 +48,15 @@ export function normalizeApiUrl(url: string): string {
 }
 
 export function buildApiUrl(baseUrl: string, endpoint: string): string {
-  const cleanBase = (baseUrl || '').trim().replace(/\/+$/, '');
+  const trimmedBase = (baseUrl || '').trim();
   const cleanEndpoint = endpoint.replace(/^\/+/, '');
-  if (!cleanBase) return cleanEndpoint;
+  if (!trimmedBase) return cleanEndpoint;
 
   // Same-origin marker: bot lives behind this same host/proxy → standard /api/v1.
-  if (cleanBase === '/') return `/api/v1/${cleanEndpoint}`;
+  // Checked BEFORE stripping the trailing slash, otherwise "/" collapses to "".
+  if (trimmedBase === '/') return `/api/v1/${cleanEndpoint}`;
+
+  const cleanBase = trimmedBase.replace(/\/+$/, '');
 
   // If base already points to an API path, use it as-is.
   if (cleanBase.endsWith('/api/v1')) {
