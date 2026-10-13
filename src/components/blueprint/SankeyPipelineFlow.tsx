@@ -1,618 +1,636 @@
 import { useState, useMemo } from 'react';
-import { ENTRY_SIGNALS } from '../../data/nfiStrategyBlueprint';
-import { Filter, ArrowRight, RotateCcw } from 'lucide-react';
+import { RotateCcw, Info } from 'lucide-react';
 
 interface SankeyPipelineFlowProps {
   isDark?: boolean;
   isZh?: boolean;
 }
 
-interface TracePath {
-  tag: string;
-  side: 'long' | 'short';
-  mode: string;
-  exitPipeline: string;
-  engineChain: string;
-  orders: string;
+interface LiveTagItem {
+  id: string;
+  name: string;
+  ops: number;
   color: string;
+  side: 'long' | 'short';
+  modeId: string;
 }
 
+// Exactly 36 live tags as upstream NostalgiaForInfinityX8
+const LIVE_TAGS: LiveTagItem[] = [
+  // L Normal (Blue)
+  { id: 'L#1', name: 'L#1', ops: 710, color: '#38bdf8', side: 'long', modeId: 'mode_l_normal' },
+  { id: 'L#2', name: 'L#2', ops: 1248, color: '#38bdf8', side: 'long', modeId: 'mode_l_normal' },
+  { id: 'L#3', name: 'L#3', ops: 1133, color: '#38bdf8', side: 'long', modeId: 'mode_l_normal' },
+  { id: 'L#4', name: 'L#4', ops: 581, color: '#38bdf8', side: 'long', modeId: 'mode_l_normal' },
+  { id: 'L#5', name: 'L#5', ops: 653, color: '#38bdf8', side: 'long', modeId: 'mode_l_normal' },
+  { id: 'L#6', name: 'L#6', ops: 1297, color: '#38bdf8', side: 'long', modeId: 'mode_l_normal' },
+  // L Pump (Orange)
+  { id: 'L#21', name: 'L#21', ops: 351, color: '#fb923c', side: 'long', modeId: 'mode_l_pump' },
+  // L Quick (Green)
+  { id: 'L#41', name: 'L#41', ops: 1057, color: '#4ade80', side: 'long', modeId: 'mode_l_quick' },
+  { id: 'L#42', name: 'L#42', ops: 905, color: '#4ade80', side: 'long', modeId: 'mode_l_quick' },
+  { id: 'L#43', name: 'L#43', ops: 879, color: '#4ade80', side: 'long', modeId: 'mode_l_quick' },
+  { id: 'L#44', name: 'L#44', ops: 554, color: '#4ade80', side: 'long', modeId: 'mode_l_quick' },
+  { id: 'L#45', name: 'L#45', ops: 404, color: '#4ade80', side: 'long', modeId: 'mode_l_quick' },
+  { id: 'L#46', name: 'L#46', ops: 480, color: '#4ade80', side: 'long', modeId: 'mode_l_quick' },
+  { id: 'L#47', name: 'L#47', ops: 351, color: '#4ade80', side: 'long', modeId: 'mode_l_quick' },
+  // L Rebuy (Pink)
+  { id: 'L#61', name: 'L#61', ops: 629, color: '#f472b6', side: 'long', modeId: 'mode_l_rebuy' },
+  { id: 'L#62', name: 'L#62', ops: 651, color: '#f472b6', side: 'long', modeId: 'mode_l_rebuy' },
+  { id: 'L#63', name: 'L#63', ops: 949, color: '#f472b6', side: 'long', modeId: 'mode_l_rebuy' },
+  { id: 'L#64', name: 'L#64', ops: 762, color: '#f472b6', side: 'long', modeId: 'mode_l_rebuy' },
+  { id: 'L#65', name: 'L#65', ops: 334, color: '#f472b6', side: 'long', modeId: 'mode_l_rebuy' },
+  // L Rapid (Cyan)
+  { id: 'L#101', name: 'L#101', ops: 476, color: '#22d3ee', side: 'long', modeId: 'mode_l_rapid' },
+  { id: 'L#102', name: 'L#102', ops: 545, color: '#22d3ee', side: 'long', modeId: 'mode_l_rapid' },
+  { id: 'L#103', name: 'L#103', ops: 349, color: '#22d3ee', side: 'long', modeId: 'mode_l_rapid' },
+  { id: 'L#104', name: 'L#104', ops: 366, color: '#22d3ee', side: 'long', modeId: 'mode_l_rapid' },
+  // L Grind (Yellow)
+  { id: 'L#120', name: 'L#120', ops: 3, color: '#facc15', side: 'long', modeId: 'mode_l_grind' },
+  // L Top coins (Teal/Cyan)
+  { id: 'L#141', name: 'L#141', ops: 858, color: '#06b6d4', side: 'long', modeId: 'mode_l_tc' },
+  { id: 'L#142', name: 'L#142', ops: 834, color: '#06b6d4', side: 'long', modeId: 'mode_l_tc' },
+  { id: 'L#143', name: 'L#143', ops: 520, color: '#06b6d4', side: 'long', modeId: 'mode_l_tc' },
+  { id: 'L#144', name: 'L#144', ops: 561, color: '#06b6d4', side: 'long', modeId: 'mode_l_tc' },
+  { id: 'L#145', name: 'L#145', ops: 453, color: '#06b6d4', side: 'long', modeId: 'mode_l_tc' },
+  // L Scalp (Magenta)
+  { id: 'L#161', name: 'L#161', ops: 336, color: '#e879f9', side: 'long', modeId: 'mode_l_scalp' },
+  { id: 'L#162', name: 'L#162', ops: 310, color: '#e879f9', side: 'long', modeId: 'mode_l_scalp' },
+  { id: 'L#163', name: 'L#163', ops: 657, color: '#e879f9', side: 'long', modeId: 'mode_l_scalp' },
+  // Short tags
+  { id: 'S#501', name: 'S#501', ops: 315, color: '#f87171', side: 'short', modeId: 'mode_s_normal' },
+  { id: 'S#502', name: 'S#502', ops: 222, color: '#f87171', side: 'short', modeId: 'mode_s_normal' },
+  { id: 'S#542', name: 'S#542', ops: 185, color: '#fb923c', side: 'short', modeId: 'mode_s_quick' },
+  { id: 'S#562', name: 'S#562', ops: 1380, color: '#ef4444', side: 'short', modeId: 'mode_s_rebuy' },
+];
+
 export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipelineFlowProps) {
-  const [selectedSide, setSelectedSide] = useState<'all' | 'long' | 'short'>('all');
-  const [activeTraceTag, setActiveTraceTag] = useState<string | null>('L#1');
+  const [activeTag, setActiveTag] = useState<string>('L#1');
+  const [hoveredTag, setHoveredTag] = useState<string | null>(null);
 
-  // Live signals only for execution flow
-  const liveSignals = useMemo(() => {
-    return ENTRY_SIGNALS.filter(
-      (s) => s.on && (selectedSide === 'all' || s.side === selectedSide)
-    );
-  }, [selectedSide]);
+  const selectedTagItem = useMemo(() => {
+    return LIVE_TAGS.find((t) => t.id === activeTag) || LIVE_TAGS[0];
+  }, [activeTag]);
 
-  // Pre-mapped trace paths
-  const traceMap: Record<string, TracePath> = {
-    'L#1': {
-      tag: 'L#1',
-      side: 'long',
-      mode: 'long_normal',
-      exitPipeline: 'long_exit_normal',
-      engineChain: 'signals → main → williams_r → dec → stoploss',
-      orders: 'grind_1_entry · derisk_level_1 · buyback_1_entry',
-      color: '#38bdf8', // sky-400
-    },
-    'L#21': {
-      tag: 'L#21',
-      side: 'long',
-      mode: 'long_pump',
-      exitPipeline: 'long_exit_pump',
-      engineChain: 'signals → main → williams_r → dec → stoploss',
-      orders: 'ladders_v4 · pump_acceleration',
-      color: '#fb923c', // orange-400
-    },
-    'L#41': {
-      tag: 'L#41',
-      side: 'long',
-      mode: 'long_quick',
-      exitPipeline: 'long_exit_quick',
-      engineChain: 'signals → main → williams_r → dec → stoploss',
-      orders: 'quick_scalp_step · derisk_level_1',
-      color: '#4ade80', // green-400
-    },
-    'L#61': {
-      tag: 'L#61',
-      side: 'long',
-      mode: 'long_rebuy',
-      exitPipeline: 'long_exit_rebuy',
-      engineChain: 'signals → main → williams_r → dec',
-      orders: 'rebuy_ladder_staged_1..3',
-      color: '#f472b6', // pink-400
-    },
-    'L#101': {
-      tag: 'L#101',
-      side: 'long',
-      mode: 'long_rapid',
-      exitPipeline: 'long_exit_rapid',
-      engineChain: 'signals → main → williams_r → dec',
-      orders: 'rapid_v4_ladders · multi_tf_snap',
-      color: '#22d3ee', // cyan-400
-    },
-    'L#120': {
-      tag: 'L#120',
-      side: 'long',
-      mode: 'long_grind',
-      exitPipeline: 'long_exit_grind',
-      engineChain: 'self-contained',
-      orders: 'legacy_grind · g1/g2_grid_rebuy',
-      color: '#facc15', // yellow-400
-    },
-    'L#141': {
-      tag: 'L#141',
-      side: 'long',
-      mode: 'long_tc',
-      exitPipeline: 'long_exit_top_coins',
-      engineChain: 'signals → main → williams_r → dec → stoploss',
-      orders: 'top_coins_v4 · momentum_filter',
-      color: '#06b6d4', // cyan-500
-    },
-    'L#161': {
-      tag: 'L#161',
-      side: 'long',
-      mode: 'long_scalp',
-      exitPipeline: 'long_exit_scalp',
-      engineChain: 'signals → main → williams_r → dec',
-      orders: 'scalp_micro_ladders_v4',
-      color: '#e879f9', // fuchsia-400
-    },
-    'S#501': {
-      tag: 'S#501',
-      side: 'short',
-      mode: 'short_normal',
-      exitPipeline: 'short_exit_normal',
-      engineChain: 'signals → main → williams_r → dec → stoploss',
-      orders: 'short_derisk_1..3 · normal_exit',
-      color: '#4ade80', // green-400
-    },
-    'S#542': {
-      tag: 'S#542',
-      side: 'short',
-      mode: 'short_quick',
-      exitPipeline: 'short_exit_quick',
-      engineChain: 'signals → main → williams_r → dec → stoploss',
-      orders: 'short_quick_v4 · fast_take_profit',
-      color: '#38bdf8', // sky-400
-    },
-    'S#562': {
-      tag: 'S#562',
-      side: 'short',
-      mode: 'short_rebuy',
-      exitPipeline: 'short_exit_rebuy',
-      engineChain: 'signals → main → williams_r → dec',
-      orders: 'short_rebuy_ladders_breakdown',
-      color: '#38bdf8', // sky-400
-    },
+  // Cubic Bezier Ribbon Generator (closed path with upper and lower curve)
+  const createRibbon = (
+    x0: number,
+    y0Top: number,
+    y0Bot: number,
+    x1: number,
+    y1Top: number,
+    y1Bot: number
+  ) => {
+    const dx = (x1 - x0) * 0.45;
+    return `M ${x0} ${y0Top} C ${x0 + dx} ${y0Top}, ${x1 - dx} ${y1Top}, ${x1} ${y1Top} L ${x1} ${y1Bot} C ${x1 - dx} ${y1Bot}, ${x0 + dx} ${y0Bot}, ${x0} ${y0Bot} Z`;
   };
 
-  const currentTrace = activeTraceTag ? traceMap[activeTraceTag] || traceMap['L#1'] : null;
+  // Trace line spline
+  const createSpline = (x0: number, y0: number, x1: number, y1: number) => {
+    const dx = (x1 - x0) * 0.45;
+    return `M ${x0} ${y0} C ${x0 + dx} ${y0}, ${x1 - dx} ${y1}, ${x1} ${y1}`;
+  };
 
-  // Mode nodes definition
-  const modeNodes = [
-    { id: 'L Normal', label: 'L Normal · 6 tags', color: '#38bdf8' },
-    { id: 'L Pump', label: 'L Pump · 1 tags', color: '#fb923c' },
-    { id: 'L Quick', label: 'L Quick · 7 tags', color: '#4ade80' },
-    { id: 'L Rebuy', label: 'L Rebuy · 5 tags', color: '#f472b6' },
-    { id: 'L Rapid', label: 'L Rapid · 4 tags', color: '#22d3ee' },
-    { id: 'L Grind', label: 'L Grind · 1 tags', color: '#facc15' },
-    { id: 'L Top coins', label: 'L Top coins · 5 tags', color: '#06b6d4' },
-    { id: 'L Scalp', label: 'L Scalp · 3 tags', color: '#e879f9' },
-    { id: 'S Normal', label: 'S Normal · 2 tags', color: '#f87171' },
-    { id: 'S Quick', label: 'S Quick · 1 tags', color: '#f87171' },
-    { id: 'S Rebuy', label: 'S Rebuy · 1 tags', color: '#f87171' },
+  // Pre-calculated target coordinates
+  // Col 1: Signals x = 160
+  // Col 2: Protections xIn = 270, xOut = 370
+  // Col 3: Gateway bar xIn = 450, xOut = 462
+  // Col 4: Tag classification xIn = 550, xOut = 670
+  // Col 5: Processing engines xIn = 760, xOut = 870
+  // Col 6: Action tiers xIn = 960, xOut = 1070
+  // Col 7: Closed xIn = 1170, xOut = 1240
+
+  const protectionNodes = [
+    { id: 'prot_overflow', name: 'Overflow guards · 38x', yTop: 50, yBot: 180, cy: 115 },
+    { id: 'prot_global', name: 'Global protections · 36x', yTop: 210, yBot: 340, cy: 275 },
+    { id: 'prot_candle', name: 'Candle health · 35x', yTop: 370, yBot: 500, cy: 435 },
+    { id: 'prot_pair', name: 'Pair mode guards · 6x', yTop: 530, yBot: 660, cy: 595 },
   ];
 
-  // Helper spline path generator
-  const createSpline = (x1: number, y1: number, x2: number, y2: number) => {
-    const dx = (x2 - x1) * 0.5;
-    return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
-  };
+  const modeNodes = [
+    { id: 'mode_l_normal', name: 'L Normal · 6 tags', yTop: 45, yBot: 85, cy: 65, color: '#38bdf8', engineId: 'eng_l_exit' },
+    { id: 'mode_l_pump', name: 'L Pump · 1 tags', yTop: 95, yBot: 135, cy: 115, color: '#fb923c', engineId: 'eng_l_exit' },
+    { id: 'mode_l_quick', name: 'L Quick · 7 tags', yTop: 145, yBot: 185, cy: 165, color: '#4ade80', engineId: 'eng_l_exit' },
+    { id: 'mode_l_rebuy', name: 'L Rebuy · 5 tags', yTop: 195, yBot: 235, cy: 215, color: '#f472b6', engineId: 'eng_v4' },
+    { id: 'mode_l_rapid', name: 'L Rapid · 4 tags', yTop: 245, yBot: 285, cy: 265, color: '#22d3ee', engineId: 'eng_v4' },
+    { id: 'mode_l_grind', name: 'L Grind · 1 tags', yTop: 295, yBot: 335, cy: 315, color: '#facc15', engineId: 'eng_legacy_grind' },
+    { id: 'mode_l_tc', name: 'L Top coins · 5 tags', yTop: 345, yBot: 385, cy: 365, color: '#06b6d4', engineId: 'eng_v4' },
+    { id: 'mode_l_scalp', name: 'L Scalp · 3 tags', yTop: 395, yBot: 435, cy: 415, color: '#e879f9', engineId: 'eng_v4' },
+    { id: 'mode_s_normal', name: 'S Normal · 2 tags', yTop: 495, yBot: 535, cy: 515, color: '#f87171', engineId: 'eng_s_exit' },
+    { id: 'mode_s_quick', name: 'S Quick · 1 tags', yTop: 550, yBot: 590, cy: 570, color: '#fb923c', engineId: 'eng_s_exit' },
+    { id: 'mode_s_rebuy', name: 'S Rebuy · 1 tags', yTop: 605, yBot: 645, cy: 625, color: '#ef4444', engineId: 'eng_s_exit' },
+  ];
+
+  const engineNodes = [
+    { id: 'eng_l_exit', name: 'L exit engines', sub: 'signals/williams/stoploss', yTop: 60, yBot: 180, cy: 120, color: '#38bdf8' },
+    { id: 'eng_v4', name: 'system_v4', sub: 'dynamic new trade ladder', yTop: 210, yBot: 350, cy: 280, color: '#a855f7' },
+    { id: 'eng_legacy_grind', name: 'legacy grind · rebuy', sub: 'staged grid recovery', yTop: 380, yBot: 470, cy: 425, color: '#fb7185' },
+    { id: 'eng_s_exit', name: 'S exit engines', sub: 'short reversal exit stack', yTop: 500, yBot: 640, cy: 570, color: '#f43f5e' },
+  ];
+
+  const ladderNodes = [
+    { id: 'lad_g1', name: 'Grind 1 · 5 steps', cy: 65, color: '#facc15' },
+    { id: 'lad_g2', name: 'Grind 2 · 5 steps', cy: 115, color: '#facc15' },
+    { id: 'lad_g3', name: 'Grind 3 · 5 steps', cy: 165, color: '#facc15' },
+    { id: 'lad_g4', name: 'Grind 4 · 5 steps', cy: 215, color: '#facc15' },
+    { id: 'lad_g5', name: 'Grind 5 · 5 steps', cy: 265, color: '#facc15' },
+    { id: 'lad_dr1', name: 'De-risk 1 · 20%', cy: 335, color: '#fb923c' },
+    { id: 'lad_dr2', name: 'De-risk 2 · 30%', cy: 395, color: '#fb923c' },
+    { id: 'lad_dr3', name: 'De-risk 3 · 50%', cy: 455, color: '#fb923c' },
+    { id: 'lad_dr4', name: 'De-risk 4 · 100%', cy: 515, color: '#fb923c' },
+    { id: 'lad_bb1', name: 'Buyback 1 · 100%', cy: 585, color: '#4ade80' },
+  ];
+
+  // Active trace calculated points
+  const activeMode = modeNodes.find((m) => m.id === selectedTagItem.modeId) || modeNodes[0];
+  const activeEngine = engineNodes.find((e) => e.id === activeMode.engineId) || engineNodes[0];
+  const activeLadder = ladderNodes[0]; // Primary entry target ladder
+
+  const activeTagIndex = LIVE_TAGS.findIndex((t) => t.id === activeTag);
+  const activeTagY = 40 + activeTagIndex * 19;
 
   return (
-    <div className="space-y-4">
-      {/* Interactive Controls & Trace Info Bar */}
+    <div className="flex flex-col gap-4">
+      {/* Trace Control Bar */}
       <div
-        className={`p-3.5 rounded-xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs ${
-          isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-slate-50 border-slate-200'
+        className={`p-3.5 rounded-xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-3 ${
+          isDark
+            ? 'bg-slate-900/90 border-slate-800 text-white shadow-md'
+            : 'bg-white border-slate-300 text-black shadow-sm'
         }`}
       >
-        <div className="flex items-center flex-wrap gap-2">
-          <span className="font-semibold text-slate-400 flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 text-cyan-400" />
-            {isZh ? '视图筛选:' : 'Flow Side:'}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-cyan-400' : 'text-cyan-800'}`}>
+            {isZh ? '当前追踪信号' : 'Active Trace Tag'}:
           </span>
-          <div className="inline-flex rounded-lg p-0.5 border border-slate-700/60 bg-slate-800/60">
-            {(['all', 'long', 'short'] as const).map((side) => (
-              <button
-                key={side}
-                onClick={() => setSelectedSide(side)}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-mono capitalize transition-colors cursor-pointer ${
-                  selectedSide === side
-                    ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {side === 'all'
-                  ? isZh
-                    ? '全部 (36)'
-                    : 'All (36)'
-                  : side === 'long'
-                  ? isZh
-                    ? '仅多头 (32)'
-                    : 'Long (32)'
-                  : isZh
-                  ? '仅空头 (4)'
-                  : 'Short (4)'}
-              </button>
-            ))}
-          </div>
-
-          <span className="text-slate-600 hidden sm:inline">|</span>
-
-          {/* Quick Trace Buttons */}
-          <span className="text-slate-400 font-semibold">{isZh ? '跟踪交易流:' : 'Trace sample:'}</span>
-          {['L#1', 'L#21', 'L#41', 'L#61', 'L#120', 'S#501'].map((tag) => (
-            <button
-              key={tag}
-              onClick={() => setActiveTraceTag(tag)}
-              className={`px-2 py-0.5 rounded text-[11px] font-mono cursor-pointer transition-all ${
-                activeTraceTag === tag
-                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/30'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              {tag}
-            </button>
-          ))}
-          {activeTraceTag && (
-            <button
-              onClick={() => setActiveTraceTag(null)}
-              className="text-slate-400 hover:text-slate-200 p-1 cursor-pointer"
-              title={isZh ? '清除跟踪' : 'Clear trace'}
-            >
-              <RotateCcw className="w-3 h-3" />
-            </button>
-          )}
+          <span
+            className="text-xs font-mono font-bold px-2.5 py-1 rounded-md text-white shadow"
+            style={{ backgroundColor: selectedTagItem.color }}
+          >
+            {selectedTagItem.name} ({selectedTagItem.ops} ops)
+          </span>
+          <span className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>
+            → {activeMode.name.split('·')[0].trim()}
+          </span>
+          <span className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>
+            → {activeEngine.name}
+          </span>
+          <span className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>
+            → Closed (227 branches)
+          </span>
         </div>
 
-        {/* Current Active Trace Path Details */}
-        {currentTrace && (
-          <div className="font-mono text-[11px] text-slate-300 flex items-center gap-1.5 flex-wrap">
-            <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold">
-              {currentTrace.tag}
-            </span>
-            <ArrowRight className="w-3 h-3 text-slate-500 shrink-0" />
-            <span className="text-amber-300">{currentTrace.mode}</span>
-            <ArrowRight className="w-3 h-3 text-slate-500 shrink-0" />
-            <span className="text-purple-300">{currentTrace.exitPipeline}</span>
-            <ArrowRight className="w-3 h-3 text-slate-500 shrink-0" />
-            <span className="text-emerald-300 truncate max-w-[200px]" title={currentTrace.orders}>
-              {currentTrace.orders}
-            </span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveTag('L#1')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg border transition-all ${
+              isDark
+                ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700'
+                : 'bg-slate-100 border-slate-400 text-black hover:bg-slate-200'
+            }`}
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            {isZh ? '重置为 L#1' : 'Reset (L#1)'}
+          </button>
+        </div>
       </div>
 
-      {/* SVG Interactive Execution Sankey Diagram */}
-      <div
-        className={`relative w-full rounded-2xl border overflow-x-auto shadow-xl ${
-          isDark ? 'bg-[#0f172a] border-slate-800' : 'bg-slate-900 border-slate-800'
-        }`}
-      >
+      {/* Main Sankey Canvas Viewport */}
+      <div className="w-full overflow-x-auto rounded-xl border border-slate-700/80 bg-[#161a23] shadow-2xl p-2 select-none">
         <svg
-          viewBox="0 0 1200 640"
-          className="w-full min-w-[960px] h-auto select-none font-mono text-[11px]"
+          viewBox="0 0 1280 720"
+          className="w-full min-w-[1100px] h-auto font-sans"
+          style={{ maxHeight: '780px' }}
         >
           <defs>
-            <linearGradient id="gradTrace" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.9" />
-              <stop offset="50%" stopColor="#a855f7" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#34d399" stopOpacity="0.9" />
+            <linearGradient id="traceGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#38bdf8" stopOpacity="1" />
+              <stop offset="50%" stopColor="#a855f7" stopOpacity="1" />
+              <stop offset="100%" stopColor="#4ade80" stopOpacity="1" />
             </linearGradient>
+
+            <filter id="glowEffect" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3.5" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
 
-          {/* 7 Column Headers */}
-          <g className="font-sans font-bold text-[12px] fill-slate-400">
-            <text x="35" y="30">1. Entry signals</text>
-            <text x="210" y="30">2. Protections</text>
-            <text x="365" y="30">3. Volume</text>
-            <text x="470" y="30">4. tag → mode</text>
-            <text x="660" y="30">5. Exit systems</text>
-            <text x="860" y="30">6. Ladders (v4)</text>
-            <text x="1070" y="30">7. Terminal</text>
+          {/* COLUMN LABELS (Header) */}
+          <g className="text-[11px] font-bold fill-slate-400 uppercase tracking-wider">
+            <text x="25" y="24">1. Entry signals</text>
+            <text x="280" y="24">2. Protections</text>
+            <text x="430" y="24">3. Volume</text>
+            <text x="560" y="24">4. tag → mode</text>
+            <text x="770" y="24">5. Exit systems</text>
+            <text x="970" y="24">6. Ladders (v4)</text>
+            <text x="1185" y="24">7. Closed</text>
           </g>
 
-          {/* Background Connective Stream Ribbons */}
-          <g opacity={activeTraceTag ? 0.15 : 0.4} className="transition-opacity duration-300">
-            {/* Entry to Protections */}
-            <path d={createSpline(130, 100, 210, 80)} fill="none" stroke="#38bdf8" strokeWidth="18" />
-            <path d={createSpline(130, 220, 210, 150)} fill="none" stroke="#4ade80" strokeWidth="24" />
-            <path d={createSpline(130, 360, 210, 230)} fill="none" stroke="#f472b6" strokeWidth="16" />
-            <path d={createSpline(130, 480, 210, 310)} fill="none" stroke="#22d3ee" strokeWidth="14" />
-            <path d={createSpline(130, 580, 210, 230)} fill="none" stroke="#f87171" strokeWidth="12" />
+          {/* ======================================================== */}
+          {/* FLOW RIBBONS (BACKGROUND SANKEY CONNECTORS)              */}
+          {/* ======================================================== */}
+          <g opacity="0.32">
+            {/* Col 1 -> Col 2 (Protections) */}
+            <path
+              d={createRibbon(160, 40, 160, 270, 50, 180)}
+              fill="#38bdf8"
+            />
+            <path
+              d={createRibbon(160, 170, 310, 270, 210, 340)}
+              fill="#4ade80"
+            />
+            <path
+              d={createRibbon(160, 320, 500, 270, 370, 500)}
+              fill="#f472b6"
+            />
+            <path
+              d={createRibbon(160, 510, 640, 270, 530, 660)}
+              fill="#f87171"
+            />
 
-            {/* Protections to Volume Funnel */}
-            <path d={createSpline(320, 80, 375, 280)} fill="none" stroke="#60a5fa" strokeWidth="22" />
-            <path d={createSpline(320, 150, 375, 290)} fill="none" stroke="#60a5fa" strokeWidth="26" />
-            <path d={createSpline(320, 230, 375, 320)} fill="none" stroke="#60a5fa" strokeWidth="20" />
-            <path d={createSpline(320, 310, 375, 330)} fill="none" stroke="#60a5fa" strokeWidth="12" />
+            {/* Col 2 -> Col 3 (Gateway Bar x=450) */}
+            <path
+              d={createRibbon(370, 50, 180, 450, 120, 260)}
+              fill="#60a5fa"
+            />
+            <path
+              d={createRibbon(370, 210, 340, 450, 260, 400)}
+              fill="#60a5fa"
+            />
+            <path
+              d={createRibbon(370, 370, 500, 450, 400, 540)}
+              fill="#60a5fa"
+            />
+            <path
+              d={createRibbon(370, 530, 660, 450, 540, 620)}
+              fill="#60a5fa"
+            />
 
-            {/* Volume Funnel to Modes */}
-            <path d={createSpline(395, 280, 470, 75)} fill="none" stroke="#38bdf8" strokeWidth="16" />
-            <path d={createSpline(395, 290, 470, 125)} fill="none" stroke="#fb923c" strokeWidth="8" />
-            <path d={createSpline(395, 300, 470, 175)} fill="none" stroke="#4ade80" strokeWidth="20" />
-            <path d={createSpline(395, 310, 470, 225)} fill="none" stroke="#f472b6" strokeWidth="14" />
-            <path d={createSpline(395, 320, 470, 275)} fill="none" stroke="#22d3ee" strokeWidth="12" />
-            <path d={createSpline(395, 330, 470, 325)} fill="none" stroke="#facc15" strokeWidth="6" />
-            <path d={createSpline(395, 340, 470, 375)} fill="none" stroke="#06b6d4" strokeWidth="14" />
-            <path d={createSpline(395, 350, 470, 425)} fill="none" stroke="#e879f9" strokeWidth="10" />
-            <path d={createSpline(395, 360, 470, 475)} fill="none" stroke="#f87171" strokeWidth="8" />
+            {/* Col 3 -> Col 4 (Tag Modes) */}
+            {modeNodes.map((m) => (
+              <path
+                key={`rib-mode-${m.id}`}
+                d={createRibbon(462, m.cy - 12, m.cy + 12, 550, m.yTop, m.yBot)}
+                fill={m.color}
+              />
+            ))}
 
-            {/* Modes to Exit Systems */}
-            <path d={createSpline(610, 100, 660, 120)} fill="none" stroke="#818cf8" strokeWidth="24" />
-            <path d={createSpline(610, 220, 660, 240)} fill="none" stroke="#c084fc" strokeWidth="32" />
-            <path d={createSpline(610, 325, 660, 360)} fill="none" stroke="#94a3b8" strokeWidth="12" />
-            <path d={createSpline(610, 480, 660, 480)} fill="none" stroke="#f87171" strokeWidth="18" />
+            {/* Col 4 -> Col 5 (Engines) */}
+            {modeNodes.map((m) => {
+              const eng = engineNodes.find((e) => e.id === m.engineId) || engineNodes[0];
+              return (
+                <path
+                  key={`rib-eng-${m.id}`}
+                  d={createRibbon(670, m.yTop + 5, m.yBot - 5, 760, eng.cy - 18, eng.cy + 18)}
+                  fill={m.color}
+                />
+              );
+            })}
 
-            {/* Exit Systems to Ladders */}
-            <path d={createSpline(800, 120, 860, 100)} fill="none" stroke="#fbbf24" strokeWidth="18" />
-            <path d={createSpline(800, 240, 860, 240)} fill="none" stroke="#fb923c" strokeWidth="26" />
-            <path d={createSpline(800, 360, 860, 380)} fill="none" stroke="#fb923c" strokeWidth="16" />
-            <path d={createSpline(800, 480, 860, 520)} fill="none" stroke="#4ade80" strokeWidth="14" />
+            {/* Col 5 -> Col 6 (Ladders) */}
+            <path d={createRibbon(870, 80, 160, 960, 50, 280)} fill="#facc15" />
+            <path d={createRibbon(870, 230, 330, 960, 320, 530)} fill="#fb923c" />
+            <path d={createRibbon(870, 400, 450, 960, 100, 250)} fill="#fb7185" />
+            <path d={createRibbon(870, 520, 620, 960, 560, 610)} fill="#f87171" />
 
-            {/* Ladders to Terminal Closed */}
-            <path d={createSpline(1010, 100, 1070, 300)} fill="none" stroke="#64748b" strokeWidth="16" />
-            <path d={createSpline(1010, 240, 1070, 310)} fill="none" stroke="#64748b" strokeWidth="22" />
-            <path d={createSpline(1010, 380, 1070, 320)} fill="none" stroke="#64748b" strokeWidth="14" />
-            <path d={createSpline(1010, 520, 1070, 330)} fill="none" stroke="#64748b" strokeWidth="12" />
+            {/* Col 6 -> Col 7 (Closed Bar) */}
+            {ladderNodes.map((l, idx) => (
+              <path
+                key={`rib-close-${idx}`}
+                d={createRibbon(1070, l.cy - 7, l.cy + 7, 1170, 180 + idx * 30, 200 + idx * 30)}
+                fill="#64748b"
+              />
+            ))}
           </g>
 
-          {/* ACTIVE TRACE HIGHLIGHTED FLOW */}
-          {activeTraceTag && (
-            <g className="animate-in fade-in duration-300">
-              <path
-                d={createSpline(130, 110, 210, 80)}
-                fill="none"
-                stroke="url(#gradTrace)"
-                strokeWidth="6"
-                strokeLinecap="round"
-                className="drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]"
-              />
-              <path
-                d={createSpline(320, 80, 375, 290)}
-                fill="none"
-                stroke="url(#gradTrace)"
-                strokeWidth="6"
-                strokeLinecap="round"
-                className="drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]"
-              />
-              <path
-                d={createSpline(395, 290, 470, 75)}
-                fill="none"
-                stroke="url(#gradTrace)"
-                strokeWidth="6"
-                strokeLinecap="round"
-                className="drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]"
-              />
-              <path
-                d={createSpline(610, 75, 660, 120)}
-                fill="none"
-                stroke="url(#gradTrace)"
-                strokeWidth="6"
-                strokeLinecap="round"
-                className="drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]"
-              />
-              <path
-                d={createSpline(800, 120, 860, 100)}
-                fill="none"
-                stroke="url(#gradTrace)"
-                strokeWidth="6"
-                strokeLinecap="round"
-                className="drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]"
-              />
-              <path
-                d={createSpline(1010, 100, 1070, 310)}
-                fill="none"
-                stroke="url(#gradTrace)"
-                strokeWidth="6"
-                strokeLinecap="round"
-                className="drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]"
-              />
-            </g>
-          )}
+          {/* ======================================================== */}
+          {/* ACTIVE TRACE OVERLAY HIGHLIGHT LINE                      */}
+          {/* ======================================================== */}
+          <g filter="url(#glowEffect)">
+            {/* Tag to Protections */}
+            <path
+              d={createSpline(160, activeTagY, 270, 275)}
+              fill="none"
+              stroke={selectedTagItem.color}
+              strokeWidth="5"
+            />
+            {/* Protections to Gateway */}
+            <path
+              d={createSpline(370, 275, 450, activeMode.cy)}
+              fill="none"
+              stroke={selectedTagItem.color}
+              strokeWidth="5"
+            />
+            {/* Gateway to Mode */}
+            <path
+              d={createSpline(462, activeMode.cy, 550, activeMode.cy)}
+              fill="none"
+              stroke={selectedTagItem.color}
+              strokeWidth="5"
+            />
+            {/* Mode to Engine */}
+            <path
+              d={createSpline(670, activeMode.cy, 760, activeEngine.cy)}
+              fill="none"
+              stroke={selectedTagItem.color}
+              strokeWidth="5"
+            />
+            {/* Engine to Ladders */}
+            <path
+              d={createSpline(870, activeEngine.cy, 960, activeLadder.cy)}
+              fill="none"
+              stroke={selectedTagItem.color}
+              strokeWidth="5"
+            />
+            {/* Ladders to Closed */}
+            <path
+              d={createSpline(1070, activeLadder.cy, 1170, 350)}
+              fill="none"
+              stroke={selectedTagItem.color}
+              strokeWidth="5"
+            />
+          </g>
 
-          {/* COLUMN 1: ENTRY SIGNALS */}
+          {/* ======================================================== */}
+          {/* COLUMN 1: ENTRY SIGNALS (36 LIVE TAGS)                   */}
+          {/* ======================================================== */}
           <g>
-            {liveSignals.slice(0, 18).map((sig, idx) => {
-              const y = 50 + idx * 31;
-              const isSelected = activeTraceTag === sig.tag;
-              const color =
-                sig.side === 'short'
-                  ? '#f87171'
-                  : sig.mode === 'Pump'
-                  ? '#fb923c'
-                  : sig.mode === 'Quick'
-                  ? '#4ade80'
-                  : sig.mode === 'Rebuy'
-                  ? '#f472b6'
-                  : sig.mode === 'Rapid'
-                  ? '#22d3ee'
-                  : sig.mode === 'Grind'
-                  ? '#facc15'
-                  : '#38bdf8';
+            {LIVE_TAGS.map((tag, idx) => {
+              const y = 40 + idx * 18.5;
+              const isSelected = activeTag === tag.id;
+              const isHovered = hoveredTag === tag.id;
 
               return (
                 <g
-                  key={sig.tag}
-                  className="cursor-pointer transition-transform hover:scale-105"
-                  onClick={() => setActiveTraceTag(sig.tag)}
+                  key={tag.id}
+                  className="cursor-pointer transition-opacity"
+                  onClick={() => setActiveTag(tag.id)}
+                  onMouseEnter={() => setHoveredTag(tag.id)}
+                  onMouseLeave={() => setHoveredTag(null)}
                 >
-                  <rect
-                    x="25"
-                    y={y}
-                    width="105"
-                    height="23"
-                    rx="5"
-                    fill={isSelected ? '#1e293b' : '#0f172a'}
-                    stroke={isSelected ? color : '#334155'}
-                    strokeWidth={isSelected ? 2 : 1}
+                  {/* Selection pill */}
+                  {isSelected && (
+                    <rect
+                      x="18"
+                      y={y - 10}
+                      width="142"
+                      height="16"
+                      rx="4"
+                      fill={tag.color}
+                      fillOpacity="0.22"
+                      stroke={tag.color}
+                      strokeWidth="1.2"
+                    />
+                  )}
+
+                  {/* Colored indicator dot */}
+                  <circle
+                    cx="28"
+                    cy={y - 2}
+                    r={isSelected ? 4.5 : 3.5}
+                    fill={tag.color}
                   />
-                  <rect x="25" y={y} width="5" height="23" rx="2" fill={color} />
+
+                  {/* Tag Name */}
                   <text
-                    x="36"
-                    y={y + 15}
-                    fill={isSelected ? '#ffffff' : '#cbd5e1'}
-                    fontWeight={isSelected ? 'bold' : 'normal'}
+                    x="38"
+                    y={y + 1}
+                    className="font-mono text-[11px] font-bold"
+                    fill={isSelected ? '#ffffff' : isHovered ? '#f1f5f9' : '#cbd5e1'}
                   >
-                    {sig.tag} · {sig.ops} ops
+                    {tag.name}
+                  </text>
+
+                  {/* Ops Count */}
+                  <text
+                    x="85"
+                    y={y + 1}
+                    className="font-mono text-[9.5px]"
+                    fill={isSelected ? tag.color : '#94a3b8'}
+                  >
+                    · {tag.ops} ops
                   </text>
                 </g>
               );
             })}
           </g>
 
-          {/* COLUMN 2: PROTECTIONS */}
+          {/* ======================================================== */}
+          {/* COLUMN 2: PROTECTIONS (4 VERTICAL GUARD CARDS)           */}
+          {/* ======================================================== */}
           <g>
-            {[
-              { label: 'Overflow guards · 38×', y: 55, h: 50 },
-              { label: 'Global protections · 36×', y: 125, h: 55 },
-              { label: 'Candle health · 35×', y: 200, h: 55 },
-              { label: 'Pair mode guards · 6×', y: 275, h: 45 },
-            ].map((p, i) => (
-              <g key={i}>
+            {protectionNodes.map((prot) => (
+              <g key={prot.id}>
                 <rect
-                  x="200"
-                  y={p.y}
-                  width="120"
-                  height={p.h}
-                  rx="7"
+                  x="270"
+                  y={prot.yTop}
+                  width="100"
+                  height={prot.yBot - prot.yTop}
+                  rx="6"
                   fill="#1e293b"
+                  fillOpacity="0.8"
                   stroke="#38bdf8"
                   strokeWidth="1.5"
-                  strokeDasharray="4 2"
+                  strokeDasharray="4 3"
                 />
-                <text x="210" y={p.y + 28} fill="#e2e8f0" fontWeight="bold">
-                  {p.label.split('·')[0]}
+                <text
+                  x="320"
+                  y={prot.cy - 4}
+                  textAnchor="middle"
+                  className="font-mono text-[10.5px] font-bold fill-slate-200"
+                >
+                  {prot.name.split('·')[0].trim()}
                 </text>
-                <text x="210" y={p.y + 42} fill="#38bdf8" fontSize="10">
-                  {p.label.split('·')[1]}
+                <text
+                  x="320"
+                  y={prot.cy + 12}
+                  textAnchor="middle"
+                  className="font-mono text-[10px] font-bold fill-cyan-400"
+                >
+                  · {prot.name.split('·')[1]?.trim() || ''}
                 </text>
               </g>
             ))}
           </g>
 
-          {/* COLUMN 3: VOLUME FUNNEL */}
+          {/* ======================================================== */}
+          {/* COLUMN 3: GATEWAY DIVIDER / VOLUME FUNNEL BAR            */}
+          {/* ======================================================== */}
           <g>
             <rect
-              x="370"
-              y="220"
-              width="25"
-              height="180"
+              x="450"
+              y="50"
+              width="12"
+              height="610"
               rx="6"
-              fill="#334155"
-              stroke="#64748b"
-              strokeWidth="1.5"
+              fill="#475569"
             />
+            {/* Vertical rotated text */}
             <text
-              x="382"
-              y="310"
-              fill="#f8fafc"
-              fontWeight="bold"
-              fontSize="11"
-              transform="rotate(-90 382 310)"
-              textAnchor="middle"
+              x="-355"
+              y="459"
+              transform="rotate(-90)"
+              className="text-[10px] font-bold font-mono fill-slate-300 uppercase tracking-widest pointer-events-none"
             >
               Volume &gt; 0 Funnel
             </text>
           </g>
 
-          {/* COLUMN 4: TAG -> MODE */}
+          {/* ======================================================== */}
+          {/* COLUMN 4: TAG CLASSIFICATION (MODE GROUPS)               */}
+          {/* ======================================================== */}
           <g>
-            {modeNodes.map((m, idx) => {
-              const y = 50 + idx * 45;
+            {modeNodes.map((m) => {
+              const isModeActive = selectedTagItem.modeId === m.id;
               return (
                 <g key={m.id}>
                   <rect
-                    x="470"
-                    y={y}
-                    width="140"
-                    height="32"
+                    x="550"
+                    y={m.yTop}
+                    width="120"
+                    height={m.yBot - m.yTop}
                     rx="6"
                     fill="#1e293b"
-                    stroke={m.color}
-                    strokeWidth="1.2"
+                    stroke={isModeActive ? m.color : '#334155'}
+                    strokeWidth={isModeActive ? 2 : 1}
                   />
-                  <rect x="470" y={y} width="4" height="32" rx="2" fill={m.color} />
-                  <text x="482" y={y + 20} fill="#f1f5f9" fontWeight="500">
-                    {m.label}
+                  <circle cx="562" cy={m.cy} r="3.5" fill={m.color} />
+                  <text
+                    x="572"
+                    y={m.cy + 3.5}
+                    className="font-mono text-[10.5px] font-bold"
+                    fill={isModeActive ? '#ffffff' : '#cbd5e1'}
+                  >
+                    {m.name}
                   </text>
                 </g>
               );
             })}
           </g>
 
-          {/* COLUMN 5: EXIT SYSTEMS */}
+          {/* ======================================================== */}
+          {/* COLUMN 5: PROCESSING ENGINES                             */}
+          {/* ======================================================== */}
           <g>
-            {[
-              { label: 'L exit engines', sub: 'signals/williams/stoploss', y: 80, h: 80, color: '#818cf8' },
-              { label: 'system_v4', sub: 'dynamic new trade ladder', y: 190, h: 100, color: '#c084fc' },
-              { label: 'legacy grind rebuy', sub: 'staged grid recovery', y: 320, h: 80, color: '#94a3b8' },
-              { label: 'S exit engines', sub: 'short reversal exit stack', y: 430, h: 80, color: '#f87171' },
-            ].map((es, idx) => (
-              <g key={idx}>
-                <rect
-                  x="660"
-                  y={es.y}
-                  width="140"
-                  height={es.h}
-                  rx="8"
-                  fill="#1e293b"
-                  stroke={es.color}
-                  strokeWidth="1.5"
-                />
-                <text x="672" y={es.y + 35} fill="#ffffff" fontWeight="bold">
-                  {es.label}
-                </text>
-                <text x="672" y={es.y + 55} fill={es.color} fontSize="9.5">
-                  {es.sub}
-                </text>
-              </g>
-            ))}
+            {engineNodes.map((eng) => {
+              const isEngActive = activeEngine.id === eng.id;
+              return (
+                <g key={eng.id}>
+                  <rect
+                    x="760"
+                    y={eng.yTop}
+                    width="110"
+                    height={eng.yBot - eng.yTop}
+                    rx="6"
+                    fill="#1e293b"
+                    stroke={isEngActive ? eng.color : '#334155'}
+                    strokeWidth={isEngActive ? 2 : 1}
+                  />
+                  <text
+                    x="815"
+                    y={eng.cy - 6}
+                    textAnchor="middle"
+                    className="font-mono text-[11px] font-bold"
+                    fill={isEngActive ? '#ffffff' : '#e2e8f0'}
+                  >
+                    {eng.name}
+                  </text>
+                  <text
+                    x="815"
+                    y={eng.cy + 10}
+                    textAnchor="middle"
+                    className="font-mono text-[8.5px] fill-slate-400"
+                  >
+                    {eng.sub}
+                  </text>
+                </g>
+              );
+            })}
           </g>
 
-          {/* COLUMN 6: LADDERS */}
+          {/* ======================================================== */}
+          {/* COLUMN 6: ACTION TIERS / LADDERS                         */}
+          {/* ======================================================== */}
           <g>
-            {[
-              { label: 'Grind 1 · 5 steps', color: '#facc15', y: 60 },
-              { label: 'Grind 2 · 5 steps', color: '#facc15', y: 100 },
-              { label: 'Grind 3 · 5 steps', color: '#facc15', y: 140 },
-              { label: 'De-risk 1 · 20%', color: '#fb923c', y: 200 },
-              { label: 'De-risk 2 · 30%', color: '#fb923c', y: 245 },
-              { label: 'De-risk 3 · 50%', color: '#fb923c', y: 290 },
-              { label: 'De-risk 4 · 100%', color: '#fb923c', y: 335 },
-              { label: 'Buyback 1 · 100%', color: '#4ade80', y: 400 },
-              { label: 'Buyback 2 · 100%', color: '#4ade80', y: 445 },
-            ].map((lad, idx) => (
-              <g key={idx}>
+            {ladderNodes.map((l) => (
+              <g key={l.id}>
                 <rect
-                  x="860"
-                  y={lad.y}
-                  width="150"
+                  x="960"
+                  y={l.cy - 16}
+                  width="110"
                   height="32"
-                  rx="6"
+                  rx="5"
                   fill="#1e293b"
-                  stroke={lad.color}
-                  strokeWidth="1.2"
+                  stroke={l.color}
+                  strokeWidth="1"
+                  strokeOpacity="0.75"
                 />
-                <circle cx="875" cy={lad.y + 16} r="4" fill={lad.color} />
-                <text x="890" y={lad.y + 20} fill="#f1f5f9">
-                  {lad.label}
+                <circle cx="972" cy={l.cy} r="3" fill={l.color} />
+                <text
+                  x="982"
+                  y={l.cy + 3.5}
+                  className="font-mono text-[10px] font-bold fill-slate-200"
+                >
+                  {l.name}
                 </text>
               </g>
             ))}
           </g>
 
-          {/* COLUMN 7: TERMINAL CLOSED */}
+          {/* ======================================================== */}
+          {/* COLUMN 7: TERMINAL (CLOSED · 227 BRANCHES)               */}
+          {/* ======================================================== */}
           <g>
             <rect
-              x="1070"
-              y="220"
-              width="100"
-              height="180"
-              rx="9"
-              fill="#0f172a"
+              x="1170"
+              y="180"
+              width="75"
+              height="360"
+              rx="8"
+              fill="#334155"
+              fillOpacity="0.85"
               stroke="#64748b"
-              strokeWidth="2"
+              strokeWidth="1.5"
             />
-            <text x="1090" y="295" fill="#38bdf8" fontWeight="bold" fontSize="14">
+            <text
+              x="1207"
+              y="340"
+              textAnchor="middle"
+              className="font-mono text-[13px] font-black fill-cyan-400 tracking-wide"
+            >
               Closed
             </text>
-            <text x="1090" y="325" fill="#94a3b8" fontSize="11">
+            <text
+              x="1207"
+              y="360"
+              textAnchor="middle"
+              className="font-mono text-[9px] font-bold fill-slate-300"
+            >
               227 branches
-            </text>
-            <text x="1090" y="345" fill="#4ade80" fontSize="9.5">
-              custom_exit ✓
             </text>
           </g>
         </svg>
       </div>
 
-      {/* Legend & Pipeline Explanation */}
+      {/* Helper Note for Traders */}
       <div
-        className={`p-3 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-400 ${
-          isDark ? 'bg-slate-900/50 border-slate-800/80' : 'bg-slate-50 border-slate-200'
+        className={`flex items-start gap-2.5 p-3 rounded-lg border text-xs ${
+          isDark
+            ? 'bg-slate-900/60 border-slate-800 text-slate-300'
+            : 'bg-white border-slate-300 text-black shadow-sm'
         }`}
       >
-        <div className="flex items-center gap-3 flex-wrap font-mono text-[11px]">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-sky-400"></span> Normal
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> Quick
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-pink-400"></span> Rebuy
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> Rapid
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-yellow-400"></span> Grind
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-400"></span> Short
-          </span>
-        </div>
-        <div className="text-[11px] text-slate-500">
+        <Info className="w-4 h-4 text-cyan-500 shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <span className="font-bold">
+            {isZh ? '执行管道流转提示' : 'Execution Pipeline Insight'}:
+          </span>{' '}
           {isZh
-            ? '从左向右为策略执行流 · 点击标签可高亮完整路径 · 48 个条件在上游已停用'
-            : 'Left → right = execution order · Click tag to trace path · 48 conditions disabled upstream'}
+            ? '点击左侧任意活跃信号（L#1 - S#562）即可高亮完整的策略执行链路。所有信号必须依序穿透4重防御风控并经由Volume漏斗分发进入对应的Mode与Ladder分批阶梯。'
+            : 'Click any live signal on the far left (L#1 - S#562) to highlight its complete trade execution path. Each signal passes 4-tier protection guards and the Volume funnel before reaching mode-specific dynamic ladders.'}
         </div>
       </div>
     </div>

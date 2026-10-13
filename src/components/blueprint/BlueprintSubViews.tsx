@@ -4,8 +4,8 @@ import {
   PROTECTION_GATES,
   HARDWIRED_PROTECTIONS,
   ENTRY_SIGNALS,
+  EXIT_ENGINES,
   LADDERS_SYSTEM_V4,
-  BLUEPRINT_SUMMARY,
 } from '../../data/nfiStrategyBlueprint';
 import {
   Search,
@@ -14,57 +14,66 @@ import {
   Shield,
   Layers,
   TrendingDown,
+  Sliders,
+  Cpu,
 } from 'lucide-react';
 
-interface SubViewBaseProps {
+interface SubViewProps {
   isDark?: boolean;
   isZh?: boolean;
 }
 
-/**
- * Tab 2: Mode Routing Matrix (18 families)
- */
-export function ModeRoutingTable({ isDark = true, isZh = false }: SubViewBaseProps) {
+// ============================================================================
+// 1. MODE ROUTING TABLE COMPONENT
+// ============================================================================
+export function ModeRoutingTable({ isDark = true, isZh = false }: SubViewProps) {
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div
-        className={`p-3.5 rounded-xl border text-xs ${
-          isDark ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+        className={`p-4 rounded-xl border ${
+          isDark
+            ? 'bg-slate-900/60 border-slate-800 text-slate-200'
+            : 'bg-white border-slate-300 text-black shadow-sm'
         }`}
       >
-        <p className="font-semibold text-cyan-400 mb-1">
-          {isZh ? '模式路由机制说明' : 'Mode Routing Logic'}
-        </p>
-        <p className="leading-relaxed">
+        <div className="flex items-center gap-2 mb-1.5">
+          <Layers className={`w-5 h-5 ${isDark ? 'text-indigo-400' : 'text-indigo-700'}`} />
+          <h3 className={`text-sm font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
+            {isZh ? '模式路由矩阵 (18 组策略家族)' : 'Mode Routing Matrix (18 Strategy Families)'}
+          </h3>
+        </div>
+        <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-black font-medium'}`}>
           {isZh
-            ? '入场时满足条件的信号会为持仓贴上模式标签（如 Normal, Pump, Quick, Rebuy）。在平仓时，custom_exit 根据此标签将订单导流到对应的 exit pipeline 与引擎链；同时指导 system_v4 动态阶梯重平衡。'
-            : 'Upon entry signal confirmation, the winning condition stamps the trade tag (Normal, Pump, Quick, Rebuy, etc.). custom_exit routes this tag into its dedicated exit pipeline and engine chain; the same tag steers dynamic system_v4 ladders.'}
+            ? 'NostalgiaForInfinityX8 通过 enter_tag 条件将仓位精准路由至对应的执行家族。每个模式拥有独立的退出引擎链与动态加减仓阶梯。'
+            : 'NostalgiaForInfinityX8 maps positions dynamically via enter_tag into dedicated execution families. Each mode features isolated exit engine chains and adjust systems.'}
         </p>
       </div>
 
       <div
-        className={`rounded-xl border overflow-x-auto shadow-sm ${
-          isDark ? 'bg-[#0f172a] border-slate-800' : 'bg-white border-slate-200'
+        className={`overflow-x-auto rounded-xl border ${
+          isDark ? 'border-slate-800 bg-slate-900/40' : 'border-slate-300 bg-white shadow-sm'
         }`}
       >
-        <table className="w-full text-left text-xs font-mono border-collapse">
-          <thead>
-            <tr
-              className={`border-b text-[11px] font-sans font-bold uppercase tracking-wider ${
-                isDark ? 'bg-slate-900/80 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-600'
-              }`}
-            >
-              <th className="py-2.5 px-3">Side</th>
-              <th className="py-2.5 px-3">Family</th>
-              <th className="py-2.5 px-3">Mode name</th>
-              <th className="py-2.5 px-3">Live tags</th>
-              <th className="py-2.5 px-3">Match</th>
-              <th className="py-2.5 px-3">Exit pipeline</th>
-              <th className="py-2.5 px-3">Engine chain</th>
-              <th className="py-2.5 px-3">Adjust system</th>
+        <table className="w-full text-left text-xs">
+          <thead
+            className={`border-b ${
+              isDark
+                ? 'bg-slate-950/80 text-slate-300 border-slate-800'
+                : 'bg-slate-100 text-black border-slate-300 font-black'
+            }`}
+          >
+            <tr>
+              <th className="py-3 px-3.5 font-black">Side</th>
+              <th className="py-3 px-3.5 font-black">Family</th>
+              <th className="py-3 px-3.5 font-black">Mode Name</th>
+              <th className="py-3 px-3.5 font-black">Live Tags</th>
+              <th className="py-3 px-3.5 font-black">Match</th>
+              <th className="py-3 px-3.5 font-black">Exit Pipeline</th>
+              <th className="py-3 px-3.5 font-black">Engine Chain</th>
+              <th className="py-3 px-3.5 font-black">Adjust System</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60">
+          <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
             {MODE_ROUTING.map((m, idx) => {
               const isLong = m.side === 'long';
               const isIdle = m.idle;
@@ -72,43 +81,73 @@ export function ModeRoutingTable({ isDark = true, isZh = false }: SubViewBasePro
               return (
                 <tr
                   key={idx}
-                  className={`hover:bg-slate-800/40 transition-colors ${
-                    isIdle ? 'opacity-50' : ''
-                  }`}
+                  className={`transition-colors ${
+                    isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'
+                  } ${isIdle ? 'opacity-65' : ''}`}
                 >
-                  <td className="py-2.5 px-3 whitespace-nowrap">
+                  <td className="py-2.5 px-3.5">
                     <span
-                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${
                         isLong
-                          ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                          : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
+                          ? isDark
+                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
+                            : 'bg-blue-100 text-blue-900 border border-blue-400'
+                          : isDark
+                          ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                          : 'bg-rose-100 text-rose-900 border border-rose-400'
                       }`}
                     >
-                      {isLong ? '▲ long' : '▼ short'}
+                      {m.side.toUpperCase()}
                     </span>
                   </td>
-                  <td className="py-2.5 px-3 font-semibold text-slate-200 whitespace-nowrap">
-                    {m.family} {isIdle && <span className="text-[10px] text-slate-500 font-normal">·idle</span>}
+                  <td className={`py-2.5 px-3.5 font-semibold ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                    {m.family}
                   </td>
-                  <td className="py-2.5 px-3 text-cyan-400 whitespace-nowrap font-bold">
-                    {m.modeName}
+                  <td className="py-2.5 px-3.5 font-mono font-bold">
+                    <span className={isDark ? 'text-cyan-300' : 'text-indigo-900'}>{m.modeName}</span>
                   </td>
-                  <td className="py-2.5 px-3 text-amber-300 font-bold whitespace-nowrap">
+                  <td className={`py-2.5 px-3.5 font-mono ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
                     {m.liveTags}
                   </td>
-                  <td className="py-2.5 px-3 whitespace-nowrap">
-                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 text-[10.5px]">
-                      {m.match}
+                  <td className="py-2.5 px-3.5">
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                        m.match === 'any'
+                          ? isDark
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                            : 'bg-amber-100 text-amber-950 border border-amber-400'
+                          : isDark
+                          ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                          : 'bg-purple-100 text-purple-950 border border-purple-400'
+                      }`}
+                    >
+                      {m.match.toUpperCase()}
                     </span>
                   </td>
-                  <td className="py-2.5 px-3 text-purple-300 whitespace-nowrap">
-                    {m.exitPipeline}
+                  <td className="py-2.5 px-3.5 font-mono">
+                    <span className={isDark ? 'text-slate-300' : 'text-black font-medium'}>
+                      {m.exitPipeline}
+                    </span>
                   </td>
-                  <td className="py-2.5 px-3 text-slate-400 font-sans text-[11px]">
-                    {m.engineChain}
+                  <td className="py-2.5 px-3.5 font-mono text-[11px]">
+                    <span className={isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}>
+                      {m.engineChain}
+                    </span>
                   </td>
-                  <td className="py-2.5 px-3 text-emerald-400 whitespace-nowrap text-[11px]">
-                    {m.adjustSystem}
+                  <td className="py-2.5 px-3.5">
+                    <span
+                      className={`font-semibold ${
+                        m.adjustSystem.includes('v4')
+                          ? isDark
+                            ? 'text-emerald-400'
+                            : 'text-emerald-800'
+                          : isDark
+                          ? 'text-slate-400'
+                          : 'text-black'
+                      }`}
+                    >
+                      {m.adjustSystem}
+                    </span>
                   </td>
                 </tr>
               );
@@ -120,223 +159,298 @@ export function ModeRoutingTable({ isDark = true, isZh = false }: SubViewBasePro
   );
 }
 
-/**
- * Tab 3: Protection Gates
- */
-export function ProtectionGatesTable({ isDark = true, isZh = false }: SubViewBaseProps) {
+// ============================================================================
+// 2. PROTECTION GATES COMPONENT
+// ============================================================================
+export function ProtectionGatesTable({ isDark = true, isZh = false }: SubViewProps) {
   return (
-    <div className="space-y-4">
-      {/* Upstream Hardwired Notice */}
-      <div
-        className={`p-4 rounded-xl border ${
-          isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'
-        }`}
-      >
-        <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs mb-2">
-          <Shield className="w-4 h-4" />
-          <span>{isZh ? '上游固化通过保护门禁 (Hardwired True)' : 'Upstream Hardwired Gates (Unconditional True)'}</span>
-        </div>
-        <p className="text-xs text-slate-400 mb-3 leading-relaxed">
-          {isZh
-            ? '以下配置在上游代码中被硬编码为 True，因此这些条件当前始终无条件通过：'
-            : 'The following gate flags are hardcoded True upstream and pass unconditionally in the current live strategy bytecode:'}
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {HARDWIRED_PROTECTIONS.map((hw, idx) => (
-            <span
-              key={idx}
-              className="px-2 py-0.75 rounded-md text-[11px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/25"
-            >
-              {hw} == True
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Gates Ranking Table */}
-      <div
-        className={`rounded-xl border overflow-hidden shadow-sm ${
-          isDark ? 'bg-[#0f172a] border-slate-800' : 'bg-white border-slate-200'
-        }`}
-      >
+    <div className="flex flex-col gap-5">
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div
-          className={`px-4 py-2.5 border-b font-sans font-bold text-xs flex items-center justify-between ${
-            isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+          className={`p-4 rounded-xl border ${
+            isDark
+              ? 'bg-slate-900/60 border-slate-800 text-slate-200'
+              : 'bg-white border-slate-300 text-black shadow-sm'
           }`}
         >
-          <span>{isZh ? '高频保护门禁规则' : 'Active Protection Gate Conditions'}</span>
-          <span className="text-[11px] text-slate-500 font-mono">
-            {PROTECTION_GATES.length} primary rules
-          </span>
-        </div>
-        <table className="w-full text-left text-xs font-mono border-collapse">
-          <thead>
-            <tr
-              className={`border-b text-[11px] font-sans font-bold uppercase tracking-wider ${
-                isDark ? 'bg-slate-900/40 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
-              }`}
-            >
-              <th className="py-2.5 px-4">Gate logic condition</th>
-              <th className="py-2.5 px-4 text-right">Dependent conditions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800/60">
-            {PROTECTION_GATES.map((g, idx) => (
-              <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
-                <td className="py-2.5 px-4 text-slate-200 font-mono">{g.gate}</td>
-                <td className="py-2.5 px-4 text-right">
-                  <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 font-bold border border-cyan-500/30">
-                    {g.conditions}
+          <div className="flex items-center gap-2 mb-2">
+            <Shield className={`w-5 h-5 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} />
+            <h4 className={`text-sm font-black uppercase ${isDark ? 'text-white' : 'text-black'}`}>
+              {isZh ? '上游硬编码全量检查 (Hardwired Passes)' : 'Hardwired Upstream Passes'}
+            </h4>
+          </div>
+          <p className={`text-xs mb-3 ${isDark ? 'text-slate-400' : 'text-black font-medium'}`}>
+            {isZh
+              ? '在信号被路由或下发前，必须 100% 满足的基础环境防御断言。'
+              : 'Essential environmental assertions that must evaluate to True before any signal evaluates.'}
+          </p>
+          <div className="flex flex-col gap-2">
+            {HARDWIRED_PROTECTIONS.map((ruleStr, idx) => (
+              <div
+                key={idx}
+                className={`flex items-start gap-2 p-2.5 rounded-lg border font-mono text-xs ${
+                  isDark
+                    ? 'bg-slate-950/60 border-slate-800/80 text-slate-300'
+                    : 'bg-slate-50 border-slate-300 text-black font-semibold'
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <span className={isDark ? 'text-emerald-400 font-bold' : 'text-emerald-800 font-bold'}>
+                    {ruleStr}
                   </span>
-                </td>
-              </tr>
+                  <div className={`text-[11px] font-sans mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-800'}`}>
+                    100% hardwired upstream assertion
+                  </div>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
-        <div className="p-3 text-center text-[11px] text-slate-500 font-sans border-t border-slate-800/60">
-          ...267 rarer single-condition guards · zoom the execution flow to see individual condition masks
+          </div>
+        </div>
+
+        <div
+          className={`p-4 rounded-xl border ${
+            isDark
+              ? 'bg-slate-900/60 border-slate-800 text-slate-200'
+              : 'bg-white border-slate-300 text-black shadow-sm'
+          }`}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Sliders className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`} />
+            <h4 className={`text-sm font-black uppercase ${isDark ? 'text-white' : 'text-black'}`}>
+              {isZh ? '风控门控频率分布 (Protection Mask Gates)' : 'Top Protection Mask Gates'}
+            </h4>
+          </div>
+          <p className={`text-xs mb-3 ${isDark ? 'text-slate-400' : 'text-black font-medium'}`}>
+            {isZh
+              ? '各策略条件中出现频次最高的多周期风控门禁拦截规则。'
+              : 'Distribution of the most recurring multi-timeframe gate rules applied across conditions.'}
+          </p>
+          <div
+            className={`overflow-hidden rounded-lg border ${
+              isDark ? 'border-slate-800' : 'border-slate-300'
+            }`}
+          >
+            <table className="w-full text-left text-xs">
+              <thead
+                className={`border-b ${
+                  isDark ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-slate-100 text-black border-slate-300 font-black'
+                }`}
+              >
+                <tr>
+                  <th className="py-2 px-3 font-black">Gate Expression</th>
+                  <th className="py-2 px-3 font-black">Conditions</th>
+                </tr>
+              </thead>
+              <tbody className={`divide-y font-mono ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
+                {PROTECTION_GATES.slice(0, 7).map((g, idx) => (
+                  <tr key={idx}>
+                    <td className={`py-2 px-3 text-[11px] ${isDark ? 'text-cyan-300' : 'text-indigo-950 font-bold'}`}>
+                      {g.gate}
+                    </td>
+                    <td className={`py-2 px-3 font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>
+                      {g.conditions}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-/**
- * Tab 4: 84 Entry Signals Directory
- */
-export function EntrySignalsTable({ isDark = true, isZh = false }: SubViewBaseProps) {
-  const [searchTerm, setSearchTerm] = useState('');
+// ============================================================================
+// 3. ENTRY SIGNALS (84 CONDITIONS DIRECTORY)
+// ============================================================================
+export function EntrySignalsTable({ isDark = true, isZh = false }: SubViewProps) {
+  const [filterQuery, setFilterQuery] = useState('');
+  const [sideFilter, setSideFilter] = useState<'all' | 'long' | 'short'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'idle'>('all');
 
   const filteredSignals = useMemo(() => {
-    return ENTRY_SIGNALS.filter((s) => {
-      const matchSearch =
-        s.tag.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.mode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchStatus =
-        statusFilter === 'all'
-          ? true
-          : statusFilter === 'live'
-          ? s.on
-          : !s.on;
-      return matchSearch && matchStatus;
+    return ENTRY_SIGNALS.filter((sig) => {
+      if (sideFilter !== 'all' && sig.side !== sideFilter) return false;
+      if (statusFilter === 'live' && !sig.on) return false;
+      if (statusFilter === 'idle' && sig.on) return false;
+
+      if (!filterQuery) return true;
+      const q = filterQuery.toLowerCase();
+      return (
+        sig.tag.toLowerCase().includes(q) ||
+        sig.mode.toLowerCase().includes(q) ||
+        sig.description.toLowerCase().includes(q)
+      );
     });
-  }, [searchTerm, statusFilter]);
+  }, [filterQuery, sideFilter, statusFilter]);
 
   return (
-    <div className="space-y-4">
-      {/* Search & Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+    <div className="flex flex-col gap-4">
+      {/* Search & Filter Header */}
+      <div
+        className={`p-4 rounded-xl border flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 ${
+          isDark
+            ? 'bg-slate-900/60 border-slate-800 text-white'
+            : 'bg-white border-slate-300 text-black shadow-sm'
+        }`}
+      >
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
           <input
             type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={
-              isZh
-                ? '搜索信号代码 (如 L#1, S#501, Quick, Rebuy, RSI)...'
-                : 'Search entry signals (e.g. L#1, S#501, Quick, Rebuy, RSI)...'
-            }
-            className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs font-mono border focus:outline-hidden ${
+            value={filterQuery}
+            onChange={(e) => setFilterQuery(e.target.value)}
+            placeholder={isZh ? '搜索 Tag (如 L#1, S#501)、Mode 或描述...' : 'Search Tag (e.g. L#1, S#501), Mode, description...'}
+            className={`w-full pl-9 pr-3 py-2 text-xs rounded-lg border focus:outline-none transition-colors ${
               isDark
-                ? 'bg-slate-900 border-slate-800 text-slate-200 placeholder-slate-500 focus:border-cyan-400'
-                : 'bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-cyan-500'
+                ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500'
+                : 'bg-white border-slate-400 text-black placeholder:text-slate-600 focus:border-indigo-600 font-semibold'
             }`}
           />
         </div>
 
-        <div className="inline-flex rounded-lg p-0.5 border border-slate-700/60 bg-slate-800/60 shrink-0">
-          {(['all', 'live', 'idle'] as const).map((filter) => (
-            <button
-              key={filter}
-              onClick={() => setStatusFilter(filter)}
-              className={`px-3 py-1.5 rounded-md text-xs font-mono capitalize transition-colors cursor-pointer ${
-                statusFilter === filter
-                  ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {filter === 'all'
-                ? isZh
-                  ? `全部 (${ENTRY_SIGNALS.length})`
-                  : `All (${ENTRY_SIGNALS.length})`
-                : filter === 'live'
-                ? isZh
-                  ? `实盘启用 (${BLUEPRINT_SUMMARY.entryTagsLive})`
-                  : `Live (${BLUEPRINT_SUMMARY.entryTagsLive})`
-                : isZh
-                ? '闲置/预留 (48)'
-                : 'Idle/Off (48)'}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex rounded-lg border border-slate-400/60 overflow-hidden text-xs">
+            {(['all', 'long', 'short'] as const).map((side) => (
+              <button
+                key={side}
+                onClick={() => setSideFilter(side)}
+                className={`px-3 py-1.5 font-black uppercase transition-colors ${
+                  sideFilter === side
+                    ? isDark
+                      ? 'bg-cyan-600 text-white'
+                      : 'bg-slate-900 text-white'
+                    : isDark
+                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    : 'bg-slate-100 text-black hover:bg-slate-200'
+                }`}
+              >
+                {side}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex rounded-lg border border-slate-400/60 overflow-hidden text-xs">
+            {(['all', 'live', 'idle'] as const).map((st) => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`px-3 py-1.5 font-black uppercase transition-colors ${
+                  statusFilter === st
+                    ? isDark
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-slate-900 text-white'
+                    : isDark
+                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    : 'bg-slate-100 text-black hover:bg-slate-200'
+                }`}
+              >
+                {st}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Signals Table */}
+      {/* Directory Table */}
       <div
-        className={`rounded-xl border overflow-x-auto shadow-sm ${
-          isDark ? 'bg-[#0f172a] border-slate-800' : 'bg-white border-slate-200'
+        className={`overflow-x-auto rounded-xl border ${
+          isDark ? 'border-slate-800 bg-slate-900/40' : 'border-slate-300 bg-white shadow-sm'
         }`}
       >
-        <table className="w-full text-left text-xs font-mono border-collapse">
-          <thead>
-            <tr
-              className={`border-b text-[11px] font-sans font-bold uppercase tracking-wider ${
-                isDark ? 'bg-slate-900/80 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-600'
-              }`}
-            >
-              <th className="py-2.5 px-3">Tag</th>
-              <th className="py-2.5 px-3">Mode</th>
-              <th className="py-2.5 px-3">Description</th>
-              <th className="py-2.5 px-3">Masks</th>
-              <th className="py-2.5 px-3">Prot.</th>
-              <th className="py-2.5 px-3">Ops</th>
-              <th className="py-2.5 px-3">Ind.</th>
-              <th className="py-2.5 px-3">TFs</th>
-              <th className="py-2.5 px-3">Status</th>
+        <table className="w-full text-left text-xs">
+          <thead
+            className={`border-b ${
+              isDark
+                ? 'bg-slate-950/80 text-slate-300 border-slate-800'
+                : 'bg-slate-100 text-black border-slate-300 font-black'
+            }`}
+          >
+            <tr>
+              <th className="py-3 px-3 font-black">Tag</th>
+              <th className="py-3 px-3 font-black">Mode</th>
+              <th className="py-3 px-3 font-black">Signal Description</th>
+              <th className="py-3 px-3 font-black">Masks</th>
+              <th className="py-3 px-3 font-black">Prot.</th>
+              <th className="py-3 px-3 font-black">Ops</th>
+              <th className="py-3 px-3 font-black">Ind.</th>
+              <th className="py-3 px-3 font-black">TFs</th>
+              <th className="py-3 px-3 font-black">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60">
+          <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
             {filteredSignals.map((sig) => {
               const isLong = sig.side === 'long';
-
               return (
                 <tr
                   key={sig.tag}
-                  className={`hover:bg-slate-800/40 transition-colors ${
-                    !sig.on ? 'opacity-40' : ''
-                  }`}
+                  className={`transition-colors ${
+                    isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'
+                  } ${!sig.on ? 'opacity-65' : ''}`}
                 >
-                  <td className="py-2.5 px-3 whitespace-nowrap">
+                  <td className="py-2.5 px-3 font-mono font-bold">
                     <span
-                      className={`inline-flex items-center gap-1 font-bold ${
-                        isLong ? 'text-cyan-400' : 'text-rose-400'
+                      className={`inline-block px-1.5 py-0.5 rounded text-[11px] ${
+                        isLong
+                          ? isDark
+                            ? 'bg-blue-500/20 text-blue-400'
+                            : 'bg-blue-100 text-blue-950 border border-blue-400'
+                          : isDark
+                          ? 'bg-rose-500/20 text-rose-400'
+                          : 'bg-rose-100 text-rose-950 border border-rose-400'
                       }`}
                     >
                       {sig.tag}
                     </span>
                   </td>
-                  <td className="py-2.5 px-3 text-slate-300 font-semibold whitespace-nowrap">
-                    {sig.mode}
+                  <td className="py-2.5 px-3 font-mono">
+                    <span className={isDark ? 'text-cyan-300' : 'text-indigo-900 font-bold'}>
+                      {sig.mode}
+                    </span>
                   </td>
-                  <td className="py-2.5 px-3 font-sans text-slate-300 max-w-sm truncate" title={sig.description}>
+                  <td className={`py-2.5 px-3 ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
                     {sig.description}
                   </td>
-                  <td className="py-2.5 px-3 text-slate-400">{sig.masks}</td>
-                  <td className="py-2.5 px-3 text-slate-400">{sig.protections}</td>
-                  <td className="py-2.5 px-3 text-amber-300 font-bold">{sig.ops}</td>
-                  <td className="py-2.5 px-3 text-slate-400">{sig.indicators}</td>
-                  <td className="py-2.5 px-3 text-purple-300">{sig.timeframes}</td>
-                  <td className="py-2.5 px-3 whitespace-nowrap">
+                  <td className={`py-2.5 px-3 font-mono ${isDark ? 'text-slate-400' : 'text-black font-bold'}`}>
+                    {sig.masks}
+                  </td>
+                  <td className={`py-2.5 px-3 font-mono ${isDark ? 'text-slate-400' : 'text-black font-bold'}`}>
+                    {sig.protections}
+                  </td>
+                  <td className={`py-2.5 px-3 font-mono font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>
+                    {sig.ops}
+                  </td>
+                  <td className={`py-2.5 px-3 font-mono ${isDark ? 'text-slate-400' : 'text-black font-bold'}`}>
+                    {sig.indicators}
+                  </td>
+                  <td className={`py-2.5 px-3 font-mono text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-800 font-bold'}`}>
+                    {sig.timeframes}
+                  </td>
+                  <td className="py-2.5 px-3">
                     {sig.on ? (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                        <CheckCircle2 className="w-3 h-3" /> on
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                          isDark
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                            : 'bg-emerald-100 text-emerald-950 border border-emerald-400'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        LIVE
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-500 border border-slate-700">
-                        <XCircle className="w-3 h-3" /> off
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                          isDark
+                            ? 'bg-slate-800 text-slate-400 border border-slate-700'
+                            : 'bg-slate-200 text-slate-800 border border-slate-400'
+                        }`}
+                      >
+                        <XCircle className="w-3 h-3 text-slate-500" />
+                        OFF
                       </span>
                     )}
                   </td>
@@ -350,88 +464,206 @@ export function EntrySignalsTable({ isDark = true, isZh = false }: SubViewBasePr
   );
 }
 
-/**
- * Tab 5: Exit Engines & Ladders (system_v4)
- */
-export function ExitEnginesTable({ isDark = true, isZh = false }: SubViewBaseProps) {
+// ============================================================================
+// 4. EXIT ENGINES & LADDERS COMPONENT
+// ============================================================================
+export function ExitEnginesTable({ isDark = true, isZh = false }: SubViewProps) {
   return (
-    <div className="space-y-6">
-      {/* Stop Thresholds Summary */}
+    <div className="flex flex-col gap-5">
+      {/* Exit Engines Card */}
       <div
         className={`p-4 rounded-xl border ${
-          isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+          isDark
+            ? 'bg-slate-900/60 border-slate-800 text-slate-200'
+            : 'bg-white border-slate-300 text-black shadow-sm'
         }`}
       >
-        <div className="flex items-center gap-2 text-rose-400 font-bold text-xs mb-2">
-          <TrendingDown className="w-4 h-4" />
-          <span>{isZh ? '策略硬性止损阈值 (Stop Thresholds)' : 'Official NFI Stop Thresholds'}</span>
+        <div className="flex items-center gap-2 mb-2">
+          <TrendingDown className={`w-5 h-5 ${isDark ? 'text-rose-400' : 'text-rose-700'}`} />
+          <h4 className={`text-sm font-black uppercase ${isDark ? 'text-white' : 'text-black'}`}>
+            {isZh ? '退出引擎体系 (Exit Engine Chains)' : 'Exit Engine Architecture'}
+          </h4>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
-          <div className="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/60">
-            <span className="text-slate-500 block text-[10px]">futures_stoploss:</span>
-            <span className="text-rose-400 font-bold text-sm">-10.0%</span>
-          </div>
-          <div className="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/60">
-            <span className="text-slate-500 block text-[10px]">doom_futures:</span>
-            <span className="text-rose-500 font-bold text-sm">-20.0%</span>
-          </div>
-          <div className="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/60">
-            <span className="text-slate-500 block text-[10px]">spot_stoploss:</span>
-            <span className="text-amber-400 font-bold text-sm">-99.0%</span>
-          </div>
-          <div className="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/60">
-            <span className="text-slate-500 block text-[10px]">doom_spot:</span>
-            <span className="text-slate-400 font-bold text-sm">-99.0%</span>
-          </div>
+        <p className={`text-xs mb-3 ${isDark ? 'text-slate-400' : 'text-black font-medium'}`}>
+          {isZh
+            ? '多重退出信号链结合 Williams %R、RSI 逆转与专用硬件级止损门限。'
+            : 'Multi-layered exit engines combining signals, Williams %R momentum, and hardware-grade stoploss.'}
+        </p>
+
+        <div
+          className={`overflow-x-auto rounded-lg border ${
+            isDark ? 'border-slate-800' : 'border-slate-300'
+          }`}
+        >
+          <table className="w-full text-left text-xs">
+            <thead
+              className={`border-b ${
+                isDark ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-slate-100 text-black border-slate-300 font-black'
+              }`}
+            >
+              <tr>
+                <th className="py-2.5 px-3 font-black">Family</th>
+                <th className="py-2.5 px-3 font-black">Role / Engine Name</th>
+                <th className="py-2.5 px-3 font-black">Sell Signals Chain</th>
+                <th className="py-2.5 px-3 font-black">Exit Branches</th>
+              </tr>
+            </thead>
+            <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
+              {EXIT_ENGINES.map((eng, idx) => (
+                <tr key={idx}>
+                  <td className="py-2.5 px-3">
+                    <span
+                      className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                        eng.family.includes('Long')
+                          ? isDark
+                            ? 'bg-blue-500/20 text-blue-400'
+                            : 'bg-blue-100 text-blue-950 border border-blue-400'
+                          : isDark
+                          ? 'bg-rose-500/20 text-rose-400'
+                          : 'bg-rose-100 text-rose-950 border border-rose-400'
+                      }`}
+                    >
+                      {eng.family}
+                    </span>
+                  </td>
+                  <td className={`py-2.5 px-3 font-semibold ${isDark ? 'text-white' : 'text-black font-bold'}`}>
+                    {eng.name}
+                  </td>
+                  <td className="py-2.5 px-3 font-mono text-[11px]">
+                    <span className={isDark ? 'text-slate-300' : 'text-black font-medium'}>
+                      {eng.sellSignals} sell signals · {eng.lines} lines
+                    </span>
+                  </td>
+                  <td className={`py-2.5 px-3 font-mono font-bold ${isDark ? 'text-cyan-400' : 'text-indigo-900'}`}>
+                    {eng.exitBranches} branches
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Ladders Table (system_v4) */}
+      {/* Ladders System_v4 Card */}
       <div
-        className={`rounded-xl border overflow-hidden shadow-sm ${
-          isDark ? 'bg-[#0f172a] border-slate-800' : 'bg-white border-slate-200'
+        className={`p-4 rounded-xl border ${
+          isDark
+            ? 'bg-slate-900/60 border-slate-800 text-slate-200'
+            : 'bg-white border-slate-300 text-black shadow-sm'
         }`}
       >
+        <div className="flex items-center gap-2 mb-2">
+          <Layers className={`w-5 h-5 ${isDark ? 'text-amber-400' : 'text-amber-700'}`} />
+          <h4 className={`text-sm font-black uppercase ${isDark ? 'text-white' : 'text-black'}`}>
+            {isZh ? '动态阶梯系统 (System_v4 Ladders)' : 'Dynamic Ladders Architecture (System_v4)'}
+          </h4>
+        </div>
+        <p className={`text-xs mb-3 ${isDark ? 'text-slate-400' : 'text-black font-medium'}`}>
+          {isZh
+            ? '30 级阶梯组合：包含 5 个 Grind 循环阶梯（每阶5步分批加仓）、4 级 De-risk 降风险减仓（20%至100%）与 Buyback 回补机制。'
+            : '30-rung matrix: 5 Grind stages (5 steps each), 4 De-risk cutting tiers (20% to 100%), and Buyback mechanisms.'}
+        </p>
+
         <div
-          className={`px-4 py-2.5 border-b font-sans font-bold text-xs flex items-center justify-between ${
-            isDark ? 'bg-slate-900/80 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+          className={`overflow-x-auto rounded-lg border ${
+            isDark ? 'border-slate-800' : 'border-slate-300'
           }`}
         >
-          <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-amber-400" />
-            <span>{isZh ? 'system_v4 动态阶梯系统 (Ladders)' : 'system_v4 Dynamic Ladder Execution'}</span>
-          </div>
-          <span className="text-[11px] text-amber-400 font-mono font-bold">30 total rungs</span>
-        </div>
-
-        <table className="w-full text-left text-xs font-mono border-collapse">
-          <thead>
-            <tr
-              className={`border-b text-[11px] font-sans font-bold uppercase tracking-wider ${
-                isDark ? 'bg-slate-900/40 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
+          <table className="w-full text-left text-xs">
+            <thead
+              className={`border-b ${
+                isDark ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-slate-100 text-black border-slate-300 font-black'
               }`}
             >
-              <th className="py-2.5 px-4">Ladder type</th>
-              <th className="py-2.5 px-4">Rungs count</th>
-              <th className="py-2.5 px-4">Trigger mechanism &amp; action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800/60">
-            {[...LADDERS_SYSTEM_V4.derisk, ...LADDERS_SYSTEM_V4.grind].map((lad, idx) => (
-              <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
-                <td className="py-2.5 px-4 font-bold text-slate-200">{lad.name}</td>
-                <td className="py-2.5 px-4">
-                  <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 font-bold border border-amber-500/30">
-                    {lad.steps || 1}
-                  </span>
-                </td>
-                <td className="py-2.5 px-4 font-sans text-slate-300 text-[11px]">
-                  {lad.futuresTriggers || lad.spotTriggers || lad.share}
-                </td>
+              <tr>
+                <th className="py-2.5 px-3 font-black">Ladder Tier</th>
+                <th className="py-2.5 px-3 font-black">Steps</th>
+                <th className="py-2.5 px-3 font-black">Trigger / Action Behavior</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
+              {[...LADDERS_SYSTEM_V4.derisk, ...LADDERS_SYSTEM_V4.grind].map((lad, idx) => (
+                <tr key={idx}>
+                  <td className="py-2.5 px-3 font-mono font-bold">
+                    <span className={isDark ? 'text-amber-300' : 'text-amber-950 font-bold'}>
+                      {lad.name}
+                    </span>
+                  </td>
+                  <td className={`py-2.5 px-3 font-mono font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                    {lad.steps || 1}
+                  </td>
+                  <td className={`py-2.5 px-3 ${isDark ? 'text-slate-300' : 'text-black font-medium'}`}>
+                    {lad.futuresTriggers || lad.spotTriggers}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// 5. ARCHITECTURE OVERVIEW & CONFIG COMPONENT
+// ============================================================================
+export function ArchitectureOverview({ isDark = true, isZh = false }: SubViewProps) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div
+        className={`p-4 rounded-xl border ${
+          isDark
+            ? 'bg-slate-900/60 border-slate-800 text-slate-200'
+            : 'bg-white border-slate-300 text-black shadow-sm'
+        }`}
+      >
+        <div className="flex items-center gap-2 mb-2">
+          <Cpu className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`} />
+          <h4 className={`text-sm font-black uppercase ${isDark ? 'text-white' : 'text-black'}`}>
+            {isZh ? 'NostalgiaForInfinityX8 策略核心架构总览' : 'NostalgiaForInfinityX8 Architecture Protocol'}
+          </h4>
+        </div>
+        <p className={`text-xs mb-3 ${isDark ? 'text-slate-300' : 'text-black font-medium'}`}>
+          {isZh
+            ? 'NostalgiaForInfinityX8 (NFI X8) 是专为高频量化交易设计的复合型策略，拥有 85 个入场条件、36 个上游默认活跃信号、4 重防御风控过滤网，以及基于 System_v4 的多阶梯动态头寸调整。'
+            : 'NostalgiaForInfinityX8 (NFI X8) is an institutional-grade algorithmic trading strategy featuring 85 entry conditions, 36 upstream-live default signals, a 4-tier protection firewall, and System_v4 dynamic ladder adjustments.'}
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <div
+            className={`p-3 rounded-lg border ${
+              isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-300'
+            }`}
+          >
+            <div className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Primary Timeframe</div>
+            <div className={`text-base font-black font-mono mt-1 ${isDark ? 'text-white' : 'text-black'}`}>5m (Informative: 15m, 1h, 4h, 1d)</div>
+          </div>
+          <div
+            className={`p-3 rounded-lg border ${
+              isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-300'
+            }`}
+          >
+            <div className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Hard Stoploss</div>
+            <div className={`text-base font-black font-mono mt-1 ${isDark ? 'text-rose-400' : 'text-rose-700'}`}>-0.99 (99% Emergency Fallback)</div>
+          </div>
+          <div
+            className={`p-3 rounded-lg border ${
+              isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-300'
+            }`}
+          >
+            <div className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Futures Shorting</div>
+            <div className={`text-base font-black font-mono mt-1 ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>Enabled (can_short = True)</div>
+          </div>
+          <div
+            className={`p-3 rounded-lg border ${
+              isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-300'
+            }`}
+          >
+            <div className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Trailing Stop</div>
+            <div className={`text-base font-black font-mono mt-1 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>Disabled (Handled via Ladders)</div>
+          </div>
+        </div>
       </div>
     </div>
   );
