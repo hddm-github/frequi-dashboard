@@ -1,7 +1,6 @@
 import { useBot } from '../context/BotContext';
 import { isNfiStrategy } from '../utils/nfiSignals';
 import { Flame, Trophy, BookOpen, Layers } from 'lucide-react';
-import { SignalBadge } from '../components/SignalBadge';
 import { useT } from '../i18n/LocaleContext';
 
 const SIGNAL_CATEGORIES = [
@@ -130,7 +129,16 @@ export function SignalsView() {
                     >
                       {index + 1}
                     </span>
-                    <SignalBadge tag={sig.tag} forceNfi={isNfi} />
+                    <span
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-mono font-bold border ${
+                        isDark
+                          ? 'bg-slate-800/80 text-slate-200 border-slate-700'
+                          : 'bg-slate-100 text-slate-700 border-slate-200'
+                      }`}
+                      title={t('signals.historical_tag')}
+                    >
+                      {sig.tag}
+                    </span>
                     {isTop && <Flame className="w-3.5 h-3.5 text-amber-500 animate-pulse shrink-0" />}
                   </div>
 

@@ -127,7 +127,7 @@ export function FreqUIDashboardView() {
             <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
           </div>
           <div className="text-lg sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight whitespace-nowrap truncate">
-            {isReadOnly ? 'Hidden' : formatCurrency(profitSummary?.profit_closed_coin || 0, { showSign: true })}
+            {isReadOnly ? t('ui.hidden') : formatCurrency(profitSummary?.profit_closed_coin || 0, { showSign: true })}
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 flex items-center gap-1 font-mono whitespace-nowrap truncate">
             <span>{t('dashboard.return')}:</span>
@@ -176,7 +176,7 @@ export function FreqUIDashboardView() {
                 : 'text-rose-600 dark:text-rose-400'
             }`}
           >
-            {isReadOnly ? 'Hidden' : formatCurrency(totalUnrealized, { showSign: true })}
+            {isReadOnly ? t('ui.hidden') : formatCurrency(totalUnrealized, { showSign: true })}
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 flex items-center justify-between gap-1 whitespace-nowrap truncate">
             <span>
@@ -187,7 +187,7 @@ export function FreqUIDashboardView() {
               / {botState.max_open_trades}
             </span>
             <span className="text-[10px] sm:text-[11px] text-cyan-600 dark:text-cyan-400 font-mono font-medium">
-              {t('dashboard.used')}: {isReadOnly ? 'Hidden' : formatCurrency(totalStake)}
+              {t('dashboard.used')}: {isReadOnly ? t('ui.hidden') : formatCurrency(totalStake)}
             </span>
           </div>
         </div>
@@ -213,14 +213,14 @@ export function FreqUIDashboardView() {
             </div>
           </div>
           <div className="text-lg sm:text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight whitespace-nowrap truncate">
-            {isReadOnly ? 'Hidden' : formatCurrency(botState.balance)}
+            {isReadOnly ? t('ui.hidden') : formatCurrency(botState.balance)}
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 font-mono whitespace-nowrap truncate">
             {t('dashboard.available')}:{' '}
             <span className="text-slate-700 dark:text-slate-200 font-semibold">
-              {isReadOnly ? 'Hidden' : formatCurrency(botState.free_balance ?? botState.balance)}
+              {isReadOnly ? t('ui.hidden') : formatCurrency(botState.free_balance ?? botState.balance)}
             </span>{' '}
-            · {t('dashboard.per_trade')}: {isReadOnly ? 'Hidden' : botState.stake_amount === 'unlimited' ? t('dashboard.per_trade') : formatCurrency(Number(botState.stake_amount) || 0)}
+            · {t('dashboard.per_trade')}: {isReadOnly ? t('ui.hidden') : botState.stake_amount === 'unlimited' ? t('dashboard.per_trade') : formatCurrency(Number(botState.stake_amount) || 0)}
           </div>
         </div>
       </div>
@@ -313,7 +313,7 @@ export function FreqUIDashboardView() {
                         >
                           <span>
                             {isReadOnly
-                              ? 'Hidden'
+                              ? t('ui.hidden')
                               : formatCurrency(
                                   trade.profit_abs !== undefined
                                     ? trade.profit_abs
@@ -329,7 +329,7 @@ export function FreqUIDashboardView() {
 
                       <td className="py-2 px-3 whitespace-nowrap">
                         <div className="font-medium text-slate-700 dark:text-slate-300 font-mono">
-                          {isReadOnly ? 'Hidden' : formatCurrency(trade.stake_amount || 0)}
+                          {isReadOnly ? t('ui.hidden') : formatCurrency(trade.stake_amount || 0)}
                         </div>
                         <div className="text-[10px] text-slate-500 font-mono">{t('dashboard.amount')}: {trade.amount}</div>
                       </td>
@@ -463,7 +463,7 @@ export function FreqUIDashboardView() {
                   <div key={d.date} className="flex-1 flex flex-col items-center h-full justify-end group min-w-[24px] max-w-[48px]">
                     {hasTrade && (
                       <div className="text-[10px] text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1 font-mono text-center whitespace-nowrap z-10 bg-black/70 text-white px-1.5 py-0.5 rounded shadow pointer-events-none shrink-0">
-                        {isReadOnly ? 'Hidden' : formatCurrency(d.abs_profit, { showSign: true })} ({d.trade_count} {t('dashboard.trades_count')})
+                        {isReadOnly ? t('ui.hidden') : formatCurrency(d.abs_profit, { showSign: true })} ({d.trade_count} {t('dashboard.trades_count')})
                       </div>
                     )}
                     <div className="flex-1 w-full flex items-end justify-center">

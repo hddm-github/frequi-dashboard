@@ -7,6 +7,7 @@ import { useT } from '../i18n/LocaleContext';
 export function BotLogsView() {
   const { logs, refreshData, theme } = useBot();
   const t = useT();
+  const levelLabel = (level: string) => t(`logs.level_${level.toLowerCase()}`, level);
   const [filterLevel, setFilterLevel] = useState<string>('ALL');
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
   const isDark = theme === 'dark';
@@ -120,7 +121,7 @@ export function BotLogsView() {
                   {formatUtc8(log.timestamp, 'YYYY-MM-DD HH:mm:ss')}
                 </span>
                 <span className={`text-[10px] px-1 py-0.2 rounded font-bold shrink-0 ${levelColor}`}>
-                  {log.level}
+                  {levelLabel(log.level)}
                 </span>
                 <span className="break-all">{log.message}</span>
               </div>

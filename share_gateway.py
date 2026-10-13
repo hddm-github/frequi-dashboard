@@ -10,7 +10,7 @@ BACKEND = os.environ.get('FREQTRADE_BACKEND', 'http://ft-futures-bot:8081/api/v1
 MAX_MINUTES = 7 * 24 * 60
 TOKENS = {}
 LOCK = threading.Lock()
-# Public-safe market data only; no balances, positions, trades, profit, logs or raw config.
+# Read-only share exposes market/trade context and markers, never currency balances or profit amounts.
 ALLOWED = {'ping', 'version', 'pair_candles', 'whitelist', 'share-summary'}
 
 
@@ -24,6 +24,26 @@ def backend_json(suffix):
     )
     with urlopen(req, timeout=15) as response:
         return json.loads(response.read())
+
+
+def safe_order(order):
+    # Prices and event metadata are needed for chart markers; monetary totals are not.
+    return {
+        'order_id': order.get('order_id'),
+        'pair': order.get('pair'),
+        'status': order.get('status'),
+        'ft_order_side': order.get('ft_order_side'),
+        'ft_is_entry': order.get('ft_is_entry'),
+        'ft_order_tag': order.get('ft_order_tag'),
+        'price': order.get('price'),
+        'safe_price': order.get('safe_price'),
+        'average': order.get('average'),
+        'order_timestamp': order.get('order_timestamp'),
+        'order_date': order.get('order_date'),
+        'order_filled_timestamp': order.get('order_filled_timestamp'),
+        'order_filled_date': order.get('order_filled_date'),
+        'is_open': order.get('is_open'),
+    }
 
 
 def safe_summary():
@@ -45,9 +65,18 @@ def safe_summary():
     active = active_raw if isinstance(active_raw, list) else []
     closed = closed_raw.get('trades', []) if isinstance(closed_raw, dict) else []
     safe_active = [{
+        'trade_id': trade.get('trade_id'),
         'is_open': True,
         'is_short': bool(trade.get('is_short', False)),
+        'pair': trade.get('pair', ''),
         'open_date': trade.get('open_date'),
+        'open_timestamp': trade.get('open_timestamp'),
+        'open_rate': trade.get('open_rate'),
+        'current_rate': trade.get('current_rate'),
+        'amount': trade.get('amount'),
+        'enter_tag': trade.get('enter_tag'),
+        'timeframe': trade.get('timeframe'),
+        'orders': [safe_order(order) for order in (trade.get('orders') or [])],
         'profit_ratio': float(trade.get('profit_ratio', 0) or 0),
         'profit_pct': round(float(trade.get('profit_ratio', 0) or 0) * 100, 4),
     } for trade in active]
@@ -68,6 +97,7 @@ def safe_summary():
             'enter_tag': trade.get('enter_tag'),
             'exit_tag': trade.get('exit_tag'),
             'exit_reason': trade.get('exit_reason'),
+            'orders': [safe_order(order) for order in (trade.get('orders') or [])],
             'profit_ratio': float(trade.get('profit_ratio', 0) or 0),
             'profit_pct': round(float(trade.get('profit_ratio', 0) or 0) * 100, 4),
         })

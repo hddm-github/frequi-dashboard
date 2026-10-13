@@ -97,7 +97,7 @@ export function ClosedTradesView() {
           <div className="text-xs font-mono">
             <span className="text-slate-400 mr-1">{translate('closed.total_profit')}:</span>
             <span className={`font-bold ${totalClosedProfit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-              {isReadOnly ? 'Hidden' : formatCurrency(totalClosedProfit, { showSign: true })}
+              {isReadOnly ? translate('ui.hidden') : formatCurrency(totalClosedProfit, { showSign: true })}
             </span>
           </div>
 
@@ -183,7 +183,7 @@ export function ClosedTradesView() {
                         ) : (
                           <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                         )}
-                        <span>{isReadOnly ? 'Hidden' : formatCurrency(profitAbs, { showSign: true })}</span>
+                        <span>{isReadOnly ? translate('ui.hidden') : formatCurrency(profitAbs, { showSign: true })}</span>
                       </div>
                       <div className="text-[10px] text-slate-500 font-mono">
                         {translate('trade.return')}: {isProfit ? '+' : ''}{t.profit_pct}%
@@ -192,7 +192,7 @@ export function ClosedTradesView() {
 
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       <div className="font-medium text-slate-700 dark:text-slate-300">
-                        {isReadOnly ? 'Hidden' : formatCurrency(t.stake_amount || 0)}
+                        {isReadOnly ? translate('ui.hidden') : formatCurrency(t.stake_amount || 0)}
                       </div>
                       <div className="text-[10px] text-slate-500">{translate('dashboard.amount')}: {t.amount || '-'}</div>
                     </td>
@@ -205,7 +205,7 @@ export function ClosedTradesView() {
                             : 'bg-slate-100 text-slate-700 border-slate-200'
                         }`}
                       >
-                        {t.exit_reason || t.exit_tag || (isReadOnly ? 'Hidden' : '-')}
+                        {t.exit_reason || t.exit_tag || (isReadOnly ? translate('ui.hidden') : '-')}
                       </span>
                     </td>
 

@@ -5,6 +5,7 @@ import { Server, ShieldCheck, AlertCircle, ArrowRight, Sun, Moon, Loader2 } from
 import { normalizeApiUrl } from '../api/client';
 import { PRESET_BOTS, getPresetDisplayName } from '../config/botPresets';
 import { useLocale } from '../i18n/LocaleContext';
+import { localizeError } from '../utils/localizeError';
 
 export function LoginGateView() {
   const { addProfile, theme, setTheme, lastError } = useBot();
@@ -46,10 +47,10 @@ export function LoginGateView() {
       });
 
       if (!res.success) {
-        setErrorMsg(res.error || lastError || t('login.test_failed'));
+        setErrorMsg(localizeError(res.error || lastError, locale, t));
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || t('login.error_unknown'));
+      setErrorMsg(localizeError(err?.message, locale, t));
     } finally {
       setLoading(false);
     }

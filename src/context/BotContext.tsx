@@ -10,13 +10,15 @@ import type {
   Trade,
 } from '../types';
 import { FreqtradeClient, EMPTY_BOT_STATE, normalizeApiUrl } from '../api/client';
+import { useLocale } from '../i18n/LocaleContext';
 
-export type CurrencyUnit = 'USDT' | 'USD' | 'CNY' | 'EUR';
+export type CurrencyUnit = 'USDT' | 'USD' | 'CNY' | 'EUR' | 'IDR';
 
 export interface ExchangeRates {
   USD: number;
   CNY: number;
   EUR: number;
+  IDR: number;
 }
 
 interface BotContextValue {
@@ -271,6 +273,8 @@ function saveBotSnapshot(
 }
 
 export function BotProvider({ children }: { children: ReactNode }) {
+  const { locale } = useLocale();
+
   // Theme state: 默认白天模式 (Light mode)
   const [theme, setThemeState] = useState<'dark' | 'light'>(() => {
     const saved = localStorage.getItem('nfi_theme') as 'dark' | 'light';
@@ -285,7 +289,9 @@ export function BotProvider({ children }: { children: ReactNode }) {
       const importedName = sessionStorage.getItem('nfi_url_imported_name');
       if (importedName) {
         sessionStorage.removeItem('nfi_url_imported_name');
-        setShareToast(`已自动载入「${importedName}」并安全缓存至浏览器，地址栏已恢复干净 URL`);
+        setShareToast(locale === 'zh'
+          ? `已自动载入「${importedName}」并安全缓存至浏览器，地址栏已恢复干净 URL`
+          : `Automatically loaded “${importedName}” into browser cache. Address bar restored to clean URL.`);
       }
     } catch {}
   }, []);
@@ -419,10 +425,10 @@ export function BotProvider({ children }: { children: ReactNode }) {
     try {
       const saved = localStorage.getItem('frequi_exchange_rates');
       if (saved) {
-        return JSON.parse(saved);
+        return { USD: 1, CNY: 6.7025, EUR: 0.8929, IDR: 16000, ...JSON.parse(saved) };
       }
     } catch {}
-    return { USD: 1, CNY: 6.7025, EUR: 0.8929 };
+    return { USD: 1, CNY: 6.7025, EUR: 0.8929, IDR: 16000 };
   });
 
   const fetchLiveRates = useCallback(async () => {
@@ -433,7 +439,8 @@ export function BotProvider({ children }: { children: ReactNode }) {
         if (data?.rates) {
           const cny = Number((data.rates.CNY || 6.7025).toFixed(4));
           const eur = Number((data.rates.EUR || 0.8929).toFixed(4));
-          const updated: ExchangeRates = { USD: 1, CNY: cny, EUR: eur };
+          const idr = Number((data.rates.IDR || 16000).toFixed(2));
+          const updated: ExchangeRates = { USD: 1, CNY: cny, EUR: eur, IDR: idr };
           setExchangeRates(updated);
           localStorage.setItem('frequi_exchange_rates', JSON.stringify(updated));
         }
@@ -471,7 +478,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
   // Universal Dynamic Currency Formatter
   const formatCurrency = useCallback((val: number, options?: { showSign?: boolean; decimals?: number }): string => {
     if (hideBalances) return '••••••';
-    const decimals = options?.decimals ?? 2;
+    const decimals = options?.decimals ?? (currencyUnit === 'IDR' ? 0 : 2);
     let rate = 1;
     let symbol = 'USDT';
 
@@ -484,6 +491,9 @@ export function BotProvider({ children }: { children: ReactNode }) {
     } else if (currencyUnit === 'EUR') {
       rate = exchangeRates.EUR || 0.8929;
       symbol = '€';
+    } else if (currencyUnit === 'IDR') {
+      rate = exchangeRates.IDR || 16000;
+      symbol = 'Rp';
     } else {
       symbol = 'USDT';
     }

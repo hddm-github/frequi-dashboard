@@ -314,7 +314,8 @@ export class FreqtradeClient {
           timeframe: safe.timeframe || '5m',
           state: safe.state || 'running',
           dry_run: safe.dry_run ?? false,
-          stake_currency: safe.stake_currency || 'USDT',
+          // Share mode never exposes stake currency.
+          stake_currency: '',
           max_open_trades: safe.max_open_trades || 0,
           whitelist: safe.whitelist || [],
         };
@@ -386,9 +387,10 @@ export class FreqtradeClient {
       if (this.config.shareToken) {
         const safe = await this.request<any>('share-summary');
         return (safe.active_trades || []).map((trade: any, index: number) => ({
-          trade_id: -(index + 1), pair: 'REDACTED', is_open: true,
-          is_short: Boolean(trade.is_short), open_date: trade.open_date || '', open_timestamp: trade.open_date ? new Date(trade.open_date).getTime() : 0,
-          open_rate: 0, current_rate: 0, amount: 0, stake_amount: 0,
+          trade_id: Number(trade.trade_id || -(index + 1)), pair: trade.pair || '', is_open: true,
+          is_short: Boolean(trade.is_short), open_date: trade.open_date || '', open_timestamp: trade.open_timestamp || (trade.open_date ? new Date(trade.open_date).getTime() : 0),
+          open_rate: Number(trade.open_rate || 0), current_rate: Number(trade.current_rate || 0), amount: Number(trade.amount || 0), stake_amount: 0,
+          enter_tag: trade.enter_tag, timeframe: trade.timeframe, orders: mapOrders(trade.orders),
           profit_ratio: Number(trade.profit_ratio || 0), profit_pct: Number(trade.profit_pct || 0),
         }));
       }
@@ -498,6 +500,7 @@ export class FreqtradeClient {
           close_date: t.close_date, close_timestamp: t.close_date ? new Date(t.close_date).getTime() : undefined,
           open_rate: Number(t.open_rate || 0), close_rate: Number(t.close_rate || 0), amount: Number(t.amount || 0), stake_amount: 0,
           enter_tag: t.enter_tag, exit_tag: t.exit_tag, exit_reason: t.exit_reason,
+          orders: mapOrders(t.orders),
           profit_ratio: Number(t.profit_ratio || 0), profit_pct: Number(t.profit_pct || 0), profit_abs: 0,
         }));
       }

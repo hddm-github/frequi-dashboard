@@ -9,7 +9,7 @@ import {
   type ISeriesApi,
 } from 'lightweight-charts';
 import { useBot } from '../context/BotContext';
-import { useT } from '../i18n/LocaleContext';
+import { useLocale, useT } from '../i18n/LocaleContext';
 import { useOptionalView } from '@danfessler/trellis-react';
 import {
   CandlestickChart,
@@ -36,6 +36,62 @@ function timeframeToSeconds(tf: string): number {
   if (tf.endsWith('d')) return num * 86400;
   if (tf.endsWith('w')) return num * 604800;
   return num * 60;
+}
+
+type PositionMarkerKind = 'add' | 'build' | 'reduce';
+
+function getPositionMarkerKind(
+  order: NonNullable<Trade['orders']>[number],
+  trade: Trade,
+  index: number
+): PositionMarkerKind | null {
+  const tag = String(order.ft_order_tag || '').toLowerCase();
+  const side = String(order.ft_order_side || '').toLowerCase();
+  const entrySide = trade.is_short ? 'sell' : 'buy';
+  const isEntrySide = side === entrySide;
+  const isExitSide = side === (entrySide === 'buy' ? 'sell' : 'buy');
+  const nfiMode = tag.match(/(?:^|[^0-9])(\d{2,3})(?:[^0-9]|$)/)?.[1] || '';
+  const isNfiRebuyMode = ['61', '62', '63', '64', '65', '68', '561', '562', '563'].includes(nfiMode);
+  const isNfiGrindMode = ['120', '620'].includes(nfiMode);
+  const isDerisk = ['d', 'd1', 'derisk_level_1', 'derisk_level_2', 'derisk_level_3'].some((name) => tag === name || tag.startsWith(`${name} `));
+  const isEntry = order.ft_is_entry === true || tag.includes('entry') || tag.includes('rebuy') || tag.includes('dca') || tag.includes('grind') || isEntrySide;
+
+  // First position-opening order is represented by the dedicated Entry marker,
+  // even when its strategy tag is a numeric NFI signal such as 61.
+  if (index === 0 && isEntrySide && !isDerisk) return null;
+
+  if (isEntry) {
+    if (isNfiGrindMode || tag.includes('grind') || tag.includes('grinding')) return 'build';
+    if (isNfiRebuyMode || tag.includes('rebuy') || tag.includes('dca') || tag.includes('reaccumul') || index > 0) return 'add';
+    return null;
+  }
+
+  if (
+    isDerisk ||
+    tag.includes('partial') ||
+    tag.includes('derisk') ||
+    tag.includes('reduce') ||
+    tag.includes('de-risk') ||
+    tag.includes('sell') ||
+    isExitSide
+  ) {
+    return 'reduce';
+  }
+
+  return null;
+}
+
+function markerLabel(kind: PositionMarkerKind, isZh: boolean): string {
+  if (isZh) {
+    return kind === 'add' ? '加仓' : kind === 'build' ? '研磨' : '减仓';
+  }
+  return kind === 'add' ? 'Add' : kind === 'build' ? 'Build' : 'Reduce';
+}
+
+function markerColor(kind: PositionMarkerKind, isDark: boolean): string {
+  if (kind === 'add') return isDark ? '#38bdf8' : '#0369a1';
+  if (kind === 'build') return isDark ? '#a78bfa' : '#6d28d9';
+  return isDark ? '#f59e0b' : '#b45309';
 }
 
 export interface HoveredBarData {
@@ -148,6 +204,7 @@ function findTradesForCandle(
 export function CandleChartView() {
   const { client, botState, selectedPair, setSelectedPair, activeTrades, closedTrades, theme, formatCurrency } = useBot();
   const t = useT();
+  const { locale } = useLocale();
   const view = useOptionalView();
   const viewPair = (view?.params as Record<string, any> | undefined)?.pair;
 
@@ -277,7 +334,46 @@ export function CandleChartView() {
       return null;
     };
 
+    const addOrderMarkers = (trade: Trade) => {
+      const orders = Array.isArray(trade.orders) ? trade.orders : [];
+      const entryTime = findCandleTime(trade.open_timestamp, trade.open_date);
+      const exitTime = findCandleTime(trade.close_timestamp, trade.close_date);
+      orders.forEach((order, index) => {
+        const kind = getPositionMarkerKind(order, trade, index);
+        if (!kind) return;
+        const orderTime = findCandleTime(
+          order.order_filled_timestamp || order.order_timestamp,
+          order.order_filled_date || order.order_date
+        );
+        if (!orderTime) return;
+        // Initial entry and full exit already have dedicated markers. Do not stack Add/Reduce on them.
+        if ((kind === 'add' || kind === 'build') && entryTime === orderTime) return;
+        if (kind === 'reduce' && exitTime === orderTime) return;
+        const price = Number(order.average || order.safe_price || order.price || 0);
+        const label = markerLabel(kind, locale === 'zh');
+        const isEntry = order.ft_is_entry === true || kind !== 'reduce';
+        result.push({
+          time: orderTime,
+          position: kind === 'reduce'
+            ? (trade.is_short ? 'belowBar' : 'aboveBar')
+            : (isEntry === trade.is_short ? 'aboveBar' : 'belowBar'),
+          shape: kind === 'reduce'
+            ? (trade.is_short ? 'arrowUp' : 'arrowDown')
+            : (trade.is_short ? 'arrowDown' : 'arrowUp'),
+          color: markerColor(kind, isDark),
+          markerType: kind,
+          tradeId: trade.trade_id,
+          text: `#${trade.trade_id} ${label}${price > 0 ? ` @${formatPrice(price)}` : ''}`,
+          size: kind === 'reduce' ? 1.5 : 1.25,
+        });
+      });
+    };
+
     // Active trade entries
+    activeTrades
+      .filter((t) => t.pair === selectedPair)
+      .forEach(addOrderMarkers);
+
     activeTrades
       .filter((t) => t.pair === selectedPair)
       .forEach((trade) => {
@@ -290,6 +386,8 @@ export function CandleChartView() {
             color: trade.is_short
               ? (isDark ? '#f43f5e' : '#dc2626')
               : (isDark ? '#10b981' : '#047857'),
+            markerType: 'entry',
+            tradeId: trade.trade_id,
             text: `#${trade.trade_id} Entry @${trade.open_rate} [${trade.enter_tag || 'Buy'}]`,
             size: 2,
           });
@@ -300,6 +398,7 @@ export function CandleChartView() {
     closedTrades
       .filter((t) => t.pair === selectedPair)
       .forEach((trade) => {
+        addOrderMarkers(trade);
         if (trade.open_timestamp || trade.open_date) {
           const openTime = findCandleTime(trade.open_timestamp, trade.open_date);
           if (openTime) {
@@ -310,6 +409,8 @@ export function CandleChartView() {
               color: trade.is_short
                 ? (isDark ? '#fb7185' : '#e11d48')
                 : (isDark ? '#34d399' : '#047857'),
+              markerType: 'entry',
+              tradeId: trade.trade_id,
               text: `#${trade.trade_id} Entry @${trade.open_rate} [${trade.enter_tag || ''}]`,
               size: 1.5,
             });
@@ -327,6 +428,8 @@ export function CandleChartView() {
               color: isProfit
                 ? (isDark ? '#10b981' : '#047857')
                 : (isDark ? '#ef4444' : '#dc2626'),
+              markerType: 'exit',
+              tradeId: trade.trade_id,
               text: `#${trade.trade_id} Close @${trade.close_rate} (${isProfit ? '+' : ''}${trade.profit_pct}% ${trade.exit_reason || ''})`,
               size: 2,
             });
@@ -334,8 +437,17 @@ export function CandleChartView() {
         }
       });
 
-    return result.sort((a, b) => (a.time as number) - (b.time as number));
-  }, [showMarkers, candles, selectedPair, activeTrades, closedTrades, timeframe, botState.timeframe, isDark]);
+    const uniqueMarkers = result.filter((marker, index, all) => {
+      if (marker.markerType !== 'entry' && marker.markerType !== 'exit') return true;
+      return all.findIndex((candidate) =>
+        candidate.markerType === marker.markerType &&
+        candidate.tradeId === marker.tradeId &&
+        candidate.time === marker.time
+      ) === index;
+    });
+
+    return uniqueMarkers.sort((a, b) => (a.time as number) - (b.time as number));
+  }, [showMarkers, candles, selectedPair, activeTrades, closedTrades, timeframe, botState.timeframe, isDark, locale]);
 
   // Update markers on series whenever tradeMarkers change
   useEffect(() => {
@@ -807,6 +919,18 @@ export function CandleChartView() {
             <Bookmark className="w-3 h-3" />
             <span>{t('candle.markers_label')}: {showMarkers ? t('candle.show') : t('candle.hide')} ({tradeMarkers.length})</span>
           </button>
+          {showMarkers && (
+            <div
+              className="hidden lg:flex items-center gap-1.5 text-[10px] whitespace-nowrap"
+              title={t('candle.markers_help')}
+            >
+              <span className="text-emerald-600 dark:text-emerald-400">↑ {t('candle.long')}</span>
+              <span className="text-sky-700 dark:text-sky-300">↑ {t('candle.add_marker')}</span>
+              <span className="text-violet-700 dark:text-violet-300">↑ {t('candle.build_marker')}</span>
+              <span className="text-amber-700 dark:text-amber-300">↓ {t('candle.reduce_marker')}</span>
+              <span className="text-rose-600 dark:text-rose-400">↓ {t('candle.closed')}</span>
+            </div>
+          )}
 
           {/* Pair Trades List Dropdown */}
           <div className="relative">

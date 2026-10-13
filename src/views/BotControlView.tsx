@@ -17,6 +17,7 @@ import {
 import { EditBotModal } from '../components/EditBotModal';
 import { StrategyBlueprintModal } from '../components/StrategyBlueprintModal';
 import { useLocale } from '../i18n/LocaleContext';
+import { localizeError } from '../utils/localizeError';
 
 export function BotControlView() {
   const {
@@ -64,7 +65,7 @@ export function BotControlView() {
 
       setOpMessage(ok ? `${t('ui.operation_succeeded')} [${action}]` : `${t('ui.operation_failed')} [${action}]`);
     } catch (err: any) {
-      setOpMessage(err?.message || t('ui.operation_failed'));
+      setOpMessage(localizeError(err?.message, locale, t));
     } finally {
       setOperating(false);
     }

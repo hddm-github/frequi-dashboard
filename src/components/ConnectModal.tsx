@@ -4,6 +4,7 @@ import { X, Server, AlertCircle, ShieldCheck, Loader2 } from 'lucide-react';
 import { normalizeApiUrl } from '../api/client';
 import { PRESET_BOTS, getPresetDisplayName } from '../config/botPresets';
 import { useLocale } from '../i18n/LocaleContext';
+import { localizeError } from '../utils/localizeError';
 
 interface ConnectModalProps {
   isOpen: boolean;
@@ -52,10 +53,10 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
       if (res.success) {
         onClose();
       } else {
-        setError(res.error || t('login.test_failed'));
+        setError(res.error ? localizeError(res.error, locale, t) : t('login.test_failed'));
       }
     } catch (err: any) {
-      setError(err?.message || t('login.error_unknown'));
+      setError(localizeError(err?.message, locale, t));
     } finally {
       setLoading(false);
     }
