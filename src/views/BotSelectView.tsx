@@ -223,7 +223,7 @@ export function BotSelectView() {
                       const displayName = getPresetDisplayName(preset, locale);
                       return (
                         <option key={preset.id} value={preset.id}>
-                          {displayName} {preset.apiUrl ? `(${preset.apiUrl})` : ''}
+                          {displayName}
                         </option>
                       );
                     })}
@@ -253,11 +253,7 @@ export function BotSelectView() {
                     <div className="flex gap-1">
                       <button
                         type="button"
-                        onClick={() => {
-                          setSelectedPreset('futures');
-                          setName(defaultBotName);
-                          setApiUrl('/freq-trade');
-                        }}
+                        onClick={() => setApiUrl('/freq-trade')}
                         className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded text-[9px] font-mono cursor-pointer"
                       >
                         {t('login.futures_default')}

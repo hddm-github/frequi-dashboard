@@ -141,7 +141,7 @@ export function LoginGateView() {
                   const displayName = getPresetDisplayName(preset, locale);
                   return (
                     <option key={preset.id} value={preset.id}>
-                      {displayName} {preset.apiUrl ? `(${preset.apiUrl})` : ''}
+                      {displayName}
                     </option>
                   );
                 })}
@@ -171,11 +171,7 @@ export function LoginGateView() {
                 <div className="flex gap-1.5">
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedPreset('futures');
-                      setName(defaultBotName);
-                      setApiUrl('/freq-trade');
-                    }}
+                    onClick={() => setApiUrl('/freq-trade')}
                     className="px-2 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded text-[10px] font-mono transition-colors cursor-pointer"
                   >
                     {t('login.futures_default')}

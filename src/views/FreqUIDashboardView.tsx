@@ -383,10 +383,10 @@ export function FreqUIDashboardView() {
       </div>
 
       {/* 3. Daily Profit Distribution & Recent History */}
-      <div className="w-full min-w-0 grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-3 shrink-0">
+      <div className="w-full min-w-0 grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-3 shrink-0 md:flex-1 md:min-h-[300px]">
         {/* Daily PnL Chart */}
         <div
-          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border transition-colors flex flex-col h-[300px] sm:h-[320px] shrink-0 ${
+          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border transition-colors flex flex-col h-[300px] sm:h-[320px] md:h-full md:min-h-0 shrink-0 ${
             isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
@@ -521,7 +521,7 @@ export function FreqUIDashboardView() {
 
         {/* Recent Closed Trades summary */}
         <div
-          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border flex flex-col h-[300px] sm:h-[320px] shrink-0 transition-colors ${
+          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border flex flex-col h-[300px] sm:h-[320px] md:h-full md:min-h-0 shrink-0 transition-colors ${
             isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
