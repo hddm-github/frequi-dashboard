@@ -1,8 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import { useBot } from '../context/BotContext';
 import { Terminal, Filter, RefreshCw, ArrowDown } from 'lucide-react';
-import { formatUtc8 } from '../utils/dateUtils';
 import { useT } from '../i18n/LocaleContext';
+
+function formatLogTimestamp(raw: string): string {
+  if (!raw) return '-';
+  // Freqtrade 机器人输出的日志自带本地时间字符串（如 "2026-10-13 15:24:33,123"）
+  // 直接截取至秒级，保留服务器原始时间，避免被 formatUtc8 重复额外加 8 小时
+  if (raw.includes('-') && (raw.includes(':') || raw.includes(' '))) {
+    return raw.replace('T', ' ').replace(',', '.').slice(0, 19);
+  }
+  return raw.slice(0, 19);
+}
 
 export function BotLogsView() {
   const { logs, refreshData, theme } = useBot();
@@ -118,7 +127,7 @@ export function BotLogsView() {
                 }`}
               >
                 <span className="text-slate-600 dark:text-slate-400 text-[10px] shrink-0 font-mono">
-                  {formatUtc8(log.timestamp, 'YYYY-MM-DD HH:mm:ss')}
+                  {formatLogTimestamp(log.timestamp)}
                 </span>
                 <span className={`text-[10px] px-1 py-0.2 rounded font-bold shrink-0 ${levelColor}`}>
                   {levelLabel(log.level)}
