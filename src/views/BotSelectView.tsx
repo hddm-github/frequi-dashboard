@@ -88,7 +88,7 @@ export function BotSelectView() {
 
   return (
     <div
-      className={`min-h-screen w-screen flex flex-col justify-between transition-colors ${
+      className={`min-h-[100dvh] w-full max-w-full overflow-x-hidden flex flex-col justify-between transition-colors ${
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-50 text-slate-800'
       }`}
     >

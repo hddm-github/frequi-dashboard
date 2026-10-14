@@ -6,14 +6,34 @@
 html,
 body,
 #root {
-  width: 100vw;
-  height: 100vh;
+  /* Use 100% (not 100vw): 100vw includes the scrollbar/URL-bar gutter on mobile
+     and lets the whole page pan sideways. 100% is clamped to the visible width. */
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  /* Lock the shell: no horizontal page scroll/bounce, only vertical panning. */
+  overflow-x: hidden;
+  overflow-y: hidden;
+  overscroll-behavior: none;
+  overscroll-behavior-x: none;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   user-select: none;
   transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* Explicit guard so a stray wide child can never widen the document. */
+html,
+body {
+  position: relative;
+}
+
+/* Any element that scrolls vertically must NOT be able to scroll horizontally.
+   (When overflow-y is auto/scroll, overflow-x computes to auto unless pinned.) */
+.overflow-y-auto,
+.overflow-y-scroll {
+  overflow-x: hidden;
 }
 
 /* Light Theme */
