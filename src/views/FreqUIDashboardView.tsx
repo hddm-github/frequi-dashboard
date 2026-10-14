@@ -527,18 +527,18 @@ export function FreqUIDashboardView() {
                     className="flex-1 flex flex-col items-center h-full justify-end group min-w-[24px] max-w-[48px] cursor-pointer relative"
                     title={`${d.date}: ${formatCurrency(d.abs_profit, { showSign: true })} (${d.trade_count || 0} trades)`}
                   >
-                    {/* Hover & Active Tooltip (persis Gambar 2) */}
-                    {hasTrade && (
-                      <div
-                        className={`text-[10px] font-mono text-center whitespace-nowrap z-20 px-1.5 py-0.5 rounded shadow-lg pointer-events-none absolute -top-5 transition-opacity ${
-                          isSelected
-                            ? 'opacity-100 bg-cyan-600 text-white font-bold'
-                            : 'opacity-0 group-hover:opacity-100 bg-black/85 text-white'
-                        }`}
-                      >
-                        {isReadOnly ? t('ui.hidden') : formatCurrency(d.abs_profit, { showSign: true })} ({d.trade_count || 0})
-                      </div>
-                    )}
+                    {/* Hover & Active Tooltip (terintegrasi dengan upstream indicator) */}
+                    <div
+                      className={`text-[10px] font-mono text-center whitespace-nowrap z-20 px-1.5 py-0.5 rounded shadow-lg pointer-events-none absolute -top-5 transition-opacity ${
+                        isSelected
+                          ? 'opacity-100 bg-cyan-600 text-white font-bold'
+                          : 'opacity-0 group-hover:opacity-100 bg-black/85 text-white'
+                      }`}
+                    >
+                      {hasTrade
+                        ? `${isReadOnly ? t('ui.hidden') : formatCurrency(d.abs_profit, { showSign: true })} (${d.trade_count || 0})`
+                        : `${formatCurrency(0)} (0 ${t('dashboard.trades_count')})`}
+                    </div>
 
                     <div className="flex-1 w-full flex items-end justify-center">
                       {hasTrade ? (
@@ -555,7 +555,10 @@ export function FreqUIDashboardView() {
                           style={{ height: `${heightPct}%` }}
                         />
                       ) : (
-                        <div className="w-full max-w-[32px] h-1 rounded-t bg-slate-300 dark:bg-slate-700/60" />
+                        <div
+                          className="w-full max-w-[28px] h-1.5 rounded-full bg-slate-200 dark:bg-slate-700/80 mb-0.5 transition-colors group-hover:bg-slate-300 dark:group-hover:bg-slate-600"
+                          title={`${d.date}: 0 ${t('dashboard.trades_count')}`}
+                        />
                       )}
                     </div>
 
