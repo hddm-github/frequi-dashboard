@@ -13,6 +13,8 @@ import {
   RefreshCw,
   Eye,
   EyeOff,
+  Calendar,
+  X,
 } from 'lucide-react';
 import { SignalBadge } from '../components/SignalBadge';
 import { formatUtc8 } from '../utils/dateUtils';
@@ -43,6 +45,7 @@ export function FreqUIDashboardView() {
   const { t, locale } = useLocale();
   const isZh = locale === 'zh';
   const [isLogScale, setIsLogScale] = useState(true);
+  const [selectedDayDate, setSelectedDayDate] = useState<string | null>(null);
 
   const handleViewChart = (pair: string) => {
     setSelectedPair(pair);
@@ -72,10 +75,10 @@ export function FreqUIDashboardView() {
     return Math.max(...vals, 1);
   }, [sortedDaily]);
 
-  // Check if any day has negative profit to activate dynamic centered zero-baseline
-  const hasLossDays = useMemo(() => {
-    return sortedDaily.some((d) => (d.abs_profit || 0) < 0);
-  }, [sortedDaily]);
+  const selectedDayRecord = useMemo(() => {
+    if (!selectedDayDate) return null;
+    return sortedDaily.find((d) => d.date === selectedDayDate) || null;
+  }, [selectedDayDate, sortedDaily]);
 
   const dailyStats = useMemo(() => {
     const totalProfit = sortedDaily.reduce((sum, d) => sum + (d.abs_profit || 0), 0);
@@ -231,12 +234,19 @@ export function FreqUIDashboardView() {
           <div className="text-lg sm:text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight whitespace-nowrap truncate">
             {isReadOnly ? t('ui.hidden') : formatCurrency(botState.balance)}
           </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 font-mono whitespace-nowrap truncate">
-            {t('dashboard.available')}:{' '}
-            <span className="text-slate-700 dark:text-slate-200 font-semibold">
-              {isReadOnly ? t('ui.hidden') : formatCurrency(botState.free_balance ?? botState.balance)}
-            </span>{' '}
-            · {t('dashboard.per_trade')}: {isReadOnly ? t('ui.hidden') : botState.stake_amount === 'unlimited' ? t('dashboard.per_trade') : formatCurrency(Number(botState.stake_amount) || 0)}
+          <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 font-mono flex items-center justify-between gap-1 flex-wrap">
+            <span className="truncate">
+              {t('dashboard.available')}:{' '}
+              <span className="text-slate-700 dark:text-slate-200 font-semibold">
+                {isReadOnly ? t('ui.hidden') : formatCurrency(botState.free_balance ?? botState.balance)}
+              </span>
+            </span>
+            <span className="truncate">
+              {t('dashboard.per_trade')}:{' '}
+              <span className="text-slate-700 dark:text-slate-200 font-semibold">
+                {isReadOnly ? t('ui.hidden') : botState.stake_amount === 'unlimited' ? t('dashboard.per_trade') : formatCurrency(Number(botState.stake_amount) || 0)}
+              </span>
+            </span>
           </div>
         </div>
       </div>
@@ -444,100 +454,131 @@ export function FreqUIDashboardView() {
             </div>
           </div>
 
+          {/* Selected Date Summary Pill (persis seperti Gambar 2 versi upstream) */}
+          {selectedDayRecord && (
+            <div
+              className={`flex items-center justify-between px-2.5 py-1 rounded-lg border text-xs font-mono mb-1 shrink-0 transition-colors ${
+                isDark
+                  ? 'bg-cyan-950/40 border-cyan-800/60 text-cyan-200'
+                  : 'bg-cyan-50/80 border-cyan-200 text-cyan-900'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Calendar className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
+                <span className="font-bold text-cyan-600 dark:text-cyan-400">{selectedDayRecord.date}</span>
+                <span className="text-slate-400">·</span>
+                <span className="text-slate-500">
+                  {selectedDayRecord.trade_count || 0} {t('dashboard.trades_count')}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span
+                  className={`font-bold ${
+                    selectedDayRecord.abs_profit >= 0
+                      ? 'text-emerald-500 dark:text-emerald-400'
+                      : 'text-rose-500 dark:text-rose-400'
+                  }`}
+                >
+                  {isReadOnly ? t('ui.hidden') : formatCurrency(selectedDayRecord.abs_profit, { showSign: true })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDayDate(null)}
+                  className="p-0.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Close"
+                  aria-label="Close selected day summary"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Bar Chart Area: Semua batang tumbuh KE ATAS dari baseline bawah (persis versi upstream & Gambar 2) */}
           <div
-            className={`relative flex-1 min-h-[190px] flex items-stretch justify-around gap-1.5 pt-2 px-1 border-b pb-1 ${
+            className={`flex-1 min-h-[170px] flex items-end justify-around gap-1.5 pt-2 px-1 border-b pb-1 ${
               isDark ? 'border-slate-800/60' : 'border-slate-200'
             }`}
           >
-            {/* Zero-baseline center line when there are loss days */}
-            {hasLossDays && sortedDaily.length > 0 && (
-              <div
-                className={`absolute left-0 right-0 top-[calc(50%-10px)] h-px border-t border-dashed pointer-events-none z-0 ${
-                  isDark ? 'border-slate-700/70' : 'border-slate-300'
-                }`}
-              />
-            )}
-
             {sortedDaily.length === 0 ? (
               <div className="w-full text-center text-xs text-slate-400 my-auto py-4">{t('dashboard.no_performance')}</div>
             ) : (
               sortedDaily.map((d) => {
-                const isPos = d.abs_profit >= 0;
-                const absVal = Math.abs(d.abs_profit);
+                const isPos = (d.abs_profit || 0) >= 0;
+                const absVal = Math.abs(d.abs_profit || 0);
                 const hasTrade = (d.trade_count && d.trade_count > 0) || absVal > 0;
+                const isSelected = selectedDayDate === d.date;
                 let heightPct: number;
 
                 if (isLogScale) {
+                  // 对数高度映射：采用 log10(val + 1)，确保小额盈亏明显可见，大额适度延展
                   const logVal = Math.log10(absVal + 1);
                   const logMax = Math.log10(maxDailyVal + 1);
-                  heightPct = logMax > 0 ? Math.round((logVal / logMax) * (hasLossDays ? 82 : 78)) + (hasLossDays ? 10 : 12) : 10;
+                  heightPct = logMax > 0 ? Math.round((logVal / logMax) * 78) + 12 : 10;
                 } else {
-                  heightPct = Math.round((absVal / maxDailyVal) * (hasLossDays ? 86 : 80));
+                  heightPct = Math.round((absVal / maxDailyVal) * 80);
                 }
-                heightPct = Math.min(Math.max(heightPct, 6), 94);
+                heightPct = Math.min(Math.max(heightPct, 6), 92);
 
                 return (
-                  <div key={d.date} className="flex-1 flex flex-col items-center h-full justify-between group min-w-[24px] max-w-[48px] relative z-10">
-                    {/* Tooltip on hover */}
+                  <div
+                    key={d.date}
+                    onClick={() => setSelectedDayDate(isSelected ? null : d.date)}
+                    className="flex-1 flex flex-col items-center h-full justify-end group min-w-[24px] max-w-[48px] cursor-pointer relative"
+                    title={`${d.date}: ${formatCurrency(d.abs_profit, { showSign: true })} (${d.trade_count || 0} trades)`}
+                  >
+                    {/* Hover & Active Tooltip (persis Gambar 2) */}
                     {hasTrade && (
-                      <div className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity mb-1 font-mono text-center whitespace-nowrap z-20 bg-black/85 text-white px-1.5 py-0.5 rounded shadow-lg pointer-events-none absolute -top-5">
-                        {isReadOnly ? t('ui.hidden') : formatCurrency(d.abs_profit, { showSign: true })} ({d.trade_count} {t('dashboard.trades_count')})
+                      <div
+                        className={`text-[10px] font-mono text-center whitespace-nowrap z-20 px-1.5 py-0.5 rounded shadow-lg pointer-events-none absolute -top-5 transition-opacity ${
+                          isSelected
+                            ? 'opacity-100 bg-cyan-600 text-white font-bold'
+                            : 'opacity-0 group-hover:opacity-100 bg-black/85 text-white'
+                        }`}
+                      >
+                        {isReadOnly ? t('ui.hidden') : formatCurrency(d.abs_profit, { showSign: true })} ({d.trade_count || 0})
                       </div>
                     )}
 
-                    {!hasLossDays ? (
-                      /* ALL PROFIT DAYS: Full height bottom-to-top layout */
-                      <div className="flex-1 w-full flex items-end justify-center">
-                        {hasTrade ? (
-                          <div
-                            className="w-full max-w-[32px] rounded-t bg-emerald-500 hover:bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)] transition-all"
-                            style={{ height: `${heightPct}%` }}
-                          />
-                        ) : (
-                          <div className="w-full max-w-[32px] h-0" />
-                        )}
-                      </div>
-                    ) : (
-                      /* MIXED PROFIT / LOSS DAYS: Center zero-baseline layout */
-                      <div className="flex-1 w-full flex flex-col justify-center">
-                        {/* Upper Half: Positive profits growing upwards from center */}
-                        <div className="flex-1 w-full flex items-end justify-center">
-                          {hasTrade && isPos ? (
-                            <div
-                              className="w-full max-w-[32px] rounded-t bg-emerald-500 hover:bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)] transition-all"
-                              style={{ height: `${heightPct}%` }}
-                            />
-                          ) : (
-                            <div className="w-full max-w-[32px] h-0" />
-                          )}
-                        </div>
+                    <div className="flex-1 w-full flex items-end justify-center">
+                      {hasTrade ? (
+                        <div
+                          className={`w-full max-w-[32px] rounded-t transition-all ${
+                            isPos
+                              ? 'bg-emerald-500 hover:bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
+                              : 'bg-rose-500 hover:bg-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
+                          } ${
+                            isSelected
+                              ? 'ring-2 ring-cyan-400 ring-offset-1 dark:ring-offset-[#131b2e]'
+                              : ''
+                          }`}
+                          style={{ height: `${heightPct}%` }}
+                        />
+                      ) : (
+                        <div className="w-full max-w-[32px] h-1 rounded-t bg-slate-300 dark:bg-slate-700/60" />
+                      )}
+                    </div>
 
-                        {/* Lower Half: Negative losses growing downwards from center */}
-                        <div className="flex-1 w-full flex items-start justify-center">
-                          {hasTrade && !isPos ? (
-                            <div
-                              className="w-full max-w-[32px] rounded-b bg-rose-500 hover:bg-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.3)] transition-all"
-                              style={{ height: `${heightPct}%` }}
-                            />
-                          ) : (
-                            <div className="w-full max-w-[32px] h-0" />
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    <span className="text-[10px] text-slate-500 mt-1 font-mono shrink-0">{d.date.slice(5)}</span>
+                    <span
+                      className={`text-[10px] mt-1 font-mono shrink-0 transition-colors ${
+                        isSelected
+                          ? 'text-cyan-500 font-bold'
+                          : 'text-slate-500 group-hover:text-slate-400'
+                      }`}
+                    >
+                      {d.date.slice(5)}
+                    </span>
                   </div>
                 );
               })
             )}
           </div>
 
-          {/* 10-Day Trading Performance Summary Grid */}
+          {/* 10-Day Trading Performance Summary Grid (2x2 di mobile, 4 kolom di desktop persis Gambar 2) */}
           {sortedDaily.length > 0 && (
             <div className="shrink-0 flex flex-col gap-2 pt-2.5">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
-                {/* 10日累计盈亏 */}
+                {/* 10-day Cumulative P&L */}
                 <div
                   className={`p-2 rounded-lg border flex flex-col justify-between ${
                     isDark ? 'bg-[#0f1626]/70 border-slate-800/80' : 'bg-slate-50 border-slate-200/80'
@@ -557,7 +598,7 @@ export function FreqUIDashboardView() {
                   </span>
                 </div>
 
-                {/* 日均收益 */}
+                {/* Daily Avg */}
                 <div
                   className={`p-2 rounded-lg border flex flex-col justify-between ${
                     isDark ? 'bg-[#0f1626]/70 border-slate-800/80' : 'bg-slate-50 border-slate-200/80'
@@ -577,7 +618,7 @@ export function FreqUIDashboardView() {
                   </span>
                 </div>
 
-                {/* 日胜率 */}
+                {/* Daily Win Rate */}
                 <div
                   className={`p-2 rounded-lg border flex flex-col justify-between ${
                     isDark ? 'bg-[#0f1626]/70 border-slate-800/80' : 'bg-slate-50 border-slate-200/80'
@@ -591,12 +632,12 @@ export function FreqUIDashboardView() {
                       {dailyStats.dailyWinrate}%
                     </span>
                     <span className="text-[10px] text-slate-400">
-                      ({dailyStats.winDays}{isZh ? '胜' : 'W'}/{dailyStats.lossDays}{isZh ? '负' : 'L'})
+                      ({dailyStats.winDays}{isZh ? '胜' : 'W'} / {dailyStats.lossDays}{isZh ? '负' : 'L'})
                     </span>
                   </div>
                 </div>
 
-                {/* 单日最高 */}
+                {/* Best Day */}
                 <div
                   className={`p-2 rounded-lg border flex flex-col justify-between ${
                     isDark ? 'bg-[#0f1626]/70 border-slate-800/80' : 'bg-slate-50 border-slate-200/80'
@@ -609,28 +650,6 @@ export function FreqUIDashboardView() {
                     +{formatCurrency(dailyStats.bestDay)}
                   </span>
                 </div>
-              </div>
-
-              {/* 底部详细统计小字条 */}
-              <div
-                className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-mono flex items-center justify-between shrink-0 ${
-                  isDark
-                    ? 'bg-[#0f1626]/40 border-slate-800/60 text-slate-400'
-                    : 'bg-slate-50/60 border-slate-200/60 text-slate-600'
-                }`}
-              >
-                <span>
-                  {isZh
-                    ? `共平仓 ${dailyStats.totalTrades} 笔 · 笔均 `
-                    : `Closed ${dailyStats.totalTrades} trades · Avg `}
-                  {formatCurrency(dailyStats.avgTradeProfit, { showSign: true })}
-                </span>
-                <span>
-                  {isZh ? '单日最大回撤: ' : 'Max day drawdown: '}
-                  <span className="text-rose-500 font-semibold">
-                    {dailyStats.worstDay < 0 ? formatCurrency(dailyStats.worstDay) : '$0.00'}
-                  </span>
-                </span>
               </div>
             </div>
           )}
