@@ -439,7 +439,7 @@ export function FreqUIDashboardView() {
           </div>
 
           <div
-            className={`h-[185px] sm:h-[200px] shrink-0 flex items-end justify-around gap-1.5 pt-2 px-1 border-b pb-1 ${
+            className={`flex-1 min-h-[170px] flex items-end justify-around gap-1.5 pt-2 px-1 border-b pb-1 ${
               isDark ? 'border-slate-800/60' : 'border-slate-200'
             }`}
           >
@@ -464,11 +464,11 @@ export function FreqUIDashboardView() {
 
                 return (
                   <div key={d.date} className="flex-1 flex flex-col items-center h-full justify-end group min-w-[24px] max-w-[48px]">
-                    {hasTrade && (
-                      <div className="text-[10px] text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1 font-mono text-center whitespace-nowrap z-10 bg-black/70 text-white px-1.5 py-0.5 rounded shadow pointer-events-none shrink-0">
-                        {isReadOnly ? t('ui.hidden') : formatCurrency(d.abs_profit, { showSign: true })} ({d.trade_count} {t('dashboard.trades_count')})
-                      </div>
-                    )}
+                    <div className="text-[10px] text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1 font-mono text-center whitespace-nowrap z-10 bg-black/70 text-white px-1.5 py-0.5 rounded shadow pointer-events-none shrink-0">
+                      {hasTrade
+                        ? `${isReadOnly ? t('ui.hidden') : formatCurrency(d.abs_profit, { showSign: true })} (${d.trade_count} ${t('dashboard.trades_count')})`
+                        : `${formatCurrency(0)} (0 ${t('dashboard.trades_count')})`}
+                    </div>
                     <div className="flex-1 w-full flex items-end justify-center">
                       {hasTrade ? (
                         <div
@@ -480,7 +480,10 @@ export function FreqUIDashboardView() {
                           style={{ height: `${heightPct}%` }}
                         />
                       ) : (
-                        <div className="w-full max-w-[32px] h-0" />
+                        <div
+                          className="w-full max-w-[28px] h-1.5 rounded-full bg-slate-200 dark:bg-slate-700/80 mb-0.5 transition-colors group-hover:bg-slate-300 dark:group-hover:bg-slate-600"
+                          title={`${d.date}: 0 ${t('dashboard.trades_count')}`}
+                        />
                       )}
                     </div>
                     <span className="text-[10px] text-slate-500 mt-1 font-mono shrink-0">{d.date.slice(5)}</span>
@@ -492,7 +495,7 @@ export function FreqUIDashboardView() {
 
           {/* 10-Day Trading Performance Summary Grid */}
           {sortedDaily.length > 0 && (
-            <div className="flex-1 min-h-0 flex flex-col justify-between pt-2 gap-2">
+            <div className="shrink-0 flex flex-col gap-2 pt-2.5">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
                 {/* 10日累计盈亏 */}
                 <div
