@@ -96,6 +96,7 @@ export class FreqtradeClient {
     stake_currency: string;
     max_open_trades: number;
     stake_amount: number | string;
+    tradable_balance_ratio?: number;
     whitelist: string[];
   } | null = null;
   private lastStaticFetchTime: number = 0;
@@ -318,7 +319,7 @@ export class FreqtradeClient {
     }
   }
 
-  async getStaticBotConfig(forceRefresh: boolean = false) {
+  async getStaticBotConfig(forceRefresh: boolean = false): Promise<NonNullable<FreqtradeClient['cachedStaticState']>> {
     const now = Date.now();
     if (this.cachedStaticState && !forceRefresh && now - this.lastStaticFetchTime < 600000) {
       return this.cachedStaticState;
@@ -336,6 +337,7 @@ export class FreqtradeClient {
           stake_currency?: string;
           max_open_trades?: number;
           stake_amount?: number | string;
+          tradable_balance_ratio?: number;
         }>('show_config').catch(() => ({} as any)),
         this.request<{ whitelist: string[] }>('whitelist').catch(() => ({ whitelist: [] })),
       ]);
@@ -350,6 +352,7 @@ export class FreqtradeClient {
         stake_currency: configData.stake_currency || 'USDT',
         max_open_trades: configData.max_open_trades || 5,
         stake_amount: configData.stake_amount ?? 0,
+        tradable_balance_ratio: configData.tradable_balance_ratio ?? 0.99,
         whitelist: whitelistData.whitelist || [],
       };
       this.lastStaticFetchTime = now;
@@ -367,6 +370,7 @@ export class FreqtradeClient {
         stake_currency: 'USDT',
         max_open_trades: 5,
         stake_amount: 0,
+        tradable_balance_ratio: 0.99,
         whitelist: [],
       };
     }
@@ -390,6 +394,7 @@ export class FreqtradeClient {
         max_open_trades: staticConfig.max_open_trades,
         balance: balanceData.total ?? 0,
         free_balance: balanceData.free ?? balanceData.total ?? 0,
+        tradable_balance_ratio: staticConfig.tradable_balance_ratio,
         stake_amount: staticConfig.stake_amount,
         whitelist: staticConfig.whitelist,
       };

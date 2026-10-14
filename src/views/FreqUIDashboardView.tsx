@@ -61,6 +61,54 @@ export function FreqUIDashboardView() {
   const closedCount = profitSummary?.closed_trade_count || 0;
   const isDark = theme === 'dark';
 
+  // Dynamic next stake calculation based on NFI/Freqtrade unlimited stake logic
+  const nextStakeInfo = useMemo(() => {
+    if (isReadOnly) return { label: t('ui.hidden'), isFull: false };
+
+    // Fixed stake amount
+    if (
+      botState.stake_amount !== 'unlimited' &&
+      typeof botState.stake_amount === 'number' &&
+      botState.stake_amount > 0
+    ) {
+      return {
+        label: formatCurrency(botState.stake_amount),
+        isFull: false,
+      };
+    }
+
+    // Unlimited stake mode: calculate available slots and dynamic proposed stake
+    const maxTrades = botState.max_open_trades || 6;
+    const currentTradesCount = activeTrades.length;
+    const availableSlots = Math.max(0, maxTrades - currentTradesCount);
+
+    if (availableSlots === 0) {
+      return {
+        label: `${t('dashboard.slot_full')} (${currentTradesCount}/${maxTrades})`,
+        isFull: true,
+      };
+    }
+
+    const freeBalance = botState.free_balance ?? botState.balance ?? 0;
+    const tradableRatio = botState.tradable_balance_ratio ?? 0.99;
+    const estStake = (freeBalance * tradableRatio) / availableSlots;
+
+    return {
+      label: `~${formatCurrency(estStake)}`,
+      isFull: false,
+    };
+  }, [
+    isReadOnly,
+    botState.stake_amount,
+    botState.max_open_trades,
+    botState.free_balance,
+    botState.balance,
+    botState.tradable_balance_ratio,
+    activeTrades.length,
+    t,
+    formatCurrency,
+  ]);
+
   // Sort daily records ascending by date so the latest days appear chronologically on the right
   const sortedDaily = useMemo(() => {
     return [...dailyRecords]
@@ -243,8 +291,14 @@ export function FreqUIDashboardView() {
             </span>
             <span className="truncate">
               {t('dashboard.per_trade')}:{' '}
-              <span className="text-slate-700 dark:text-slate-200 font-semibold">
-                {isReadOnly ? t('ui.hidden') : botState.stake_amount === 'unlimited' ? t('dashboard.per_trade') : formatCurrency(Number(botState.stake_amount) || 0)}
+              <span
+                className={`font-semibold ${
+                  nextStakeInfo.isFull
+                    ? 'text-amber-500 dark:text-amber-400'
+                    : 'text-slate-700 dark:text-slate-200'
+                }`}
+              >
+                {nextStakeInfo.label}
               </span>
             </span>
           </div>
