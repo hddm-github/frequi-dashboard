@@ -59,6 +59,7 @@ export const en: Record<string, string> = {
   'login.error_unknown': 'Connection error. Please try again.',
   'login.footer': 'FreqUI · Direct connection to real trading data',
 
+  'logs.autoscroll': 'Auto',
   'logs.autoscroll_on': 'Auto-scroll: ON',
   'logs.autoscroll_off': 'Auto-scroll: OFF',
   'logs.autoscroll_title': 'Toggle auto-scroll to latest logs',
