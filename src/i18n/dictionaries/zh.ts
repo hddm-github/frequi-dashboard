@@ -335,6 +335,8 @@ export const zh: Record<string, string> = {
   'closed.realized_pnl': '已实现盈亏',
   'closed.exit_reason': '退出原因（退出标签）',
   'closed.newest_first': '最新优先',
+  'closed.showing': '显示',
+  'closed.trades_per_page': '条/页',
 
   // Equity Curve View
   'equity.adjust_baseline': '调整初始资金基准',

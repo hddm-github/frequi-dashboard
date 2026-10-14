@@ -343,6 +343,8 @@ export const en: Record<string, string> = {
   'closed.realized_pnl': 'Realized P&L',
   'closed.exit_reason': 'Exit reason (Exit Tag)',
   'closed.newest_first': 'Newest first',
+  'closed.showing': 'Showing',
+  'closed.trades_per_page': 'per page',
 
   // Equity Curve View
   'equity.adjust_baseline': 'Adjust initial capital baseline',

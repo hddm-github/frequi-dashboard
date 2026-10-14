@@ -116,7 +116,7 @@ export function FreqUIDashboardView() {
         const timeB = b.close_timestamp || (b.close_date ? new Date(b.close_date).getTime() : 0);
         return timeB - timeA;
       })
-      .slice(0, 30);
+      .slice(0, 10);
   }, [closedTrades]);
 
   const handleRefreshHistory = async () => {
@@ -409,10 +409,10 @@ export function FreqUIDashboardView() {
       </div>
 
       {/* 3. Daily Profit Distribution & Recent History */}
-      <div className="w-full min-w-0 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-3.5 shrink-0 lg:flex-1">
+      <div className="w-full min-w-0 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-3.5 items-start shrink-0">
         {/* Daily PnL Chart */}
         <div
-          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border transition-colors flex flex-col h-auto lg:h-full min-h-[360px] ${
+          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border transition-colors flex flex-col h-auto ${
             isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
@@ -660,7 +660,7 @@ export function FreqUIDashboardView() {
 
         {/* Recent Closed Trades summary */}
         <div
-          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border flex flex-col h-auto lg:h-full min-h-[320px] lg:flex-1 transition-colors ${
+          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border flex flex-col h-auto transition-colors ${
             isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
@@ -684,7 +684,7 @@ export function FreqUIDashboardView() {
             </div>
           </div>
 
-          <div className="space-y-1.5 flex-1 min-h-0 max-h-[360px] lg:max-h-none overflow-y-auto pr-1 font-mono text-xs">
+          <div className="space-y-1.5 max-h-[292px] overflow-y-auto pr-1 font-mono text-xs">
             {recentClosed.length === 0 ? (
               <div className="text-center text-xs text-slate-400 my-auto py-6">{t('dashboard.no_closed')}</div>
             ) : (
