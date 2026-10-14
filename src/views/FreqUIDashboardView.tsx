@@ -61,6 +61,54 @@ export function FreqUIDashboardView() {
   const closedCount = profitSummary?.closed_trade_count || 0;
   const isDark = theme === 'dark';
 
+  // Dynamic next stake calculation based on NFI/Freqtrade unlimited stake logic
+  const nextStakeInfo = useMemo(() => {
+    if (isReadOnly) return { label: t('ui.hidden'), isFull: false };
+
+    // Fixed stake amount
+    if (
+      botState.stake_amount !== 'unlimited' &&
+      typeof botState.stake_amount === 'number' &&
+      botState.stake_amount > 0
+    ) {
+      return {
+        label: formatCurrency(botState.stake_amount),
+        isFull: false,
+      };
+    }
+
+    // Unlimited stake mode: calculate available slots and dynamic proposed stake
+    const maxTrades = botState.max_open_trades || 6;
+    const currentTradesCount = activeTrades.length;
+    const availableSlots = Math.max(0, maxTrades - currentTradesCount);
+
+    if (availableSlots === 0) {
+      return {
+        label: `${t('dashboard.slot_full')} (${currentTradesCount}/${maxTrades})`,
+        isFull: true,
+      };
+    }
+
+    const freeBalance = botState.free_balance ?? botState.balance ?? 0;
+    const tradableRatio = botState.tradable_balance_ratio ?? 0.99;
+    const estStake = (freeBalance * tradableRatio) / availableSlots;
+
+    return {
+      label: `~${formatCurrency(estStake)}`,
+      isFull: false,
+    };
+  }, [
+    isReadOnly,
+    botState.stake_amount,
+    botState.max_open_trades,
+    botState.free_balance,
+    botState.balance,
+    botState.tradable_balance_ratio,
+    activeTrades.length,
+    t,
+    formatCurrency,
+  ]);
+
   // Sort daily records ascending by date so the latest days appear chronologically on the right
   const sortedDaily = useMemo(() => {
     return [...dailyRecords]
@@ -116,7 +164,7 @@ export function FreqUIDashboardView() {
         const timeB = b.close_timestamp || (b.close_date ? new Date(b.close_date).getTime() : 0);
         return timeB - timeA;
       })
-      .slice(0, 30);
+      .slice(0, 10);
   }, [closedTrades]);
 
   const handleRefreshHistory = async () => {
@@ -243,8 +291,14 @@ export function FreqUIDashboardView() {
             </span>
             <span className="truncate">
               {t('dashboard.per_trade')}:{' '}
-              <span className="text-slate-700 dark:text-slate-200 font-semibold">
-                {isReadOnly ? t('ui.hidden') : botState.stake_amount === 'unlimited' ? t('dashboard.per_trade') : formatCurrency(Number(botState.stake_amount) || 0)}
+              <span
+                className={`font-semibold ${
+                  nextStakeInfo.isFull
+                    ? 'text-amber-500 dark:text-amber-400'
+                    : 'text-slate-700 dark:text-slate-200'
+                }`}
+              >
+                {nextStakeInfo.label}
               </span>
             </span>
           </div>
@@ -409,10 +463,10 @@ export function FreqUIDashboardView() {
       </div>
 
       {/* 3. Daily Profit Distribution & Recent History */}
-      <div className="w-full min-w-0 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-3.5 shrink-0 lg:flex-1">
+      <div className="w-full min-w-0 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-3.5 shrink-0 lg:flex-1 lg:min-h-0">
         {/* Daily PnL Chart */}
         <div
-          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border transition-colors flex flex-col h-auto lg:h-full min-h-[360px] ${
+          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border transition-colors flex flex-col h-auto lg:h-full min-h-[350px] ${
             isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
@@ -496,7 +550,7 @@ export function FreqUIDashboardView() {
 
           {/* Bar Chart Area: Semua batang tumbuh KE ATAS dari baseline bawah (persis versi upstream & Gambar 2) */}
           <div
-            className={`flex-1 min-h-[170px] flex items-end justify-around gap-1.5 pt-2 px-1 border-b pb-1 ${
+            className={`flex-1 h-44 sm:h-52 lg:h-auto min-h-[170px] flex items-end justify-around gap-1.5 pt-2 px-1 border-b pb-1 ${
               isDark ? 'border-slate-800/60' : 'border-slate-200'
             }`}
           >
@@ -524,7 +578,7 @@ export function FreqUIDashboardView() {
                   <div
                     key={d.date}
                     onClick={() => setSelectedDayDate(isSelected ? null : d.date)}
-                    className="flex-1 flex flex-col items-center h-full justify-end group min-w-[24px] max-w-[48px] cursor-pointer relative"
+                    className="flex-1 flex flex-col items-center h-full min-h-0 justify-end group min-w-[24px] max-w-[48px] cursor-pointer relative"
                     title={`${d.date}: ${formatCurrency(d.abs_profit, { showSign: true })} (${d.trade_count || 0} trades)`}
                   >
                     {/* Hover & Active Tooltip (terintegrasi dengan upstream indicator) */}
@@ -540,7 +594,7 @@ export function FreqUIDashboardView() {
                         : `${formatCurrency(0)} (0 ${t('dashboard.trades_count')})`}
                     </div>
 
-                    <div className="flex-1 w-full flex items-end justify-center">
+                    <div className="flex-1 w-full h-full min-h-0 flex items-end justify-center">
                       {hasTrade ? (
                         <div
                           className={`w-full max-w-[32px] rounded-t transition-all ${
@@ -670,9 +724,6 @@ export function FreqUIDashboardView() {
               {t('dashboard.recent_closed')}
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-500 font-mono">
-                {t('dashboard.total_records').replace('{count}', String(closedTrades.length))}
-              </span>
               <button
                 onClick={handleRefreshHistory}
                 disabled={isRefreshingHistory}
@@ -684,7 +735,7 @@ export function FreqUIDashboardView() {
             </div>
           </div>
 
-          <div className="space-y-1.5 flex-1 min-h-0 max-h-[360px] lg:max-h-none overflow-y-auto pr-1 font-mono text-xs">
+          <div className="space-y-1.5 flex-1 min-h-0 max-h-[292px] lg:max-h-none overflow-y-auto pr-1 font-mono text-xs">
             {recentClosed.length === 0 ? (
               <div className="text-center text-xs text-slate-400 my-auto py-6">{t('dashboard.no_closed')}</div>
             ) : (

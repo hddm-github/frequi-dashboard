@@ -128,6 +128,7 @@ export interface BotState {
   max_open_trades: number;
   balance: number;
   free_balance?: number;
+  tradable_balance_ratio?: number;
   stake_amount: number | string;
   whitelist: string[];
 }

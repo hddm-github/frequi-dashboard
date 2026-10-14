@@ -4,7 +4,8 @@ import { useOptionalWorkspace } from '@danfessler/trellis-react';
 import {
   Server,
   Play,
-  Square,
+  Power,
+  Pause,
   RotateCw,
   RefreshCw,
   Cpu,
@@ -106,11 +107,20 @@ export function BotControlView() {
             <span className="font-bold text-xs uppercase tracking-wide">{t('control.title')}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-xs">
-            <span className={`w-2 h-2 rounded-full ${runtimeTone}`} />
-            <span className="font-bold font-mono">
-              {runtimeLabel}
+          <div
+            className={`px-2.5 py-1 rounded-full text-xs font-mono font-medium flex items-center gap-1.5 border transition-all ${
+              botRunning
+                ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.12)]'
+                : 'bg-slate-500/10 border-slate-500/25 text-slate-400'
+            }`}
+          >
+            <span className="relative flex h-2 w-2">
+              {botRunning && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              )}
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${runtimeTone}`} />
             </span>
+            <span>{runtimeLabel}</span>
           </div>
         </div>
 
@@ -132,57 +142,69 @@ export function BotControlView() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            {/* 1. Bot Power Control */}
             <button
               onClick={() => handleAction(botRunning ? 'stop' : 'start')}
               disabled={operating || !isConnected}
-              className={`py-2.5 px-3 rounded-xl text-white font-medium text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50 ${
-                botRunning ? 'bg-rose-600 hover:bg-rose-500' : 'bg-emerald-600 hover:bg-emerald-500'
+              className={`py-2 px-3 rounded-xl font-medium text-xs flex items-center justify-center gap-2 border shadow-xs transition-all cursor-pointer disabled:opacity-50 ${
+                botRunning
+                  ? 'bg-rose-500/10 hover:bg-rose-500 border-rose-500/30 hover:border-rose-500 text-rose-400 hover:text-white shadow-[0_0_12px_rgba(244,63,94,0.12)]'
+                  : 'bg-emerald-500/10 hover:bg-emerald-500 border-emerald-500/30 hover:border-emerald-500 text-emerald-400 hover:text-white shadow-[0_0_12px_rgba(16,185,129,0.12)]'
               }`}
             >
-              {botRunning ? <Square className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-              <span>{botRunning ? t('ui.stop_trading') : t('ui.start_trading')}</span>
+              <Power className={`w-3.5 h-3.5 ${botRunning ? 'text-rose-400 group-hover:text-white' : 'text-emerald-400'}`} />
+              <span className="font-semibold tracking-tight">{botRunning ? t('ui.stop_trading') : t('ui.start_trading')}</span>
             </button>
 
+            {/* 2. Stream Updates Pause / Resume */}
             <button
               onClick={toggleUpdates}
               disabled={operating}
               title={t('control.pause_updates_title')}
-              className={`py-2.5 px-3 rounded-xl border font-medium text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 ${
+              className={`py-2 px-3 rounded-xl border font-medium text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 ${
                 updatesPaused
-                  ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                  ? 'border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 shadow-[0_0_12px_rgba(245,158,11,0.15)]'
                   : isDark
-                    ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
-                    : 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800'
+                    ? 'border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-700'
+                    : 'border-slate-200 bg-slate-100 hover:bg-slate-200/80 text-slate-700'
               }`}
             >
-              {updatesPaused ? <Play className="w-3.5 h-3.5 fill-current" /> : <Square className="w-3.5 h-3.5 fill-current" />}
-              <span>{updatesPaused ? t('control.resume_updates') : t('control.pause_updates')}</span>
+              {updatesPaused ? (
+                <Play className="w-3.5 h-3.5 text-amber-400 fill-current" />
+              ) : (
+                <Pause className="w-3.5 h-3.5 text-slate-400" />
+              )}
+              <span className="font-semibold tracking-tight">
+                {updatesPaused ? t('control.resume_updates') : t('control.pause_updates')}
+              </span>
             </button>
 
+            {/* 3. Reload Configuration */}
             <button
               onClick={() => handleAction('reload')}
               disabled={operating || !isConnected}
-              className={`py-2.5 px-3 rounded-xl border font-medium text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 ${
+              className={`py-2 px-3 rounded-xl border font-medium text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 ${
                 isDark
-                  ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
-                  : 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800'
+                  ? 'border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-700'
+                  : 'border-slate-200 bg-slate-100 hover:bg-slate-200/80 text-slate-700'
               }`}
             >
-              <RotateCw className={`w-3.5 h-3.5 ${operating ? 'animate-spin' : ''}`} />
-              <span>{t('ui.reload_configuration')}</span>
+              <RotateCw className={`w-3.5 h-3.5 text-cyan-400 ${operating ? 'animate-spin' : ''}`} />
+              <span className="font-semibold tracking-tight">{t('ui.reload_configuration')}</span>
             </button>
 
+            {/* 4. Sync Data */}
             <button
               onClick={() => refreshData()}
               disabled={operating}
-              className={`py-2.5 px-3 rounded-xl border font-medium text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`py-2 px-3 rounded-xl border font-medium text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
                 isDark
-                  ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
-                  : 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800'
+                  ? 'border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 text-slate-300 hover:text-white hover:border-slate-700'
+                  : 'border-slate-200 bg-slate-100 hover:bg-slate-200/80 text-slate-700'
               }`}
             >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>{t('ui.sync_data')}</span>
+              <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="font-semibold tracking-tight">{t('ui.sync_data')}</span>
             </button>
           </div>
         )}

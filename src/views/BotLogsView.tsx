@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useBot } from '../context/BotContext';
-import { Terminal, Filter, RefreshCw, ArrowDown } from 'lucide-react';
+import { Terminal, Filter, RefreshCw, ArrowDownToLine } from 'lucide-react';
 import { useT } from '../i18n/LocaleContext';
 
 function formatLogTimestamp(raw: string): string {
@@ -61,19 +61,20 @@ export function BotLogsView() {
                 scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
               }
             }}
-            className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-sans transition-colors cursor-pointer border ${
+            className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-sans font-medium transition-all cursor-pointer border ${
               autoScroll
                 ? isDark
-                  ? 'bg-cyan-950/60 border-cyan-700/80 text-cyan-300'
-                  : 'bg-cyan-50 border-cyan-300 text-cyan-700 font-medium'
+                  ? 'bg-cyan-950/70 border-cyan-700/80 text-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.15)]'
+                  : 'bg-cyan-50 border-cyan-300 text-cyan-700 font-semibold'
                 : isDark
                 ? 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-300'
                 : 'bg-slate-100 border-slate-300 text-slate-500 hover:text-slate-700'
             }`}
             title={t('logs.autoscroll_title')}
+            aria-label={t('logs.autoscroll_title')}
           >
-            <ArrowDown className={`w-3 h-3 ${autoScroll ? 'text-cyan-400' : 'text-slate-400 opacity-60'}`} />
-            <span>{autoScroll ? t('logs.autoscroll_on') : t('logs.autoscroll_off')}</span>
+            <ArrowDownToLine className={`w-3 h-3 ${autoScroll ? 'text-cyan-400' : 'text-slate-400 opacity-60'}`} />
+            <span className="hidden sm:inline">{t('logs.autoscroll')}</span>
           </button>
 
           <button
