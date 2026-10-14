@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   createChart,
   createSeriesMarkers,
@@ -956,130 +957,151 @@ export function CandleChartView() {
               <ChevronDown className="w-3 h-3" />
             </button>
 
-            {/* Dropdown Menu */}
-            {showTradeDropdown && (
+            {/* Modal Portal Trade History */}
+            {showTradeDropdown && typeof document !== 'undefined' && createPortal(
               <div
-                className={`fixed inset-x-2 bottom-16 max-h-[min(68dvh,32rem)] overflow-x-hidden overflow-y-auto rounded-2xl shadow-2xl border z-[70] p-3 text-xs font-sans sm:absolute sm:inset-x-auto sm:top-full sm:bottom-auto sm:left-0 sm:mt-1.5 sm:w-80 sm:max-w-sm sm:max-h-80 sm:rounded-xl ${
-                  isDark ? 'bg-[#131b2e] border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
-                }`}
+                className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+                onClick={() => setShowTradeDropdown(false)}
               >
-                <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-700/50">
-                  <span className="font-bold text-[11px] text-slate-400 uppercase tracking-wider">
-                    {selectedPair} {t('candle.trade_history_btn')} ({pairTrades.length})
-                  </span>
-                  <button
-                    onClick={() => setShowTradeDropdown(false)}
-                    className="p-1 hover:text-slate-100 cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-
-                {pairTrades.length === 0 ? (
-                  <div className="py-4 text-center text-slate-500 text-xs">
-                    {t('candle.no_pair_trades')}
+                <div
+                  className={`w-full max-w-lg max-h-[85dvh] flex flex-col rounded-2xl shadow-2xl border overflow-hidden ${
+                    isDark ? 'bg-[#131b2e] border-slate-700/80 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                  }`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className={`flex items-center justify-between px-4 py-3 border-b shrink-0 ${
+                    isDark ? 'border-slate-700/60 bg-[#162036]' : 'border-slate-200 bg-slate-50'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <History className="w-4 h-4 text-cyan-400" />
+                      <span className="font-bold text-sm tracking-wide">
+                        {selectedPair}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {t('candle.trade_history_btn')} ({pairTrades.length})
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setShowTradeDropdown(false)}
+                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                        isDark ? 'hover:bg-slate-700/60 text-slate-400 hover:text-white' : 'hover:bg-slate-200 text-slate-500 hover:text-slate-900'
+                      }`}
+                      title={t('common.close') || 'Close'}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    {pairTrades.map((tr) => {
-                      const isProfit = (tr.profit_pct ?? 0) >= 0;
-                      const hasOrders = Array.isArray(tr.orders) && tr.orders.length > 0;
-                      return (
-                        <div
-                          key={tr.trade_id}
-                          onClick={() => focusTradeOnChart(tr)}
-                          className={`p-2 rounded-lg border cursor-pointer transition-colors ${
-                            isDark
-                              ? 'bg-slate-800/50 hover:bg-slate-800 border-slate-700/60'
-                              : 'bg-slate-50 hover:bg-slate-100 border-slate-200'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-mono font-bold text-[11px] flex items-center gap-1">
-                              #{tr.trade_id}
-                              <span
-                                className={`text-[10px] px-1 py-0.2 rounded font-semibold ${
-                                  tr.is_short
-                                    ? 'bg-rose-500/20 text-rose-400'
-                                    : 'bg-emerald-500/20 text-emerald-400'
-                                }`}
-                              >
-                                {tr.is_short ? t('candle.short') : t('candle.long')}
+
+                  <div className="p-3.5 space-y-2.5 overflow-y-auto flex-1 text-xs">
+                    {pairTrades.length === 0 ? (
+                      <div className="py-8 text-center text-slate-500 text-xs">
+                        {t('candle.no_pair_trades')}
+                      </div>
+                    ) : (
+                      pairTrades.map((tr) => {
+                        const isProfit = (tr.profit_pct ?? 0) >= 0;
+                        const hasOrders = Array.isArray(tr.orders) && tr.orders.length > 0;
+                        return (
+                          <div
+                            key={tr.trade_id}
+                            onClick={() => {
+                              focusTradeOnChart(tr);
+                              setShowTradeDropdown(false);
+                            }}
+                            className={`p-2.5 rounded-xl border cursor-pointer transition-colors ${
+                              isDark
+                                ? 'bg-slate-800/40 hover:bg-slate-800/80 border-slate-700/60'
+                                : 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="font-mono font-bold text-xs flex items-center gap-1.5">
+                                #{tr.trade_id}
+                                <span
+                                  className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                                    tr.is_short
+                                      ? 'bg-rose-500/20 text-rose-400'
+                                      : 'bg-emerald-500/20 text-emerald-400'
+                                  }`}
+                                >
+                                  {tr.is_short ? t('candle.short') : t('candle.long')}
+                                </span>
+                                <span
+                                  className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                    tr.is_open
+                                      ? 'bg-amber-500/20 text-amber-400'
+                                      : 'bg-slate-600/30 text-slate-400'
+                                  }`}
+                                >
+                                  {tr.is_open ? t('candle.open_position') : t('candle.closed_position')}
+                                </span>
                               </span>
                               <span
-                                className={`text-[10px] px-1 py-0.2 rounded ${
-                                  tr.is_open
-                                    ? 'bg-amber-500/20 text-amber-400'
-                                    : 'bg-slate-600/30 text-slate-400'
+                                className={`font-mono font-bold text-xs ${
+                                  isProfit ? 'text-emerald-500' : 'text-rose-500'
                                 }`}
                               >
-                                {tr.is_open ? t('candle.open_position') : t('candle.closed_position')}
+                                {isProfit ? '+' : ''}
+                                {tr.profit_pct}%
                               </span>
-                            </span>
-                            <span
-                              className={`font-mono font-bold text-[11px] ${
-                                isProfit ? 'text-emerald-500' : 'text-rose-500'
-                              }`}
-                            >
-                              {isProfit ? '+' : ''}
-                              {tr.profit_pct}%
-                            </span>
-                          </div>
-
-                          <div className="text-[10px] text-slate-400 flex items-center justify-between font-mono mb-1">
-                            <span>{t('candle.open_price')}: {tr.open_rate}</span>
-                            {tr.close_rate && <span>{t('candle.avg_close')}: {tr.close_rate}</span>}
-                            <span className="text-cyan-400 font-semibold">{tr.enter_tag || tr.exit_reason || (locale === 'zh' ? '策略信号' : 'Signal')}</span>
-                          </div>
-
-                          {/* Orders breakdown (Grinding / Rebuy / Derisk / Exit orders) */}
-                          {hasOrders && (
-                            <div className="mt-1.5 pt-1.5 border-t border-slate-700/40 space-y-1">
-                              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                                <span>{t('candle.order_history')} ({tr.orders!.length})</span>
-                              </div>
-                              {tr.orders!.map((ord, idx) => {
-                                const isBuy = ord.ft_order_side === 'buy';
-                                const defaultTag = isBuy ? (locale === 'zh' ? '入场' : 'Entry') : (locale === 'zh' ? '平仓' : 'Exit');
-                                const tag = ord.ft_order_tag || defaultTag;
-                                const isGrind = tag.includes('grind');
-                                const isRebuy = tag.includes('rebuy') || tag === 'r';
-                                const isDerisk = tag.includes('derisk');
-
-                                let badgeColor = 'bg-slate-700/50 text-slate-300';
-                                if (isGrind) badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
-                                else if (isRebuy) badgeColor = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
-                                else if (isDerisk) badgeColor = 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
-                                else if (isBuy) badgeColor = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-
-                                return (
-                                  <div
-                                    key={ord.order_id || idx}
-                                    className="text-[9.5px] font-mono flex items-center justify-between bg-slate-900/40 px-1.5 py-0.5 rounded gap-1 min-w-0"
-                                  >
-                                    <div className="flex items-center gap-1.5 truncate min-w-0">
-                                      <span className={`px-1 py-0.2 rounded text-[8.5px] font-bold shrink-0 ${badgeColor}`}>
-                                        {isBuy ? (locale === 'zh' ? '买入' : 'BUY') : (locale === 'zh' ? '卖出' : 'SELL')}
-                                      </span>
-                                      <span className="text-slate-300 font-medium truncate shrink min-w-0" title={tag}>
-                                        {tag}
-                                      </span>
-                                    </div>
-                                    <div className="text-slate-400 shrink-0 text-right">
-                                      @{ord.safe_price || ord.price || ord.average || 0}{' '}
-                                      <span className="text-slate-500">({ord.filled || ord.amount || 0})</span>
-                                    </div>
-                                  </div>
-                                );
-                              })}
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
+
+                            <div className="text-[11px] text-slate-400 flex items-center justify-between font-mono mb-1.5">
+                              <span>{t('candle.open_price')}: {tr.open_rate}</span>
+                              {tr.close_rate && <span>{t('candle.avg_close')}: {tr.close_rate}</span>}
+                              <span className="text-cyan-400 font-semibold">{tr.enter_tag || tr.exit_reason || (locale === 'zh' ? '策略信号' : 'Signal')}</span>
+                            </div>
+
+                            {/* Orders breakdown (Grinding / Rebuy / Derisk / Exit orders) */}
+                            {hasOrders && (
+                              <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-1.5">
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                                  <span>{t('candle.order_history')} ({tr.orders!.length})</span>
+                                </div>
+                                {tr.orders!.map((ord, idx) => {
+                                  const isBuy = ord.ft_order_side === 'buy';
+                                  const defaultTag = isBuy ? (locale === 'zh' ? '入场' : 'Entry') : (locale === 'zh' ? '平仓' : 'Exit');
+                                  const tag = ord.ft_order_tag || defaultTag;
+                                  const isGrind = tag.includes('grind');
+                                  const isRebuy = tag.includes('rebuy') || tag === 'r';
+                                  const isDerisk = tag.includes('derisk');
+
+                                  let badgeColor = 'bg-slate-700/50 text-slate-300';
+                                  if (isGrind) badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
+                                  else if (isRebuy) badgeColor = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
+                                  else if (isDerisk) badgeColor = 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
+                                  else if (isBuy) badgeColor = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+
+                                  return (
+                                    <div
+                                      key={ord.order_id || idx}
+                                      className="text-[10px] font-mono flex items-center justify-between bg-slate-900/40 px-2 py-1 rounded gap-1.5 min-w-0"
+                                    >
+                                      <div className="flex items-center gap-1.5 truncate min-w-0">
+                                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${badgeColor}`}>
+                                          {isBuy ? (locale === 'zh' ? '买入' : 'BUY') : (locale === 'zh' ? '卖出' : 'SELL')}
+                                        </span>
+                                        <span className="text-slate-300 font-medium truncate shrink min-w-0" title={tag}>
+                                          {tag}
+                                        </span>
+                                      </div>
+                                      <div className="text-slate-400 shrink-0 text-right">
+                                        @{ord.safe_price || ord.price || ord.average || 0}{' '}
+                                        <span className="text-slate-500">({ord.filled || ord.amount || 0})</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>

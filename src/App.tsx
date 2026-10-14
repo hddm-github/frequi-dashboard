@@ -73,7 +73,7 @@ function DashboardWorkspace() {
 
   return (
     <div
-      className={`flex flex-col w-screen h-screen overflow-hidden font-sans transition-colors ${
+      className={`flex flex-col w-full max-w-full h-[100dvh] overflow-hidden font-sans transition-colors ${
         theme === 'dark' ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-100 text-slate-900'
       }`}
     >
@@ -82,8 +82,8 @@ function DashboardWorkspace() {
       <main className="flex-1 w-full min-h-0 relative">
         <Workspace
           theme={theme === 'dark' ? 'dark' : 'light'}
-          storageKey="frequi-trellis:layout:v9"
-          version={9}
+          storageKey="frequi-trellis:layout:v10"
+          version={10}
           panelMenu={(entries) => localizeTrellisMenu(entries, locale)}
         >
           {/* Register all View Types */}
@@ -161,6 +161,7 @@ function DashboardWorkspace() {
                 <View type="equity_curve" />
                 <View type="chart" />
                 <View type="signals" />
+                <View type="closed_trades" />
               </Panel>
             </Stage>
 
@@ -172,7 +173,6 @@ function DashboardWorkspace() {
               </Panel>
               <Panel>
                 <View type="logs" />
-                <View type="closed_trades" />
               </Panel>
             </Split>
           </Split>

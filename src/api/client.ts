@@ -11,7 +11,7 @@ import type {
 
 export const EMPTY_BOT_STATE: BotState = {
   version: '-',
-  strategy: '未连接',
+  strategy: 'Disconnected',
   timeframe: '5m',
   state: 'stopped',
   dry_run: true,
@@ -24,8 +24,10 @@ export const EMPTY_BOT_STATE: BotState = {
 };
 
 export function normalizeApiUrl(url: string): string {
-  let cleaned = (url || '').trim().replace(/\/dashboard\/?$/, '').replace(/\/+$/, '');
-  if (!cleaned) return '';
+  const trimmed = (url || '').trim().replace(/\/dashboard\/?$/, '');
+  if (!trimmed || trimmed === '/') return '/';
+  const cleaned = trimmed.replace(/\/+$/, '');
+  if (!cleaned) return '/';
   if (cleaned.startsWith('/') && !cleaned.startsWith('//')) return cleaned;
 
   // 智能清洗协议头：支持修复诸如 http://http://、http:/// 等畸形前缀，并保留原有的协议类型
@@ -34,6 +36,27 @@ export function normalizeApiUrl(url: string): string {
   const stripped = cleaned.replace(/^(?:https?:[\/\\]*)+/i, '').replace(/^[\/\\]+/, '');
 
   return `${isHttps ? 'https' : 'http'}://${stripped}`;
+}
+
+export function buildApiUrl(baseUrl: string, endpoint: string): string {
+  const trimmedBase = (baseUrl || '').trim();
+  const cleanEndpoint = endpoint.replace(/^\/+/, '');
+
+  if (!trimmedBase || trimmedBase === '/') {
+    return `/api/v1/${cleanEndpoint}`;
+  }
+
+  const cleanBase = trimmedBase.replace(/\/+$/, '');
+
+  if (cleanBase.endsWith('/api/v1')) {
+    return `${cleanBase}/${cleanEndpoint}`;
+  }
+
+  if (cleanBase === '/api-proxy') {
+    return `/api-proxy/api/v1/${cleanEndpoint}`;
+  }
+
+  return `${cleanBase}/api/v1/${cleanEndpoint}`;
 }
 
 function mapOrders(rawOrders?: any[]): any[] | undefined {
@@ -63,6 +86,20 @@ export class FreqtradeClient {
   private config: BotConfig;
   public lastError: string | null = null;
   private inFlightRequests: Map<string, Promise<any>> = new Map();
+  private cachedStaticState: {
+    version: string;
+    strategy: string;
+    strategy_version: string;
+    timeframe: string;
+    state: 'running' | 'stopped';
+    dry_run: boolean;
+    stake_currency: string;
+    max_open_trades: number;
+    stake_amount: number | string;
+    tradable_balance_ratio?: number;
+    whitelist: string[];
+  } | null = null;
+  private lastStaticFetchTime: number = 0;
 
   constructor(config: BotConfig) {
     this.config = config;
@@ -78,14 +115,17 @@ export class FreqtradeClient {
 
   getBaseUrl(): string {
     const raw = normalizeApiUrl(this.config.apiUrl || '');
-    if (!raw) return '';
-    // 保留原始的 Nginx 反向代理配置模式 (/owner-api)，绝对不改动
-    if (raw === '/owner-api' || raw.startsWith('/owner-api') || raw === '/ft-api') {
-      return '/owner-api';
-    }
-    // 本地开发模式下，针对自定义远程 IP 地址，走 /api-proxy 代理以避免浏览器 CORS 拦截
-    if (import.meta.env.DEV) {
-      return '/api-proxy';
+    if (!raw || raw === '/') return '/';
+    // Dynamic CORS reverse proxy: remote HTTP/HTTPS targets go through /api-proxy
+    if (/^https?:\/\//i.test(raw)) {
+      if (typeof window !== 'undefined') {
+        const isSameOrigin = raw.startsWith(window.location.origin);
+        if (!isSameOrigin) {
+          return '/api-proxy';
+        }
+      } else {
+        return '/api-proxy';
+      }
     }
     return raw;
   }
@@ -107,8 +147,7 @@ export class FreqtradeClient {
     params?: Record<string, string | number | boolean | undefined | null>
   ): Promise<T> {
     const baseUrl = this.getBaseUrl();
-    const isOwnerProxy = baseUrl === '/owner-api' || baseUrl.startsWith('/owner-api');
-    let url = isOwnerProxy ? `${baseUrl}/${endpoint}` : `${baseUrl}/api/v1/${endpoint}`;
+    let url = buildApiUrl(baseUrl, endpoint);
     if (params) {
       const q = new URLSearchParams();
       Object.entries(params).forEach(([k, v]) => {
@@ -131,7 +170,7 @@ export class FreqtradeClient {
       Accept: 'application/json',
       ...this.getAuthHeader(),
     };
-    if (this.getBaseUrl() === '/api-proxy' && rawApiUrl && !isOwnerProxy) {
+    if (baseUrl === '/api-proxy' && rawApiUrl) {
       headers['x-target-url'] = rawApiUrl;
     }
 
@@ -144,11 +183,11 @@ export class FreqtradeClient {
         if (!res.ok) {
           let msg = `API [${endpoint}] HTTP ${res.status}: ${res.statusText}`;
           if (res.status === 401) {
-            msg = '身份认证失败 (401 Unauthorized)：API 用户名或密码错误，请检查机器人配置';
+            msg = 'Authentication failed (401 Unauthorized): Check API credentials';
           } else if (res.status === 404) {
-            msg = `接口未找到 (404 Not Found): ${endpoint}`;
+            msg = `Endpoint not found (404 Not Found): ${endpoint}`;
           } else if (res.status === 502 || res.status === 504) {
-            msg = `网关异常 (HTTP ${res.status})：无法连通目标服务器`;
+            msg = `Gateway error (HTTP ${res.status}): Unable to reach target server`;
           }
           this.lastError = msg;
           throw new Error(msg);
@@ -157,7 +196,7 @@ export class FreqtradeClient {
         const contentType = res.headers.get('content-type') || '';
         if (contentType.includes('text/html')) {
           const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-          const errMsg = `目标地址返回了 HTML 网页而非 Freqtrade API 数据 (HTTP ${res.status})。请确认填写的端口是 Freqtrade 机器人 API 端口（如 8080/8989），而不是前端网页端口（${currentOrigin}）。`;
+          const errMsg = `Target returned HTML page instead of JSON API (HTTP ${res.status}). Verify API port, not web UI port (${currentOrigin}).`;
           this.lastError = errMsg;
           throw new Error(errMsg);
         }
@@ -166,24 +205,19 @@ export class FreqtradeClient {
         try {
           return (await res.json()) as T;
         } catch (jsonErr: any) {
-          const errMsg = 'API 返回的数据不是合法 JSON 格式，请检查该地址与端口是否为 Freqtrade 服务';
+          const errMsg = 'API response is not valid JSON. Verify target service is Freqtrade API.';
           this.lastError = errMsg;
           throw new Error(errMsg);
         }
       } catch (err: any) {
         if (err.name === 'AbortError') {
-          const timeoutMsg = `请求超时 (12s)：API [${endpoint}] 响应过慢，已自动熔断`;
+          const timeoutMsg = `Request timeout (12s): API [${endpoint}] response took too long`;
           this.lastError = timeoutMsg;
           throw new Error(timeoutMsg);
         }
         if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
-          const origin = typeof window !== 'undefined' ? window.location.origin : '';
           const targetUrl = this.getBaseUrl();
-          const fetchMsg = `连接失败 (Failed to fetch)：无法访问目标地址「${targetUrl}」。
-可能原因：
-1. 目标服务未启动、端口未开放或防火墙拦截
-2. 跨域 (CORS) 限制：请确认在机器人的 config.json 中，已将「${origin}」加入 api_server.CORS_origins 列表并重启机器人
-3. 协议或证书错误（例如 HTTPS 站点直接请求 HTTP 接口被浏览器拦截）`;
+          const fetchMsg = `Failed to fetch: Unable to reach target address [${targetUrl}]. Check host, CORS origins, and SSL protocol.`;
           this.lastError = fetchMsg;
           throw new Error(fetchMsg);
         }
@@ -200,15 +234,14 @@ export class FreqtradeClient {
 
   private async postRequest<T>(endpoint: string, body?: any): Promise<T> {
     const baseUrl = this.getBaseUrl();
-    const isProxy = baseUrl === '/owner-api' || baseUrl.startsWith('/owner-api');
-    const url = isProxy ? `${baseUrl}/${endpoint}` : `${baseUrl}/api/v1/${endpoint}`;
+    const url = buildApiUrl(baseUrl, endpoint);
     const rawApiUrl = normalizeApiUrl(this.config.apiUrl || '');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
       ...this.getAuthHeader(),
     };
-    if (this.getBaseUrl() === '/api-proxy' && rawApiUrl && !isProxy) {
+    if (baseUrl === '/api-proxy' && rawApiUrl) {
       headers['x-target-url'] = rawApiUrl;
     }
 
@@ -225,9 +258,9 @@ export class FreqtradeClient {
 
       if (!res.ok) {
         const text = await res.text().catch(() => '');
-        let msg = `POST [${endpoint}] 失败 (${res.status}): ${text || res.statusText}`;
+        let msg = `POST [${endpoint}] failed (${res.status}): ${text || res.statusText}`;
         if (res.status === 401) {
-          msg = '操作失败：401 Unauthorized 认证失败';
+          msg = 'Operation failed: 401 Unauthorized';
         }
         this.lastError = msg;
         throw new Error(msg);
@@ -235,7 +268,7 @@ export class FreqtradeClient {
 
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('text/html')) {
-        const errMsg = `目标地址返回了 HTML 网页而非 Freqtrade API 数据 (HTTP ${res.status})。请确认填写的端口是 Freqtrade 机器人 API 端口。`;
+        const errMsg = `Target returned HTML page instead of JSON API (HTTP ${res.status}). Verify API port.`;
         this.lastError = errMsg;
         throw new Error(errMsg);
       }
@@ -248,18 +281,13 @@ export class FreqtradeClient {
       }
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        const timeoutMsg = `POST [${endpoint}] 请求超时 (15s)`;
+        const timeoutMsg = `POST [${endpoint}] timeout (15s)`;
         this.lastError = timeoutMsg;
         throw new Error(timeoutMsg);
       }
       if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
-        const origin = typeof window !== 'undefined' ? window.location.origin : '';
         const targetUrl = this.getBaseUrl();
-        const fetchMsg = `连接失败 (Failed to fetch)：无法访问目标地址「${targetUrl}」。
-可能原因：
-1. 目标服务未启动、端口未开放或防火墙拦截
-2. 跨域 (CORS) 限制：请确认在机器人的 config.json 中，已将「${origin}」加入 api_server.CORS_origins 列表并重启机器人
-3. 协议或证书错误（例如 HTTPS 站点直接请求 HTTP 接口被浏览器拦截）`;
+        const fetchMsg = `Failed to fetch: Unable to reach target [${targetUrl}]. Check network or CORS.`;
         this.lastError = fetchMsg;
         throw new Error(fetchMsg);
       }
@@ -274,7 +302,7 @@ export class FreqtradeClient {
       await this.request('ping');
       return true;
     } catch (err: any) {
-      this.lastError = err?.message || '无法连接到该端点';
+      this.lastError = err?.message || 'Unable to connect to endpoint';
       return false;
     }
   }
@@ -287,13 +315,18 @@ export class FreqtradeClient {
       await this.request('show_config');
       return { ok: true };
     } catch (err: any) {
-      return { ok: false, message: err?.message || '连接或认证失败' };
+      return { ok: false, message: err?.message || 'Connection or authentication failed' };
     }
   }
 
-  async getBotState(): Promise<BotState> {
+  async getStaticBotConfig(forceRefresh: boolean = false): Promise<NonNullable<FreqtradeClient['cachedStaticState']>> {
+    const now = Date.now();
+    if (this.cachedStaticState && !forceRefresh && now - this.lastStaticFetchTime < 600000) {
+      return this.cachedStaticState;
+    }
+
     try {
-      const [versionData, configData, balanceData, whitelistData] = await Promise.all([
+      const [versionData, configData, whitelistData] = await Promise.all([
         this.request<{ version: string }>('version').catch(() => ({ version: 'Freqtrade' })),
         this.request<{
           strategy?: string;
@@ -304,12 +337,12 @@ export class FreqtradeClient {
           stake_currency?: string;
           max_open_trades?: number;
           stake_amount?: number | string;
+          tradable_balance_ratio?: number;
         }>('show_config').catch(() => ({} as any)),
-        this.request<{ total: number; free?: number }>('balance').catch(() => ({ total: 0, free: 0 })),
         this.request<{ whitelist: string[] }>('whitelist').catch(() => ({ whitelist: [] })),
       ]);
 
-      return {
+      this.cachedStaticState = {
         version: versionData.version || 'Freqtrade',
         strategy: configData.strategy || 'FreqtradeStrategy',
         strategy_version: configData.strategy_version || '',
@@ -318,10 +351,52 @@ export class FreqtradeClient {
         dry_run: configData.dry_run ?? true,
         stake_currency: configData.stake_currency || 'USDT',
         max_open_trades: configData.max_open_trades || 5,
+        stake_amount: configData.stake_amount ?? 0,
+        tradable_balance_ratio: configData.tradable_balance_ratio ?? 0.99,
+        whitelist: whitelistData.whitelist || [],
+      };
+      this.lastStaticFetchTime = now;
+      return this.cachedStaticState;
+    } catch (err: any) {
+      console.warn('getStaticBotConfig failed:', err);
+      if (this.cachedStaticState) return this.cachedStaticState;
+      return {
+        version: 'Freqtrade',
+        strategy: 'FreqtradeStrategy',
+        strategy_version: '',
+        timeframe: '5m',
+        state: 'running' as const,
+        dry_run: true,
+        stake_currency: 'USDT',
+        max_open_trades: 5,
+        stake_amount: 0,
+        tradable_balance_ratio: 0.99,
+        whitelist: [],
+      };
+    }
+  }
+
+  async getBotState(forceRefreshStatic: boolean = false): Promise<BotState> {
+    try {
+      const [staticConfig, balanceData] = await Promise.all([
+        this.getStaticBotConfig(forceRefreshStatic),
+        this.request<{ total: number; free?: number }>('balance').catch(() => ({ total: 0, free: 0 })),
+      ]);
+
+      return {
+        version: staticConfig.version,
+        strategy: staticConfig.strategy,
+        strategy_version: staticConfig.strategy_version,
+        timeframe: staticConfig.timeframe,
+        state: staticConfig.state,
+        dry_run: staticConfig.dry_run,
+        stake_currency: staticConfig.stake_currency,
+        max_open_trades: staticConfig.max_open_trades,
         balance: balanceData.total ?? 0,
         free_balance: balanceData.free ?? balanceData.total ?? 0,
-        stake_amount: configData.stake_amount ?? 0,
-        whitelist: whitelistData.whitelist || [],
+        tradable_balance_ratio: staticConfig.tradable_balance_ratio,
+        stake_amount: staticConfig.stake_amount,
+        whitelist: staticConfig.whitelist,
       };
     } catch (err: any) {
       console.warn('Real API getBotState failed:', err);
@@ -521,7 +596,7 @@ export class FreqtradeClient {
 
       closed.forEach((t) => {
         // Look up signal identifier from enter_tag, exit_tag, or exit_reason
-        const tag = t.enter_tag || t.exit_tag || t.exit_reason || 'Manual / 未标记';
+        const tag = t.enter_tag || t.exit_tag || t.exit_reason || 'Manual / Untagged';
         const cur = map.get(tag) || { total: 0, wins: 0, loss: 0, profits: [] };
         cur.total++;
         if (t.profit_ratio >= 0) cur.wins++;

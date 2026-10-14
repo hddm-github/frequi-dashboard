@@ -446,19 +446,16 @@ export function HeaderBar() {
                 <span className="text-[11px] font-semibold">{t('header.refresh')}</span>
               </button>
 
-              {/* Right action: click countdown/arrow to open interval settings */}
+              {/* Right action: click arrow to open interval settings */}
               <button
                 type="button"
                 onClick={() => setShowRefreshDropdown(!showRefreshDropdown)}
-                className={`px-1.5 py-1.5 rounded-r-lg border-l border-slate-200 dark:border-slate-700 hover:bg-slate-200/60 dark:hover:bg-[#222e4c] flex items-center gap-1 transition-colors cursor-pointer text-emerald-600 dark:text-emerald-400 font-mono text-[11px] font-bold ${
+                className={`px-1.5 py-1.5 rounded-r-lg border-l border-slate-200 dark:border-slate-700 hover:bg-slate-200/60 dark:hover:bg-[#222e4c] flex items-center justify-center transition-colors cursor-pointer text-slate-400 hover:text-slate-200 ${
                   showRefreshDropdown ? 'bg-slate-200/80 dark:bg-[#222e4c]' : ''
                 }`}
                 title={t('header.tooltip_refresh_settings')}
               >
-                <span className={`tabular-nums text-center ${refreshInterval > 0 ? 'w-[26px] inline-block' : ''}`}>
-                  {refreshing ? '···' : refreshInterval > 0 ? `${refreshCountdown}s` : t('header.refresh_manual')}
-                </span>
-                <ChevronDown className="w-3 h-3 text-slate-400 opacity-80" />
+                <ChevronDown className="w-3.5 h-3.5 opacity-80" />
               </button>
             </div>
 
@@ -513,9 +510,9 @@ export function HeaderBar() {
                   </div>
                   <div className="grid grid-cols-3 gap-1.5 mb-2.5">
                     {[
-                      { label: '3s', val: 3 },
+                      { label: '1s (Live)', val: 1 },
+                      { label: '2s (Fast)', val: 2 },
                       { label: '5s', val: 5 },
-                      { label: '6s', val: 6 },
                       { label: '10s', val: 10 },
                       { label: '30s', val: 30 },
                       { label: '60s', val: 60 },
@@ -770,8 +767,8 @@ export function HeaderBar() {
               title={t('header.tooltip_refresh_click')}
             >
               <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${refreshing ? 'animate-spin' : ''}`} />
-              <span className={`font-mono text-[11px] font-bold tabular-nums text-center ${refreshInterval > 0 ? 'w-[26px] inline-block' : ''}`}>
-                {refreshing ? '···' : refreshInterval > 0 ? `${refreshCountdown}s` : t('header.refresh')}
+              <span className="text-[11px] font-semibold">
+                {refreshing ? '···' : t('header.refresh')}
               </span>
             </button>
 
@@ -913,9 +910,9 @@ export function HeaderBar() {
 
                 <div className="grid grid-cols-4 gap-1.5 mb-2">
                   {[
-                    { label: '3s', val: 3 },
+                    { label: '1s (Live)', val: 1 },
+                    { label: '2s (Fast)', val: 2 },
                     { label: '5s', val: 5 },
-                    { label: '6s', val: 6 },
                     { label: '10s', val: 10 },
                     { label: '30s', val: 30 },
                     { label: '60s', val: 60 },

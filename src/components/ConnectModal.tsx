@@ -2,7 +2,6 @@ import { useState, type FormEvent } from 'react';
 import { useBot } from '../context/BotContext';
 import { X, Server, AlertCircle, ShieldCheck, Loader2 } from 'lucide-react';
 import { normalizeApiUrl } from '../api/client';
-import { PRESET_BOTS, getPresetDisplayName } from '../config/botPresets';
 import { useLocale } from '../i18n/LocaleContext';
 import { localizeError } from '../utils/localizeError';
 
@@ -14,28 +13,15 @@ interface ConnectModalProps {
 export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
   const { addProfile, theme } = useBot();
   const { locale, t } = useLocale();
-  const defaultFuturesName = locale === 'zh' ? '币安合约机器人' : 'Binance Futures Bot';
-  const [selectedPreset, setSelectedPreset] = useState('futures');
-  const [name, setName] = useState(defaultFuturesName);
-  const [apiUrl, setApiUrl] = useState('/owner-api');
+  // Both fields start empty — the user fills them in manually.
+  const [name, setName] = useState('');
+  const [apiUrl, setApiUrl] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
-
-  const handlePresetChange = (presetId: string) => {
-    setSelectedPreset(presetId);
-    const preset = PRESET_BOTS.find((p) => p.id === presetId);
-    if (preset && preset.id !== 'custom') {
-      setName(getPresetDisplayName(preset, locale));
-      setApiUrl(preset.apiUrl);
-    } else if (presetId === 'custom') {
-      setName('');
-      setApiUrl('');
-    }
-  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -44,7 +30,7 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
 
     try {
       const res = await addProfile({
-        name: name.trim() || defaultFuturesName,
+        name: name.trim(),
         apiUrl: normalizeApiUrl(apiUrl),
         username: username.trim(),
         password: password.trim(),
@@ -102,35 +88,16 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
             <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
               {t('connect.bot_name')}
             </label>
-            <select
-              value={selectedPreset}
-              onChange={(e) => handlePresetChange(e.target.value)}
-              className={`w-full border rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer ${
-                isDark ? 'bg-[#1a233a] border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t('connect.bot_name_placeholder')}
+              className={`w-full border rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-emerald-500 transition-colors ${
+                isDark ? 'bg-[#1a233a] border-slate-700 text-slate-100 placeholder:text-slate-500' : 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400'
               }`}
-            >
-              {PRESET_BOTS.map((preset) => {
-                const displayName = getPresetDisplayName(preset, locale);
-                return (
-                  <option key={preset.id} value={preset.id}>
-                    {displayName} {preset.apiUrl ? `(${preset.apiUrl})` : ''}
-                  </option>
-                );
-              })}
-            </select>
-
-            {selectedPreset === 'custom' && (
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t('login.custom_name')}
-                className={`mt-2 w-full border rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-emerald-500 transition-colors ${
-                  isDark ? 'bg-[#1a233a] border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
-                }`}
-                required
-              />
-            )}
+              required
+            />
           </div>
 
           <div>
@@ -141,14 +108,10 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
               <div className="flex gap-1">
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectedPreset('futures');
-                    setName(defaultFuturesName);
-                    setApiUrl('/owner-api');
-                  }}
+                  onClick={() => setApiUrl('/')}
                   className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded text-[9px] font-mono cursor-pointer"
                 >
-                  {t('connect.futures_default')}
+                  {t('connect.local_default')}
                 </button>
                 <button
                   type="button"
@@ -163,7 +126,7 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
               type="text"
               value={apiUrl}
               onChange={(e) => setApiUrl(e.target.value)}
-              placeholder="/ft-api"
+              placeholder="https://bot.example.com or http://PUBLIC_IP:8081"
               className={`w-full border rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
                 isDark ? 'bg-[#1a233a] border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
               }`}

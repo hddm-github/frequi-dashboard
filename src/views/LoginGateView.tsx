@@ -3,35 +3,21 @@ import freqtradeLogo from '../assets/freqtrade.png';
 import { useBot } from '../context/BotContext';
 import { Server, ShieldCheck, AlertCircle, ArrowRight, Sun, Moon, Loader2 } from 'lucide-react';
 import { normalizeApiUrl } from '../api/client';
-import { PRESET_BOTS, getPresetDisplayName } from '../config/botPresets';
 import { useLocale } from '../i18n/LocaleContext';
 import { localizeError } from '../utils/localizeError';
 
 export function LoginGateView() {
   const { addProfile, theme, setTheme, lastError } = useBot();
   const { locale, t } = useLocale();
-  const defaultFuturesName = locale === 'zh' ? '币安合约机器人' : 'Binance Futures Bot';
-  const [selectedPreset, setSelectedPreset] = useState('futures');
-  const [name, setName] = useState(defaultFuturesName);
-  const [apiUrl, setApiUrl] = useState('/owner-api');
+  // Both fields start empty — the user fills them in manually.
+  const [name, setName] = useState('');
+  const [apiUrl, setApiUrl] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const isDark = theme === 'dark';
-
-  const handlePresetChange = (presetId: string) => {
-    setSelectedPreset(presetId);
-    const preset = PRESET_BOTS.find((p) => p.id === presetId);
-    if (preset && preset.id !== 'custom') {
-      setName(getPresetDisplayName(preset, locale));
-      setApiUrl(preset.apiUrl);
-    } else if (presetId === 'custom') {
-      setName('');
-      setApiUrl('');
-    }
-  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -40,7 +26,7 @@ export function LoginGateView() {
 
     try {
       const res = await addProfile({
-        name: name.trim() || defaultFuturesName,
+        name: name.trim(),
         apiUrl: normalizeApiUrl(apiUrl),
         username: username.trim(),
         password: password.trim(),
@@ -128,39 +114,18 @@ export function LoginGateView() {
               <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
                 {t('login.bot_name')}
               </label>
-              <select
-                value={selectedPreset}
-                onChange={(e) => handlePresetChange(e.target.value)}
-                className={`w-full border rounded-xl px-3.5 py-2.5 font-medium focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer ${
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t('login.bot_name_placeholder')}
+                className={`w-full border rounded-xl px-3.5 py-2.5 font-medium focus:outline-none focus:border-emerald-500 transition-colors ${
                   isDark
-                    ? 'bg-[#1a233a] border-slate-700 text-slate-100'
-                    : 'bg-slate-50 border-slate-300 text-slate-900'
+                    ? 'bg-[#1a233a] border-slate-700 text-slate-100 placeholder:text-slate-500'
+                    : 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400'
                 }`}
-              >
-                {PRESET_BOTS.map((preset) => {
-                  const displayName = getPresetDisplayName(preset, locale);
-                  return (
-                    <option key={preset.id} value={preset.id}>
-                      {displayName} {preset.apiUrl ? `(${preset.apiUrl})` : ''}
-                    </option>
-                  );
-                })}
-              </select>
-
-              {selectedPreset === 'custom' && (
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={t('login.custom_name')}
-                  className={`mt-2 w-full border rounded-xl px-3.5 py-2.5 font-medium focus:outline-none focus:border-emerald-500 transition-colors ${
-                    isDark
-                      ? 'bg-[#1a233a] border-slate-700 text-slate-100 placeholder:text-slate-500'
-                      : 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400'
-                  }`}
-                  required
-                />
-              )}
+                required
+              />
             </div>
 
             <div>
@@ -171,14 +136,10 @@ export function LoginGateView() {
                 <div className="flex gap-1.5">
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedPreset('futures');
-                      setName(defaultFuturesName);
-                      setApiUrl('/owner-api');
-                    }}
+                    onClick={() => setApiUrl('/')}
                     className="px-2 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded text-[10px] font-mono transition-colors cursor-pointer"
                   >
-                    {t('login.futures_default')}
+                    {t('login.local_default')}
                   </button>
                   <button
                     type="button"
@@ -193,7 +154,7 @@ export function LoginGateView() {
                 type="text"
                 value={apiUrl}
                 onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="/owner-api"
+                placeholder="https://bot.example.com or http://PUBLIC_IP:8081"
                 className={`w-full border rounded-xl px-3.5 py-2.5 font-mono focus:outline-none focus:border-emerald-500 transition-colors ${
                   isDark
                     ? 'bg-[#1a233a] border-slate-700 text-slate-100 placeholder:text-slate-500'

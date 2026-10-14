@@ -13,12 +13,14 @@ import {
   RefreshCw,
   Eye,
   EyeOff,
+  Calendar,
+  X,
 } from 'lucide-react';
 import { SignalBadge } from '../components/SignalBadge';
 import { formatUtc8 } from '../utils/dateUtils';
 
 import { useOptionalWorkspace } from '@danfessler/trellis-react';
-import { useT } from '../i18n/LocaleContext';
+import { useLocale } from '../i18n/LocaleContext';
 
 export function FreqUIDashboardView() {
   const {
@@ -40,8 +42,10 @@ export function FreqUIDashboardView() {
   } = useBot();
 
   const ws = useOptionalWorkspace();
-  const t = useT();
+  const { t, locale } = useLocale();
+  const isZh = locale === 'zh';
   const [isLogScale, setIsLogScale] = useState(true);
+  const [selectedDayDate, setSelectedDayDate] = useState<string | null>(null);
 
   const handleViewChart = (pair: string) => {
     setSelectedPair(pair);
@@ -57,6 +61,54 @@ export function FreqUIDashboardView() {
   const closedCount = profitSummary?.closed_trade_count || 0;
   const isDark = theme === 'dark';
 
+  // Dynamic next stake calculation based on NFI/Freqtrade unlimited stake logic
+  const nextStakeInfo = useMemo(() => {
+    if (isReadOnly) return { label: t('ui.hidden'), isFull: false };
+
+    // Fixed stake amount
+    if (
+      botState.stake_amount !== 'unlimited' &&
+      typeof botState.stake_amount === 'number' &&
+      botState.stake_amount > 0
+    ) {
+      return {
+        label: formatCurrency(botState.stake_amount),
+        isFull: false,
+      };
+    }
+
+    // Unlimited stake mode: calculate available slots and dynamic proposed stake
+    const maxTrades = botState.max_open_trades || 6;
+    const currentTradesCount = activeTrades.length;
+    const availableSlots = Math.max(0, maxTrades - currentTradesCount);
+
+    if (availableSlots === 0) {
+      return {
+        label: `${t('dashboard.slot_full')} (${currentTradesCount}/${maxTrades})`,
+        isFull: true,
+      };
+    }
+
+    const freeBalance = botState.free_balance ?? botState.balance ?? 0;
+    const tradableRatio = botState.tradable_balance_ratio ?? 0.99;
+    const estStake = (freeBalance * tradableRatio) / availableSlots;
+
+    return {
+      label: `~${formatCurrency(estStake)}`,
+      isFull: false,
+    };
+  }, [
+    isReadOnly,
+    botState.stake_amount,
+    botState.max_open_trades,
+    botState.free_balance,
+    botState.balance,
+    botState.tradable_balance_ratio,
+    activeTrades.length,
+    t,
+    formatCurrency,
+  ]);
+
   // Sort daily records ascending by date so the latest days appear chronologically on the right
   const sortedDaily = useMemo(() => {
     return [...dailyRecords]
@@ -70,6 +122,11 @@ export function FreqUIDashboardView() {
     const vals = sortedDaily.map((r) => Math.abs(r.abs_profit));
     return Math.max(...vals, 1);
   }, [sortedDaily]);
+
+  const selectedDayRecord = useMemo(() => {
+    if (!selectedDayDate) return null;
+    return sortedDaily.find((d) => d.date === selectedDayDate) || null;
+  }, [selectedDayDate, sortedDaily]);
 
   const dailyStats = useMemo(() => {
     const totalProfit = sortedDaily.reduce((sum, d) => sum + (d.abs_profit || 0), 0);
@@ -107,7 +164,7 @@ export function FreqUIDashboardView() {
         const timeB = b.close_timestamp || (b.close_date ? new Date(b.close_date).getTime() : 0);
         return timeB - timeA;
       })
-      .slice(0, 30);
+      .slice(0, 10);
   }, [closedTrades]);
 
   const handleRefreshHistory = async () => {
@@ -225,12 +282,25 @@ export function FreqUIDashboardView() {
           <div className="text-lg sm:text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight whitespace-nowrap truncate">
             {isReadOnly ? t('ui.hidden') : formatCurrency(botState.balance)}
           </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 font-mono whitespace-nowrap truncate">
-            {t('dashboard.available')}:{' '}
-            <span className="text-slate-700 dark:text-slate-200 font-semibold">
-              {isReadOnly ? t('ui.hidden') : formatCurrency(botState.free_balance ?? botState.balance)}
-            </span>{' '}
-            · {t('dashboard.per_trade')}: {isReadOnly ? t('ui.hidden') : botState.stake_amount === 'unlimited' ? t('dashboard.per_trade') : formatCurrency(Number(botState.stake_amount) || 0)}
+          <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 font-mono flex items-center justify-between gap-1 flex-wrap">
+            <span className="truncate">
+              {t('dashboard.available')}:{' '}
+              <span className="text-slate-700 dark:text-slate-200 font-semibold">
+                {isReadOnly ? t('ui.hidden') : formatCurrency(botState.free_balance ?? botState.balance)}
+              </span>
+            </span>
+            <span className="truncate">
+              {t('dashboard.per_trade')}:{' '}
+              <span
+                className={`font-semibold ${
+                  nextStakeInfo.isFull
+                    ? 'text-amber-500 dark:text-amber-400'
+                    : 'text-slate-700 dark:text-slate-200'
+                }`}
+              >
+                {nextStakeInfo.label}
+              </span>
+            </span>
           </div>
         </div>
       </div>
@@ -393,10 +463,10 @@ export function FreqUIDashboardView() {
       </div>
 
       {/* 3. Daily Profit Distribution & Recent History */}
-      <div className="w-full min-w-0 grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-3 flex-1 min-h-[320px]">
+      <div className="w-full min-w-0 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-3.5 shrink-0 lg:flex-1 lg:min-h-0">
         {/* Daily PnL Chart */}
         <div
-          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border transition-colors flex flex-col flex-1 min-h-[300px] h-full ${
+          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border transition-colors flex flex-col h-auto lg:h-full min-h-[350px] ${
             isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
@@ -438,8 +508,49 @@ export function FreqUIDashboardView() {
             </div>
           </div>
 
+          {/* Selected Date Summary Pill (persis seperti Gambar 2 versi upstream) */}
+          {selectedDayRecord && (
+            <div
+              className={`flex items-center justify-between px-2.5 py-1 rounded-lg border text-xs font-mono mb-1 shrink-0 transition-colors ${
+                isDark
+                  ? 'bg-cyan-950/40 border-cyan-800/60 text-cyan-200'
+                  : 'bg-cyan-50/80 border-cyan-200 text-cyan-900'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Calendar className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
+                <span className="font-bold text-cyan-600 dark:text-cyan-400">{selectedDayRecord.date}</span>
+                <span className="text-slate-400">·</span>
+                <span className="text-slate-500">
+                  {selectedDayRecord.trade_count || 0} {t('dashboard.trades_count')}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span
+                  className={`font-bold ${
+                    selectedDayRecord.abs_profit >= 0
+                      ? 'text-emerald-500 dark:text-emerald-400'
+                      : 'text-rose-500 dark:text-rose-400'
+                  }`}
+                >
+                  {isReadOnly ? t('ui.hidden') : formatCurrency(selectedDayRecord.abs_profit, { showSign: true })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDayDate(null)}
+                  className="p-0.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Close"
+                  aria-label="Close selected day summary"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Bar Chart Area: Semua batang tumbuh KE ATAS dari baseline bawah (persis versi upstream & Gambar 2) */}
           <div
-            className={`flex-1 min-h-[170px] flex items-end justify-around gap-1.5 pt-2 px-1 border-b pb-1 ${
+            className={`flex-1 h-44 sm:h-52 lg:h-auto min-h-[170px] flex items-end justify-around gap-1.5 pt-2 px-1 border-b pb-1 ${
               isDark ? 'border-slate-800/60' : 'border-slate-200'
             }`}
           >
@@ -447,9 +558,10 @@ export function FreqUIDashboardView() {
               <div className="w-full text-center text-xs text-slate-400 my-auto py-4">{t('dashboard.no_performance')}</div>
             ) : (
               sortedDaily.map((d) => {
-                const isPos = d.abs_profit >= 0;
-                const absVal = Math.abs(d.abs_profit);
+                const isPos = (d.abs_profit || 0) >= 0;
+                const absVal = Math.abs(d.abs_profit || 0);
                 const hasTrade = (d.trade_count && d.trade_count > 0) || absVal > 0;
+                const isSelected = selectedDayDate === d.date;
                 let heightPct: number;
 
                 if (isLogScale) {
@@ -463,19 +575,36 @@ export function FreqUIDashboardView() {
                 heightPct = Math.min(Math.max(heightPct, 6), 92);
 
                 return (
-                  <div key={d.date} className="flex-1 flex flex-col items-center h-full justify-end group min-w-[24px] max-w-[48px]">
-                    <div className="text-[10px] text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1 font-mono text-center whitespace-nowrap z-10 bg-black/70 text-white px-1.5 py-0.5 rounded shadow pointer-events-none shrink-0">
+                  <div
+                    key={d.date}
+                    onClick={() => setSelectedDayDate(isSelected ? null : d.date)}
+                    className="flex-1 flex flex-col items-center h-full min-h-0 justify-end group min-w-[24px] max-w-[48px] cursor-pointer relative"
+                    title={`${d.date}: ${formatCurrency(d.abs_profit, { showSign: true })} (${d.trade_count || 0} trades)`}
+                  >
+                    {/* Hover & Active Tooltip (terintegrasi dengan upstream indicator) */}
+                    <div
+                      className={`text-[10px] font-mono text-center whitespace-nowrap z-20 px-1.5 py-0.5 rounded shadow-lg pointer-events-none absolute -top-5 transition-opacity ${
+                        isSelected
+                          ? 'opacity-100 bg-cyan-600 text-white font-bold'
+                          : 'opacity-0 group-hover:opacity-100 bg-black/85 text-white'
+                      }`}
+                    >
                       {hasTrade
-                        ? `${isReadOnly ? t('ui.hidden') : formatCurrency(d.abs_profit, { showSign: true })} (${d.trade_count} ${t('dashboard.trades_count')})`
+                        ? `${isReadOnly ? t('ui.hidden') : formatCurrency(d.abs_profit, { showSign: true })} (${d.trade_count || 0})`
                         : `${formatCurrency(0)} (0 ${t('dashboard.trades_count')})`}
                     </div>
-                    <div className="flex-1 w-full flex items-end justify-center">
+
+                    <div className="flex-1 w-full h-full min-h-0 flex items-end justify-center">
                       {hasTrade ? (
                         <div
                           className={`w-full max-w-[32px] rounded-t transition-all ${
                             isPos
                               ? 'bg-emerald-500 hover:bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
                               : 'bg-rose-500 hover:bg-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
+                          } ${
+                            isSelected
+                              ? 'ring-2 ring-cyan-400 ring-offset-1 dark:ring-offset-[#131b2e]'
+                              : ''
                           }`}
                           style={{ height: `${heightPct}%` }}
                         />
@@ -486,18 +615,27 @@ export function FreqUIDashboardView() {
                         />
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-500 mt-1 font-mono shrink-0">{d.date.slice(5)}</span>
+
+                    <span
+                      className={`text-[10px] mt-1 font-mono shrink-0 transition-colors ${
+                        isSelected
+                          ? 'text-cyan-500 font-bold'
+                          : 'text-slate-500 group-hover:text-slate-400'
+                      }`}
+                    >
+                      {d.date.slice(5)}
+                    </span>
                   </div>
                 );
               })
             )}
           </div>
 
-          {/* 10-Day Trading Performance Summary Grid */}
+          {/* 10-Day Trading Performance Summary Grid (2x2 di mobile, 4 kolom di desktop persis Gambar 2) */}
           {sortedDaily.length > 0 && (
             <div className="shrink-0 flex flex-col gap-2 pt-2.5">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
-                {/* 10日累计盈亏 */}
+                {/* 10-day Cumulative P&L */}
                 <div
                   className={`p-2 rounded-lg border flex flex-col justify-between ${
                     isDark ? 'bg-[#0f1626]/70 border-slate-800/80' : 'bg-slate-50 border-slate-200/80'
@@ -513,11 +651,11 @@ export function FreqUIDashboardView() {
                         : 'text-rose-500 dark:text-rose-400'
                     }`}
                   >
-                    {formatCurrency(dailyStats.totalProfit, { showSign: true })}
+                    {isReadOnly ? t('ui.hidden') : formatCurrency(dailyStats.totalProfit, { showSign: true })}
                   </span>
                 </div>
 
-                {/* 日均收益 */}
+                {/* Daily Avg */}
                 <div
                   className={`p-2 rounded-lg border flex flex-col justify-between ${
                     isDark ? 'bg-[#0f1626]/70 border-slate-800/80' : 'bg-slate-50 border-slate-200/80'
@@ -533,11 +671,11 @@ export function FreqUIDashboardView() {
                         : 'text-rose-500 dark:text-rose-400'
                     }`}
                   >
-                    {formatCurrency(dailyStats.avgDailyProfit, { showSign: true })}
+                    {isReadOnly ? t('ui.hidden') : formatCurrency(dailyStats.avgDailyProfit, { showSign: true })}
                   </span>
                 </div>
 
-                {/* 日胜率 */}
+                {/* Daily Win Rate */}
                 <div
                   className={`p-2 rounded-lg border flex flex-col justify-between ${
                     isDark ? 'bg-[#0f1626]/70 border-slate-800/80' : 'bg-slate-50 border-slate-200/80'
@@ -551,12 +689,12 @@ export function FreqUIDashboardView() {
                       {dailyStats.dailyWinrate}%
                     </span>
                     <span className="text-[10px] text-slate-400">
-                      ({dailyStats.winDays}胜/{dailyStats.lossDays}负)
+                      ({dailyStats.winDays}{isZh ? '胜' : 'W'} / {dailyStats.lossDays}{isZh ? '负' : 'L'})
                     </span>
                   </div>
                 </div>
 
-                {/* 单日最高 */}
+                {/* Best Day */}
                 <div
                   className={`p-2 rounded-lg border flex flex-col justify-between ${
                     isDark ? 'bg-[#0f1626]/70 border-slate-800/80' : 'bg-slate-50 border-slate-200/80'
@@ -570,32 +708,13 @@ export function FreqUIDashboardView() {
                   </span>
                 </div>
               </div>
-
-              {/* 底部详细统计小字条 */}
-              <div
-                className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-mono flex items-center justify-between shrink-0 ${
-                  isDark
-                    ? 'bg-[#0f1626]/40 border-slate-800/60 text-slate-400'
-                    : 'bg-slate-50/60 border-slate-200/60 text-slate-600'
-                }`}
-              >
-                <span>
-                  共平仓 {dailyStats.totalTrades} 笔 · 笔均 {formatCurrency(dailyStats.avgTradeProfit, { showSign: true })}
-                </span>
-                <span>
-                  单日最大回撤:{' '}
-                  <span className="text-rose-500 font-semibold">
-                    {dailyStats.worstDay < 0 ? formatCurrency(dailyStats.worstDay) : '$0.00'}
-                  </span>
-                </span>
-              </div>
             </div>
           )}
         </div>
 
         {/* Recent Closed Trades summary */}
         <div
-          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border flex flex-col flex-1 min-h-[300px] h-full transition-colors ${
+          className={`rounded-xl p-3 sm:p-3.5 shadow-xs border flex flex-col h-auto lg:h-full min-h-[320px] lg:flex-1 transition-colors ${
             isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
@@ -605,9 +724,6 @@ export function FreqUIDashboardView() {
               {t('dashboard.recent_closed')}
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-500 font-mono">
-                {t('dashboard.total_records').replace('{count}', String(closedTrades.length))}
-              </span>
               <button
                 onClick={handleRefreshHistory}
                 disabled={isRefreshingHistory}
@@ -619,7 +735,7 @@ export function FreqUIDashboardView() {
             </div>
           </div>
 
-          <div className="space-y-1.5 flex-1 min-h-0 overflow-y-auto pr-1 font-mono text-xs">
+          <div className="space-y-1.5 flex-1 min-h-0 max-h-[292px] lg:max-h-none overflow-y-auto pr-1 font-mono text-xs">
             {recentClosed.length === 0 ? (
               <div className="text-center text-xs text-slate-400 my-auto py-6">{t('dashboard.no_closed')}</div>
             ) : (
