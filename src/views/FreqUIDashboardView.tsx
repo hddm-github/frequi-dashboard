@@ -80,7 +80,9 @@ export function FreqUIDashboardView() {
       botState.stake_amount > 0
     ) {
       return {
-        label: formatCurrency(botState.stake_amount),
+        label: formatCurrency(botState.stake_amount, {
+          decimals: botState.stake_amount >= 1000 ? 0 : 2,
+        }),
         isFull: false,
       };
     }
@@ -92,7 +94,7 @@ export function FreqUIDashboardView() {
 
     if (availableSlots === 0) {
       return {
-        label: `${t('dashboard.slot_full')} (${currentTradesCount}/${maxTrades})`,
+        label: t('dashboard.slot_full'),
         isFull: true,
       };
     }
@@ -102,7 +104,9 @@ export function FreqUIDashboardView() {
     const estStake = (freeBalance * tradableRatio) / availableSlots;
 
     return {
-      label: `~${formatCurrency(estStake)}`,
+      label: `~${formatCurrency(estStake, {
+        decimals: estStake >= 1000 ? 0 : 2,
+      })}`,
       isFull: false,
     };
   }, [
@@ -306,16 +310,21 @@ export function FreqUIDashboardView() {
           >
             {isReadOnly ? t('ui.hidden') : formatCurrency(totalUnrealized, { showSign: true })}
           </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 flex items-center justify-between gap-1 whitespace-nowrap truncate">
-            <span>
+          <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 flex items-center justify-between gap-1 whitespace-nowrap overflow-hidden">
+            <span className="truncate">
               {t('dashboard.position')}:{' '}
               <span className="font-mono font-bold text-slate-700 dark:text-slate-200">
                 {activeTrades.length}
               </span>{' '}
               / {botState.max_open_trades}
             </span>
-            <span className="text-[10px] sm:text-[11px] text-cyan-600 dark:text-cyan-400 font-mono font-medium">
-              {t('dashboard.used')}: {isReadOnly ? t('ui.hidden') : formatCurrency(totalStake)}
+            <span className="text-[10px] sm:text-[11px] text-cyan-600 dark:text-cyan-400 font-mono font-medium truncate text-right shrink-0">
+              {t('dashboard.used')}:{' '}
+              {isReadOnly
+                ? t('ui.hidden')
+                : formatCurrency(totalStake, {
+                    decimals: totalStake >= 1000 ? 0 : 2,
+                  })}
             </span>
           </div>
         </div>
@@ -343,15 +352,27 @@ export function FreqUIDashboardView() {
           <div className="text-lg sm:text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight whitespace-nowrap truncate">
             {isReadOnly ? t('ui.hidden') : formatCurrency(botState.balance)}
           </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 font-mono flex items-center justify-between gap-1 flex-wrap">
-            <span className="truncate">
-              {t('dashboard.available')}:{' '}
+          <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 font-mono flex items-center justify-between gap-1 whitespace-nowrap overflow-hidden">
+            <span
+              className="truncate"
+              title={`${t('dashboard.available')}: ${isReadOnly ? t('ui.hidden') : formatCurrency(botState.free_balance ?? botState.balance)}`}
+            >
+              <span className="hidden sm:inline">{t('dashboard.available')}</span>
+              <span className="sm:hidden">{t('dashboard.available_short')}</span>:{' '}
               <span className="text-slate-700 dark:text-slate-200 font-semibold">
-                {isReadOnly ? t('ui.hidden') : formatCurrency(botState.free_balance ?? botState.balance)}
+                {isReadOnly
+                  ? t('ui.hidden')
+                  : formatCurrency(botState.free_balance ?? botState.balance, {
+                      decimals: (botState.free_balance ?? botState.balance ?? 0) >= 1000 ? 0 : 2,
+                    })}
               </span>
             </span>
-            <span className="truncate">
-              {t('dashboard.per_trade')}:{' '}
+            <span
+              className="truncate text-right shrink-0"
+              title={`${t('dashboard.per_trade')}: ${nextStakeInfo.label}`}
+            >
+              <span className="hidden sm:inline">{t('dashboard.per_trade')}</span>
+              <span className="sm:hidden">{t('dashboard.per_trade_short')}</span>:{' '}
               <span
                 className={`font-semibold ${
                   nextStakeInfo.isFull
@@ -373,20 +394,35 @@ export function FreqUIDashboardView() {
           }`}
         >
         <div
-          className={`px-3.5 py-2 border-b flex items-center justify-between ${
+          className={`px-3.5 py-2 border-b flex items-center justify-between gap-2 ${
             isDark ? 'border-slate-800 bg-[#0f1626]' : 'border-slate-200 bg-slate-50'
           }`}
         >
-          <div className="flex items-center gap-2">
-            <Activity className="w-3.5 h-3.5 text-emerald-500" />
-            <span className="text-xs font-bold uppercase tracking-wide">
-              {t('dashboard.active_trades')} ({activeTrades.length} {t('dashboard.trades_count')})
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Activity className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+            <span className="text-xs font-bold uppercase tracking-wide whitespace-nowrap">
+              {t('dashboard.active_trades')}
+            </span>
+            <span
+              className={`px-1.5 py-0.5 min-w-[18px] text-center rounded-full text-[10px] font-mono font-bold border leading-none ${
+                activeTrades.length > 0
+                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.2)]'
+                  : 'bg-slate-500/10 text-slate-500 dark:text-slate-400 border-slate-500/20'
+              }`}
+            >
+              {activeTrades.length}
             </span>
           </div>
-          <span className="text-xs text-slate-500 font-mono">
-            {t('dashboard.strategy')}: <span className="text-cyan-600 dark:text-cyan-400 font-bold">{botState.strategy}</span>{' '}
-            [{botState.timeframe}]
-          </span>
+          <div className="text-xs text-slate-500 font-mono flex items-center gap-1 min-w-0 justify-end truncate">
+            <span className="hidden sm:inline shrink-0">{t('dashboard.strategy')}:</span>
+            <span
+              className="text-cyan-600 dark:text-cyan-400 font-bold truncate max-w-[140px] sm:max-w-none"
+              title={botState.strategy}
+            >
+              {botState.strategy}
+            </span>{' '}
+            <span className="shrink-0 text-slate-400 font-medium">[{botState.timeframe}]</span>
+          </div>
         </div>
 
         {activeTrades.length === 0 ? (
