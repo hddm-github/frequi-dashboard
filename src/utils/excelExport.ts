@@ -1,6 +1,6 @@
 import type { Trade } from '../types';
 import { formatUtc8, parseToUtcDate } from './dateUtils';
-import { parseNfiSignal } from './nfiSignals';
+import { parseNfiSignal, formatExitReason } from './nfiSignals';
 
 export interface ExportTradeOptions {
   locale: 'zh' | 'en';
@@ -173,41 +173,7 @@ function formatPrice(val: number | undefined | null): string {
   return String(val);
 }
 
-const EXIT_REASONS_ZH: Record<string, string> = {
-  roi: '止盈 (ROI)',
-  stop_loss: '止损 (Stop Loss)',
-  trailing_stop_loss: '追踪止损 (Trailing)',
-  stoploss_on_exchange: '交易所止损',
-  force_exit: '强制市价平仓',
-  emergencysell: '紧急平仓',
-  custom_exit: '策略自定义退出',
-  exit_signal: '策略退出信号',
-  sell_signal: '卖出信号',
-};
 
-const EXIT_REASONS_EN: Record<string, string> = {
-  roi: 'Take Profit (ROI)',
-  stop_loss: 'Stop Loss',
-  trailing_stop_loss: 'Trailing Stop Loss',
-  stoploss_on_exchange: 'Exchange Stop Loss',
-  force_exit: 'Force Exit',
-  emergencysell: 'Emergency Exit',
-  custom_exit: 'Custom Exit',
-  exit_signal: 'Exit Signal',
-  sell_signal: 'Sell Signal',
-};
-
-function formatExitReason(reason: string | undefined, tag: string | undefined, isZh: boolean): string {
-  const dict = isZh ? EXIT_REASONS_ZH : EXIT_REASONS_EN;
-  let text = '';
-  if (reason) {
-    text = dict[reason] || reason;
-  }
-  if (tag && tag !== reason) {
-    text = text ? `${text} (${tag})` : tag;
-  }
-  return text || '-';
-}
 
 /**
  * Generates and triggers browser download of the formatted Excel (.xlsx) file

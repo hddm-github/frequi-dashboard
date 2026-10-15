@@ -245,12 +245,13 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
   // 2. 纯数字 NFI 经典标签解析 (如 "120", "42", "142", "501")
   const match = cleanTag.match(/\b(\d+)\b/) || cleanTag.match(/(\d+)/);
   const num = match ? parseInt(match[1], 10) : null;
+  const displayCode = cleanTag.length <= 12 ? cleanTag : (num !== null ? `${num}` : cleanTag);
 
   if (num !== null) {
     // 500+：做空信号体系
     if (num >= 500) {
       return {
-        code: `${num}`,
+        code: displayCode,
         category: isZh ? '做空信号体系' : 'Short Signal System',
         description: isZh ? '高位顶背离与反转做空信号体系' : 'High top-divergence & reversal short system',
         isShort: true,
@@ -261,7 +262,7 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
     // 161~173：高频超短头皮
     if (num >= 161 && num <= 173) {
       return {
-        code: `${num}`,
+        code: displayCode,
         category: isZh ? '高频超短头皮' : 'High-Freq Scalp',
         description: isZh ? '微观结构快速剥头皮套利' : 'Microstructure quick scalping arbitrage',
         isShort: false,
@@ -272,7 +273,7 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
     // 141~145：头部主流大币
     if (num >= 141 && num <= 145) {
       return {
-        code: `${num}`,
+        code: displayCode,
         category: isZh ? '头部主流大币' : 'Large-Cap Leaders',
         description: isZh ? 'BTC/ETH 主流核心资产专属做多信号' : 'BTC/ETH major assets dedicated long signals',
         isShort: false,
@@ -283,7 +284,7 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
     // 1~13 & 120等波段体系：趋势波段多头
     if ((num >= 1 && num <= 13) || num === 120 || num === 12) {
       return {
-        code: `${num}`,
+        code: displayCode,
         category: isZh ? '趋势波段多头' : 'Trend Swing Long',
         description: isZh ? '大级别均线顺势波段多头' : 'Higher timeframe MA trend swing long',
         isShort: false,
@@ -294,7 +295,7 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
     // 21~26：放量拉升追多
     if (num >= 21 && num <= 26) {
       return {
-        code: `${num}`,
+        code: displayCode,
         category: isZh ? '放量拉升追多' : 'Volume Breakout Long',
         description: isZh ? '成交量异动放大与突破追强' : 'Volume spike & breakout momentum long',
         isShort: false,
@@ -305,7 +306,7 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
     // 41~53：超跌快速反弹
     if (num >= 41 && num <= 53) {
       return {
-        code: `${num}`,
+        code: displayCode,
         category: isZh ? '超跌快速反弹' : 'Oversold Rebound',
         description: isZh ? '极端下挫超卖快速抢反弹' : 'Extreme drop & oversold bounce entry',
         isShort: false,
@@ -316,7 +317,7 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
     // 61~68：回调低吸加仓
     if (num >= 61 && num <= 68) {
       return {
-        code: `${num}`,
+        code: displayCode,
         category: isZh ? '回调低吸加仓' : 'Pullback DCA',
         description: isZh ? '稳健支撑均线回踩低吸' : 'Support MA retest & low-absorption entry',
         isShort: false,
@@ -350,4 +351,141 @@ export function isNfiStrategy(strategyName?: string | null): boolean {
     s.includes('nostalgiaforinfinity') ||
     s.includes('nfix')
   );
+}
+
+export const EXIT_REASONS_ZH: Record<string, string> = {
+  roi: '止盈 (ROI)',
+  stop_loss: '止损 (Stop Loss)',
+  trailing_stop_loss: '追踪止损',
+  stoploss_on_exchange: '交易所止损',
+  sold_on_exchange: '交易所平仓',
+  force_exit: '市价平仓',
+  emergencysell: '紧急平仓',
+  custom_exit: '策略退出',
+  exit_signal: '策略退出信号',
+  sell_signal: '卖出信号',
+  partial_exit: '部分平仓',
+  user: '人工平仓',
+};
+
+export const EXIT_REASONS_EN: Record<string, string> = {
+  roi: 'Take Profit (ROI)',
+  stop_loss: 'Stop Loss',
+  trailing_stop_loss: 'Trailing SL',
+  stoploss_on_exchange: 'Exchange SL',
+  sold_on_exchange: 'Sold on Exchange',
+  force_exit: 'Force Exit',
+  emergencysell: 'Emergency Exit',
+  custom_exit: 'Custom Exit',
+  exit_signal: 'Exit Signal',
+  sell_signal: 'Sell Signal',
+  partial_exit: 'Partial Exit',
+  user: 'Manual Exit',
+};
+
+/**
+ * Converts Freqtrade / NFI strategy exit reasons and tags into authentic, professional
+ * quant trading terminology in Chinese, while preserving clean original English tags.
+ */
+export function formatExitReason(
+  reason: string | undefined,
+  tag: string | undefined,
+  isZh: boolean
+): string {
+  // If reason is generic or empty, use tag if available
+  let raw = '';
+  if (tag && (!reason || reason === 'exit_signal' || reason === 'custom_exit')) {
+    raw = tag;
+  } else if (reason) {
+    raw = reason;
+    // Only append tag if it's not a pure number (which is entry tag info) and not identical
+    if (tag && tag !== reason && !tag.match(/^\d+(\s+\d+)*$/)) {
+      raw = `${reason} (${tag})`;
+    }
+  } else {
+    raw = tag || '';
+  }
+
+  raw = raw.trim();
+  if (!raw) return '-';
+
+  // Strip redundant trailing entry tags like "( 141 142 )" or "( 65 )"
+  // because the table already displays entry tag in the adjacent column
+  const cleanReason = raw.replace(/\s*\(\s*[\d\s]+\s*\)$/, '').trim();
+  const lower = cleanReason.toLowerCase();
+
+  if (!isZh) {
+    if (EXIT_REASONS_EN[lower]) {
+      return EXIT_REASONS_EN[lower];
+    }
+    return cleanReason;
+  }
+
+  // Chinese mode: map to professional crypto quant trading terminology
+  if (EXIT_REASONS_ZH[lower]) {
+    return EXIT_REASONS_ZH[lower];
+  }
+
+  // 1. Extreme protection / Risk control exits
+  if (lower.includes('stoploss_doom')) {
+    return '深度风控止损';
+  }
+  if (lower.includes('bad_trade_broken')) {
+    return '形态破位止损';
+  }
+  if (lower.includes('bad_trade_abandon')) {
+    return '废弃超时止损';
+  }
+
+  // 2. Profit target exits
+  if (lower.startsWith('exit_profit_')) {
+    if (lower.includes('tc') || lower.includes('top_coins')) return '主流大币止盈';
+    if (lower.includes('rebuy')) return '低吸补仓止盈';
+    if (lower.includes('normal')) return '常规多头止盈';
+    if (lower.includes('pump')) return '放量拉升止盈';
+    if (lower.includes('quick')) return '快速多头止盈';
+    if (lower.includes('scalp')) return '超短剥头皮止盈';
+    if (lower.includes('btc')) return 'BTC专属止盈';
+    if (lower.includes('grind')) return '震荡研磨止盈';
+    return '策略目标止盈';
+  }
+
+  // 3. Long exit signals
+  if (lower.startsWith('exit_long_')) {
+    if (lower.includes('quick') || lower.includes('_q_')) return '快速多头离场';
+    if (lower.includes('tc') || lower.includes('top_coins')) return '主流币多头离场';
+    if (lower.includes('rebuy') || lower.includes('_w_')) return '低吸补仓离场';
+    if (lower.includes('normal') || lower.includes('_u_')) return '常规多头离场';
+    if (lower.includes('grind') || lower.includes('_g_')) return '震荡研磨离场';
+    if (lower.includes('pump')) return '拉升高位离场';
+    if (lower.includes('scalp')) return '高频超短离场';
+    if (lower.includes('btc')) return 'BTC专属离场';
+    if (lower.includes('rapid') || lower.includes('rpd')) return '超跌反弹离场';
+    if (lower.includes('stoploss')) return '策略防守止损';
+    return '多头策略离场';
+  }
+
+  // 4. Short exit signals
+  if (lower.startsWith('exit_short_')) {
+    if (lower.includes('rebuy')) return '做空补仓平仓';
+    if (lower.includes('quick') || lower.includes('_q_')) return '快速做空平仓';
+    if (lower.includes('normal') || lower.includes('_u_')) return '常规做空平仓';
+    if (lower.includes('scalp')) return '做空超短平仓';
+    if (lower.includes('tc') || lower.includes('top_coins')) return '主流币做空平仓';
+    if (lower.includes('pump')) return '冲高做空平仓';
+    if (lower.includes('rapid') || lower.includes('rpd')) return '做空反弹平仓';
+    if (lower.includes('stoploss')) return '空头防守止损';
+    return '空头策略离场';
+  }
+
+  // 5. Generic exit signals
+  if (lower.startsWith('exit_')) {
+    if (lower.includes('derisk')) return '去风险减仓';
+    if (lower.includes('dec')) return '动量衰竭离场';
+    if (lower.includes('williams_r')) return '威廉超买离场';
+    if (lower.includes('trend')) return '趋势反转离场';
+    return '策略信号离场';
+  }
+
+  return cleanReason;
 }

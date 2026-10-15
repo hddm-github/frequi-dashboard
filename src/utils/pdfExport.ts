@@ -1,6 +1,6 @@
 import type { Trade } from '../types';
 import { formatUtc8, parseToUtcDate } from './dateUtils';
-import { parseNfiSignal } from './nfiSignals';
+import { parseNfiSignal, formatExitReason } from './nfiSignals';
 import type { ExportTradeOptions } from './excelExport';
 
 function formatDuration(openMs: number, closeMs: number, isZh: boolean): string {
@@ -37,40 +37,62 @@ function formatPrice(val: number | undefined | null): string {
   return String(val);
 }
 
-const EXIT_REASONS_ZH: Record<string, string> = {
-  roi: '止盈 (ROI)',
-  stop_loss: '止损 (Stop Loss)',
-  trailing_stop_loss: '追踪止损',
-  stoploss_on_exchange: '交易所止损',
-  force_exit: '市价平仓',
-  emergencysell: '紧急平仓',
-  custom_exit: '策略退出',
-  exit_signal: '退出信号',
-  sell_signal: '卖出信号',
-};
+/**
+ * Draws cell text strictly bounded within cell width.
+ * Performs binary-search truncation with ellipsis ('…') and hardware-level clipping
+ * to guarantee characters will never bleed into or overlap adjacent columns.
+ */
+function drawCellText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  cellX: number,
+  y: number,
+  cellWidth: number,
+  align: 'left' | 'center' | 'right',
+  padding = 4
+): void {
+  const maxW = Math.max(0, cellWidth - padding * 2);
+  let displayStr = text;
 
-const EXIT_REASONS_EN: Record<string, string> = {
-  roi: 'Take Profit',
-  stop_loss: 'Stop Loss',
-  trailing_stop_loss: 'Trailing SL',
-  stoploss_on_exchange: 'Exchange SL',
-  force_exit: 'Force Exit',
-  emergencysell: 'Emergency',
-  custom_exit: 'Custom Exit',
-  exit_signal: 'Exit Signal',
-  sell_signal: 'Sell Signal',
-};
+  if (ctx.measureText(displayStr).width > maxW) {
+    const ellipsis = '…';
+    const ellW = ctx.measureText(ellipsis).width;
+    if (ellW >= maxW) {
+      displayStr = '';
+    } else {
+      let low = 0;
+      let high = displayStr.length;
+      let best = '';
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const sub = displayStr.slice(0, mid);
+        if (ctx.measureText(sub).width + ellW <= maxW) {
+          best = sub;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+      displayStr = best ? `${best}${ellipsis}` : '';
+    }
+  }
 
-function formatExitReason(reason: string | undefined, tag: string | undefined, isZh: boolean): string {
-  const dict = isZh ? EXIT_REASONS_ZH : EXIT_REASONS_EN;
-  let text = '';
-  if (reason) {
-    text = dict[reason] || reason;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(cellX, 0, cellWidth, 10000);
+  ctx.clip();
+
+  if (align === 'center') {
+    ctx.textAlign = 'center';
+    ctx.fillText(displayStr, cellX + cellWidth / 2, y);
+  } else if (align === 'right') {
+    ctx.textAlign = 'right';
+    ctx.fillText(displayStr, cellX + cellWidth - padding, y);
+  } else {
+    ctx.textAlign = 'left';
+    ctx.fillText(displayStr, cellX + padding, y);
   }
-  if (tag && tag !== reason) {
-    text = text ? `${text} (${tag})` : tag;
-  }
-  return text || '-';
+  ctx.restore();
 }
 
 /**
@@ -209,20 +231,20 @@ export function exportClosedTradesToPdf(trades: Trade[], options: ExportTradeOpt
   const marginX = 24;
   const tableWidth = pageWidth - marginX * 2; // 794 pt
 
-  // Column widths definition (Total 794 pt)
+  // Column widths definition (Total 794 pt matching tableWidth)
   const columns = [
-    { key: 'id', title: isZh ? '序号' : 'ID', width: 38, align: 'center' },
-    { key: 'pair', title: isZh ? '交易对' : 'PAIR', width: 88, align: 'left' },
-    { key: 'side', title: isZh ? '方向' : 'SIDE', width: 50, align: 'center' },
-    { key: 'open_time', title: isZh ? '开仓时间' : 'OPEN TIME', width: 88, align: 'center' },
-    { key: 'close_time', title: isZh ? '平仓时间' : 'CLOSE TIME', width: 88, align: 'center' },
-    { key: 'duration', title: isZh ? '持仓时长' : 'DURATION', width: 54, align: 'center' },
-    { key: 'open_rate', title: isZh ? '开仓价格' : 'OPEN RATE', width: 58, align: 'right' },
-    { key: 'close_rate', title: isZh ? '平仓价格' : 'CLOSE RATE', width: 58, align: 'right' },
-    { key: 'stake', title: `${isZh ? '投入金额' : 'STAKE'} (${currencyUnit})`, width: 58, align: 'right' },
-    { key: 'profit_abs', title: `${isZh ? '净盈亏' : 'NET PNL'} (${currencyUnit})`, width: 60, align: 'right' },
-    { key: 'profit_pct', title: isZh ? '收益率' : 'RETURN %', width: 44, align: 'right' },
-    { key: 'exit_reason', title: isZh ? '退出原因' : 'EXIT REASON', width: 58, align: 'left' },
+    { key: 'id', title: isZh ? '序号' : 'ID', width: 32, align: 'center' },
+    { key: 'pair', title: isZh ? '交易对' : 'PAIR', width: 72, align: 'left' },
+    { key: 'side', title: isZh ? '方向' : 'SIDE', width: 38, align: 'center' },
+    { key: 'open_time', title: isZh ? '开仓时间' : 'OPEN TIME', width: 66, align: 'center' },
+    { key: 'close_time', title: isZh ? '平仓时间' : 'CLOSE TIME', width: 66, align: 'center' },
+    { key: 'duration', title: isZh ? '持仓时长' : 'DURATION', width: 52, align: 'center' },
+    { key: 'open_rate', title: isZh ? '开仓价格' : 'OPEN RATE', width: 56, align: 'right' },
+    { key: 'close_rate', title: isZh ? '平仓价格' : 'CLOSE RATE', width: 56, align: 'right' },
+    { key: 'stake', title: `${isZh ? '投入金额' : 'STAKE'} (${currencyUnit})`, width: 72, align: 'right' },
+    { key: 'profit_abs', title: `${isZh ? '净盈亏' : 'NET PNL'} (${currencyUnit})`, width: 70, align: 'right' },
+    { key: 'profit_pct', title: isZh ? '收益率' : 'RETURN %', width: 48, align: 'right' },
+    { key: 'exit_reason', title: isZh ? '退出原因' : 'EXIT REASON', width: 114, align: 'left' },
     { key: 'enter_tag', title: isZh ? '入场信号' : 'SIGNAL', width: 52, align: 'center' },
   ];
 
@@ -356,7 +378,7 @@ export function exportClosedTradesToPdf(trades: Trade[], options: ExportTradeOpt
     ctx.fillRect(marginX, tableStartY, tableWidth, thHeight);
 
     let curX = marginX;
-    ctx.font = '700 8.5px "JetBrains Mono", Menlo, "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.font = '700 8px "JetBrains Mono", Menlo, "PingFang SC", "Microsoft YaHei", sans-serif';
     ctx.fillStyle = '#ffffff';
 
     columns.forEach((col) => {
@@ -364,16 +386,8 @@ export function exportClosedTradesToPdf(trades: Trade[], options: ExportTradeOpt
       ctx.lineWidth = 0.5;
       ctx.strokeRect(curX, tableStartY, col.width, thHeight);
 
-      if (col.align === 'center') {
-        ctx.textAlign = 'center';
-        ctx.fillText(col.title, curX + col.width / 2, tableStartY + 14);
-      } else if (col.align === 'right') {
-        ctx.textAlign = 'right';
-        ctx.fillText(col.title, curX + col.width - 6, tableStartY + 14);
-      } else {
-        ctx.textAlign = 'left';
-        ctx.fillText(col.title, curX + 6, tableStartY + 14);
-      }
+      ctx.fillStyle = '#ffffff';
+      drawCellText(ctx, col.title, curX, tableStartY + 14, col.width, col.align as 'left' | 'center' | 'right', 4);
       curX += col.width;
     });
 
@@ -441,76 +455,63 @@ export function exportClosedTradesToPdf(trades: Trade[], options: ExportTradeOpt
           ctx.strokeRect(cellX, rowY, col.width, rowHeight);
 
           if (col.key === 'id') {
-            ctx.font = '500 8.5px "JetBrains Mono", Menlo, monospace';
+            ctx.font = '500 8px "JetBrains Mono", Menlo, monospace';
             ctx.fillStyle = '#64748b';
-            ctx.textAlign = 'center';
-            ctx.fillText(`#${item.trade_id}`, cellX + col.width / 2, rowY + 12.5);
+            drawCellText(ctx, `#${item.trade_id}`, cellX, rowY + 12.5, col.width, 'center', 2);
           } else if (col.key === 'pair') {
-            ctx.font = '700 8.5px "JetBrains Mono", Menlo, monospace';
+            ctx.font = '700 8px "JetBrains Mono", Menlo, monospace';
             ctx.fillStyle = '#0f172a';
-            ctx.textAlign = 'left';
-            ctx.fillText(cleanPair, cellX + 6, rowY + 12.5);
+            drawCellText(ctx, cleanPair, cellX, rowY + 12.5, col.width, 'left', 4);
           } else if (col.key === 'side') {
             const isShort = Boolean(item.is_short);
             const sideText = isZh ? (isShort ? '做空' : '做多') : isShort ? 'SHORT' : 'LONG';
             const pillBg = isShort ? '#fef2f2' : '#ecfdf5';
             const pillBorder = isShort ? '#fecaca' : '#a7f3d0';
             const pillColor = isShort ? '#b91c1c' : '#047857';
-            drawPill(ctx, cellX + 5, rowY + 3, col.width - 10, 13, 3, pillBg, pillBorder);
-            ctx.font = '700 7.5px -apple-system, sans-serif';
+            drawPill(ctx, cellX + 3, rowY + 3, col.width - 6, 13, 3, pillBg, pillBorder);
+            ctx.font = '700 7px -apple-system, sans-serif';
             ctx.fillStyle = pillColor;
-            ctx.textAlign = 'center';
-            ctx.fillText(sideText, cellX + col.width / 2, rowY + 12);
+            drawCellText(ctx, sideText, cellX, rowY + 12, col.width, 'center', 2);
           } else if (col.key === 'open_time') {
-            ctx.font = '500 8px "JetBrains Mono", Menlo, monospace';
+            ctx.font = '500 7.5px "JetBrains Mono", Menlo, monospace';
             ctx.fillStyle = '#475569';
-            ctx.textAlign = 'center';
-            ctx.fillText(openTimeStr, cellX + col.width / 2, rowY + 12.5);
+            drawCellText(ctx, openTimeStr, cellX, rowY + 12.5, col.width, 'center', 2);
           } else if (col.key === 'close_time') {
-            ctx.font = '500 8px "JetBrains Mono", Menlo, monospace';
+            ctx.font = '500 7.5px "JetBrains Mono", Menlo, monospace';
             ctx.fillStyle = '#475569';
-            ctx.textAlign = 'center';
-            ctx.fillText(closeTimeStr, cellX + col.width / 2, rowY + 12.5);
+            drawCellText(ctx, closeTimeStr, cellX, rowY + 12.5, col.width, 'center', 2);
           } else if (col.key === 'duration') {
-            ctx.font = '500 8px -apple-system, sans-serif';
-            ctx.fillStyle = '#334155';
-            ctx.textAlign = 'center';
-            ctx.fillText(durationStr, cellX + col.width / 2, rowY + 12.5);
-          } else if (col.key === 'open_rate') {
-            ctx.font = '500 8.5px "JetBrains Mono", Menlo, monospace';
-            ctx.fillStyle = '#0f172a';
-            ctx.textAlign = 'right';
-            ctx.fillText(formatPrice(item.open_rate), cellX + col.width - 6, rowY + 12.5);
-          } else if (col.key === 'close_rate') {
-            ctx.font = '500 8.5px "JetBrains Mono", Menlo, monospace';
-            ctx.fillStyle = '#0f172a';
-            ctx.textAlign = 'right';
-            ctx.fillText(formatPrice(item.close_rate), cellX + col.width - 6, rowY + 12.5);
-          } else if (col.key === 'stake') {
-            ctx.font = '500 8.5px "JetBrains Mono", Menlo, monospace';
-            ctx.fillStyle = '#0f172a';
-            ctx.textAlign = 'right';
-            ctx.fillText(pStakeFormatted, cellX + col.width - 6, rowY + 12.5);
-          } else if (col.key === 'profit_abs') {
-            ctx.font = '700 8.5px "JetBrains Mono", Menlo, monospace';
-            ctx.fillStyle = isProfit ? '#15803d' : '#b91c1c';
-            ctx.textAlign = 'right';
-            ctx.fillText(pAbsFormatted, cellX + col.width - 6, rowY + 12.5);
-          } else if (col.key === 'profit_pct') {
-            ctx.font = '700 8.5px "JetBrains Mono", Menlo, monospace';
-            ctx.fillStyle = isProfit ? '#15803d' : '#b91c1c';
-            ctx.textAlign = 'right';
-            ctx.fillText(pPctFormatted, cellX + col.width - 6, rowY + 12.5);
-          } else if (col.key === 'exit_reason') {
             ctx.font = '500 7.5px -apple-system, sans-serif';
             ctx.fillStyle = '#334155';
-            ctx.textAlign = 'left';
-            ctx.fillText(exitReasonStr, cellX + 5, rowY + 12);
+            drawCellText(ctx, durationStr, cellX, rowY + 12.5, col.width, 'center', 2);
+          } else if (col.key === 'open_rate') {
+            ctx.font = '500 8px "JetBrains Mono", Menlo, monospace';
+            ctx.fillStyle = '#0f172a';
+            drawCellText(ctx, formatPrice(item.open_rate), cellX, rowY + 12.5, col.width, 'right', 4);
+          } else if (col.key === 'close_rate') {
+            ctx.font = '500 8px "JetBrains Mono", Menlo, monospace';
+            ctx.fillStyle = '#0f172a';
+            drawCellText(ctx, formatPrice(item.close_rate), cellX, rowY + 12.5, col.width, 'right', 4);
+          } else if (col.key === 'stake') {
+            ctx.font = '500 8px "JetBrains Mono", Menlo, monospace';
+            ctx.fillStyle = '#0f172a';
+            drawCellText(ctx, pStakeFormatted, cellX, rowY + 12.5, col.width, 'right', 4);
+          } else if (col.key === 'profit_abs') {
+            ctx.font = '700 8px "JetBrains Mono", Menlo, monospace';
+            ctx.fillStyle = isProfit ? '#15803d' : '#b91c1c';
+            drawCellText(ctx, pAbsFormatted, cellX, rowY + 12.5, col.width, 'right', 4);
+          } else if (col.key === 'profit_pct') {
+            ctx.font = '700 8px "JetBrains Mono", Menlo, monospace';
+            ctx.fillStyle = isProfit ? '#15803d' : '#b91c1c';
+            drawCellText(ctx, pPctFormatted, cellX, rowY + 12.5, col.width, 'right', 4);
+          } else if (col.key === 'exit_reason') {
+            ctx.font = '500 7.5px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+            ctx.fillStyle = '#334155';
+            drawCellText(ctx, exitReasonStr, cellX, rowY + 12.5, col.width, 'left', 5);
           } else if (col.key === 'enter_tag') {
             ctx.font = '600 7.5px "JetBrains Mono", Menlo, monospace';
             ctx.fillStyle = '#475569';
-            ctx.textAlign = 'center';
-            ctx.fillText(sigInfo.code, cellX + col.width / 2, rowY + 12);
+            drawCellText(ctx, sigInfo.code, cellX, rowY + 12.5, col.width, 'center', 2);
           }
 
           cellX += col.width;
