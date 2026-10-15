@@ -567,11 +567,11 @@ export function CandleChartView() {
     }
   };
 
-  // Zoom to recent candles with ~2x magnification so candles are wide and readable
+  // Zoom to recent candles with balanced density so candles have body & wicks and show ample trend context
   const zoomToRecentCandles = (chartInstance: any, totalBars: number) => {
     if (!chartInstance || totalBars <= 0) return;
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-    const barsToShow = isMobile ? 50 : 80;
+    const barsToShow = isMobile ? 80 : 140;
     const fromIndex = Math.max(0, totalBars - barsToShow);
     chartInstance.timeScale().setVisibleLogicalRange({
       from: fromIndex,
@@ -861,377 +861,354 @@ export function CandleChartView() {
     >
       {/* Chart Toolbar */}
       <div
-        className={`flex flex-col gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 border-b text-xs transition-colors shrink-0 ${
+        className={`flex flex-col gap-2 px-2.5 sm:px-3 py-2 border-b text-xs transition-colors shrink-0 ${
           isDark ? 'border-slate-700/80 bg-[#141d2f]' : 'border-slate-200 bg-slate-50'
         }`}
       >
-        {/* Main Row: Pair Selector & Action Controls */}
-        <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full">
-          {/* Pair Selector */}
-          <div className="flex items-center gap-1.5 min-w-0 flex-1 sm:flex-none">
-            <CandlestickChart className="w-4 h-4 text-emerald-500 shrink-0" />
-            <select
-              value={selectedPair}
-              onChange={(e) => setSelectedPair(e.target.value)}
-              className={`border rounded-lg px-2 py-1 font-mono text-xs font-semibold focus:outline-none focus:border-emerald-500 transition-colors w-full sm:w-auto max-w-[210px] sm:max-w-xs truncate ${
-                isDark ? 'bg-[#1a233a] border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-800'
-              }`}
-            >
-              {availablePairs.map((pair) => (
-                <option key={pair} value={pair}>
-                  {pair} {activeTrades.some((tr) => tr.pair === pair) ? `★ (${t('candle.open_position')})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Desktop Timeframes Selector (visible on md+) */}
-          <div className="hidden md:flex items-center gap-1 font-mono text-[11px] shrink-0">
-            {TIMEFRAMES.map((tf) => {
-              const isStrategyTf = tf === (botState.timeframe || '5m');
-              return (
-                <button
-                  key={tf}
-                  onClick={() => setTimeframe(tf)}
-                  className={`px-2 py-0.5 rounded transition-colors cursor-pointer flex items-center gap-1 ${
-                    timeframe === tf
-                      ? 'bg-emerald-600 text-white font-bold shadow-xs'
-                      : isDark
-                      ? 'text-slate-400 hover:text-slate-200 hover:bg-[#1a233a]'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                  }`}
-                  title={isStrategyTf ? t('candle.native_timeframe') : `${t('candle.market_timeframe')} ${tf}`}
-                >
-                  <span>{tf}</span>
-                  {isStrategyTf && <span className="text-[9px] opacity-75">{t('candle.strategy_tf')}</span>}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Desktop Manual Load Older Candles Button (visible on md+) */}
-          <button
-            onClick={() => handleLoadOlderCandles()}
-            disabled={loadingOlder || loading}
-            className={`hidden md:flex px-2 py-0.5 rounded text-[11px] font-medium border items-center gap-1 transition-colors cursor-pointer shrink-0 ${
-              loadingOlder
-                ? 'border-emerald-500/50 text-emerald-500 bg-emerald-500/10'
-                : isDark
-                ? 'border-slate-700 bg-[#1a233a] text-slate-300 hover:text-slate-100 hover:bg-[#202b46]'
-                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
-            }`}
-            title={t('candle.load_older_title')}
-          >
-            {loadingOlder ? (
-              <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
-            ) : (
-              <History className="w-3 h-3" />
-            )}
-            <span>{t('candle.load_older_btn')} ({candles.length})</span>
-          </button>
-
-          {/* Control Action Buttons */}
-          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-            {/* Trade Markers Toggle Button */}
-            <button
-              onClick={() => setShowMarkers(!showMarkers)}
-              className={`p-1.5 sm:px-2 sm:py-0.5 rounded text-[11px] font-medium border flex items-center gap-1 transition-colors cursor-pointer shrink-0 ${
-                showMarkers
-                  ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
-                  : isDark
-                  ? 'bg-[#1a233a] text-slate-400 border-slate-700'
-                  : 'bg-slate-100 text-slate-600 border-slate-300'
-              }`}
-              title={t('candle.markers_title')}
-            >
-              <Bookmark className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t('candle.markers_label')}: {showMarkers ? t('candle.show') : t('candle.hide')}</span>
-              <span className="font-mono text-[10px] font-bold">({tradeMarkers.length})</span>
-            </button>
-            {showMarkers && (
-              <div
-                className="hidden xl:flex items-center gap-1.5 text-[10px] whitespace-nowrap"
-                title={t('candle.markers_help')}
+        {/* Tier 1: 核心标的与周期控制 + 核心操作工具组 */}
+        <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+          {/* 左侧：标的选择器与周期切换栏 */}
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            {/* 交易对选择器 */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <CandlestickChart className="w-4 h-4 text-emerald-500 shrink-0" />
+              <select
+                value={selectedPair}
+                onChange={(e) => setSelectedPair(e.target.value)}
+                className={`border rounded-lg px-2 py-1 font-mono text-xs font-semibold focus:outline-none focus:border-emerald-500 transition-colors max-w-[200px] sm:max-w-xs truncate cursor-pointer ${
+                  isDark ? 'bg-[#1a233a] border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-800'
+                }`}
               >
-                <span className="text-emerald-600 dark:text-emerald-400">↑ {t('candle.long')}</span>
-                <span className="text-sky-700 dark:text-sky-300">↑ {t('candle.add_marker')}</span>
-                <span className="text-violet-700 dark:text-violet-300">↑ {t('candle.build_marker')}</span>
-                <span className="text-amber-700 dark:text-amber-300">↓ {t('candle.reduce_marker')}</span>
-                <span className="text-rose-600 dark:text-rose-400">↓ {t('candle.closed')}</span>
-              </div>
-            )}
+                {availablePairs.map((pair) => (
+                  <option key={pair} value={pair}>
+                    {pair} {activeTrades.some((tr) => tr.pair === pair) ? `★ (${t('candle.open_position')})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            {/* Pair Trades List Dropdown */}
+            {/* 周期切换栏 */}
+            <div className="flex items-center gap-1 font-mono text-[11px] shrink-0 overflow-x-auto no-scrollbar py-0.5">
+              {TIMEFRAMES.map((tf) => {
+                const isStrategyTf = tf === (botState.timeframe || '5m');
+                return (
+                  <button
+                    key={tf}
+                    onClick={() => setTimeframe(tf)}
+                    className={`px-2 py-0.5 rounded transition-colors cursor-pointer flex items-center gap-1 shrink-0 ${
+                      timeframe === tf
+                        ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                        : isDark
+                        ? 'text-slate-400 hover:text-slate-200 hover:bg-[#1a233a]'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                    }`}
+                    title={isStrategyTf ? t('candle.native_timeframe') : `${t('candle.market_timeframe')} ${tf}`}
+                  >
+                    <span>{tf}</span>
+                    {isStrategyTf && <span className="text-[9px] opacity-75">{t('candle.strategy_tf')}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 右侧：交易工具组 (明细、看板、刷新、语言) */}
+          <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+            {/* 本对交易明细下拉/弹窗 */}
             <div className="relative">
               <button
                 onClick={() => setShowTradeDropdown(!showTradeDropdown)}
-                className={`p-1.5 sm:px-2 sm:py-0.5 rounded text-[11px] font-medium border flex items-center gap-1 transition-colors cursor-pointer shrink-0 ${
+                className={`px-2 py-1 rounded-lg text-[11px] font-medium border flex items-center gap-1 transition-colors cursor-pointer shrink-0 ${
                   showTradeDropdown
                     ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40'
                     : isDark
                     ? 'bg-[#1a233a] text-slate-300 border-slate-700 hover:bg-[#202b46]'
-                    : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100 shadow-xs'
                 }`}
                 title={t('candle.trade_history_title')}
               >
-                <History className="w-3.5 h-3.5 sm:hidden" />
-                <span className="hidden sm:inline">{t('candle.trade_history_btn')}</span>
-                <span className="font-mono text-[10px] font-bold">({pairTrades.length})</span>
-                <ChevronDown className="w-3 h-3" />
+                <History className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
+                <span>{t('candle.trade_history_btn')}</span>
+                <span className="font-mono text-[10px] font-bold opacity-80">({pairTrades.length})</span>
+                <ChevronDown className="w-3 h-3 opacity-60" />
               </button>
 
-            {/* Modal Portal Trade History */}
-            {showTradeDropdown && typeof document !== 'undefined' && createPortal(
-              <div
-                className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
-                onClick={() => setShowTradeDropdown(false)}
-              >
+              {/* Modal Portal Trade History */}
+              {showTradeDropdown && typeof document !== 'undefined' && createPortal(
                 <div
-                  className={`w-full max-w-lg max-h-[85dvh] flex flex-col rounded-2xl shadow-2xl border overflow-hidden ${
-                    isDark ? 'bg-[#131b2e] border-slate-700/80 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
-                  }`}
-                  onClick={(e) => e.stopPropagation()}
+                  className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+                  onClick={() => setShowTradeDropdown(false)}
                 >
-                  <div className={`flex items-center justify-between px-4 py-3 border-b shrink-0 ${
-                    isDark ? 'border-slate-700/60 bg-[#162036]' : 'border-slate-200 bg-slate-50'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      <History className="w-4 h-4 text-cyan-400" />
-                      <span className="font-bold text-sm tracking-wide">
-                        {selectedPair}
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        {t('candle.trade_history_btn')} ({pairTrades.length})
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setShowTradeDropdown(false)}
-                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                        isDark ? 'hover:bg-slate-700/60 text-slate-400 hover:text-white' : 'hover:bg-slate-200 text-slate-500 hover:text-slate-900'
-                      }`}
-                      title={t('common.close') || 'Close'}
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <div className="p-3.5 space-y-2.5 overflow-y-auto flex-1 text-xs">
-                    {pairTrades.length === 0 ? (
-                      <div className="py-8 text-center text-slate-500 text-xs">
-                        {t('candle.no_pair_trades')}
+                  <div
+                    className={`w-full max-w-lg max-h-[85dvh] flex flex-col rounded-2xl shadow-2xl border overflow-hidden ${
+                      isDark ? 'bg-[#131b2e] border-slate-700/80 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className={`flex items-center justify-between px-4 py-3 border-b shrink-0 ${
+                      isDark ? 'border-slate-700/60 bg-[#162036]' : 'border-slate-200 bg-slate-50'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        <History className="w-4 h-4 text-cyan-400" />
+                        <span className="font-bold text-sm tracking-wide">
+                          {selectedPair}
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          {t('candle.trade_history_btn')} ({pairTrades.length})
+                        </span>
                       </div>
-                    ) : (
-                      pairTrades.map((tr) => {
-                        const isProfit = (tr.profit_pct ?? 0) >= 0;
-                        const hasOrders = Array.isArray(tr.orders) && tr.orders.length > 0;
-                        return (
-                          <div
-                            key={tr.trade_id}
-                            onClick={() => {
-                              focusTradeOnChart(tr);
-                              setShowTradeDropdown(false);
-                            }}
-                            className={`p-2.5 rounded-xl border cursor-pointer transition-colors ${
-                              isDark
-                                ? 'bg-slate-800/40 hover:bg-slate-800/80 border-slate-700/60'
-                                : 'bg-slate-50 hover:bg-slate-100 border-slate-200'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="font-mono font-bold text-xs flex items-center gap-1.5">
-                                #{tr.trade_id}
-                                <span
-                                  className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
-                                    tr.is_short
-                                      ? 'bg-rose-500/20 text-rose-400'
-                                      : 'bg-emerald-500/20 text-emerald-400'
-                                  }`}
-                                >
-                                  {tr.is_short ? t('candle.short') : t('candle.long')}
+                      <button
+                        onClick={() => setShowTradeDropdown(false)}
+                        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                          isDark ? 'hover:bg-slate-700/60 text-slate-400 hover:text-white' : 'hover:bg-slate-200 text-slate-500 hover:text-slate-900'
+                        }`}
+                        title={t('common.close') || 'Close'}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="p-3.5 space-y-2.5 overflow-y-auto flex-1 text-xs">
+                      {pairTrades.length === 0 ? (
+                        <div className="py-8 text-center text-slate-500 text-xs">
+                          {t('candle.no_pair_trades')}
+                        </div>
+                      ) : (
+                        pairTrades.map((tr) => {
+                          const isProfit = (tr.profit_pct ?? 0) >= 0;
+                          const hasOrders = Array.isArray(tr.orders) && tr.orders.length > 0;
+                          return (
+                            <div
+                              key={tr.trade_id}
+                              onClick={() => {
+                                focusTradeOnChart(tr);
+                                setShowTradeDropdown(false);
+                              }}
+                              className={`p-2.5 rounded-xl border cursor-pointer transition-colors ${
+                                isDark
+                                  ? 'bg-slate-800/40 hover:bg-slate-800/80 border-slate-700/60'
+                                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="font-mono font-bold text-xs flex items-center gap-1.5">
+                                  #{tr.trade_id}
+                                  <span
+                                    className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                                      tr.is_short
+                                        ? 'bg-rose-500/20 text-rose-400'
+                                        : 'bg-emerald-500/20 text-emerald-400'
+                                    }`}
+                                  >
+                                    {tr.is_short ? t('candle.short') : t('candle.long')}
+                                  </span>
+                                  <span
+                                    className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                      tr.is_open
+                                        ? 'bg-amber-500/20 text-amber-400'
+                                        : 'bg-slate-600/30 text-slate-400'
+                                    }`}
+                                  >
+                                    {tr.is_open ? t('candle.open_position') : t('candle.closed_position')}
+                                  </span>
                                 </span>
                                 <span
-                                  className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                    tr.is_open
-                                      ? 'bg-amber-500/20 text-amber-400'
-                                      : 'bg-slate-600/30 text-slate-400'
+                                  className={`font-mono font-bold text-xs ${
+                                    isProfit ? 'text-emerald-500' : 'text-rose-500'
                                   }`}
                                 >
-                                  {tr.is_open ? t('candle.open_position') : t('candle.closed_position')}
+                                  {isProfit ? '+' : ''}
+                                  {tr.profit_pct}%
                                 </span>
-                              </span>
-                              <span
-                                className={`font-mono font-bold text-xs ${
-                                  isProfit ? 'text-emerald-500' : 'text-rose-500'
-                                }`}
-                              >
-                                {isProfit ? '+' : ''}
-                                {tr.profit_pct}%
-                              </span>
-                            </div>
-
-                            <div className="text-[11px] text-slate-400 flex items-center justify-between font-mono mb-1.5">
-                              <span>{t('candle.open_price')}: {tr.open_rate}</span>
-                              {tr.close_rate && <span>{t('candle.avg_close')}: {tr.close_rate}</span>}
-                              <span className="text-cyan-400 font-semibold">{tr.enter_tag || tr.exit_reason || (locale === 'zh' ? '策略信号' : 'Signal')}</span>
-                            </div>
-
-                            {/* Orders breakdown (Grinding / Rebuy / Derisk / Exit orders) */}
-                            {hasOrders && (
-                              <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-1.5">
-                                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                                  <span>{t('candle.order_history')} ({tr.orders!.length})</span>
-                                </div>
-                                {tr.orders!.map((ord, idx) => {
-                                  const isBuy = ord.ft_order_side === 'buy';
-                                  const defaultTag = isBuy ? (locale === 'zh' ? '入场' : 'Entry') : (locale === 'zh' ? '平仓' : 'Exit');
-                                  const tag = ord.ft_order_tag || defaultTag;
-                                  const isGrind = tag.includes('grind');
-                                  const isRebuy = tag.includes('rebuy') || tag === 'r';
-                                  const isDerisk = tag.includes('derisk');
-
-                                  let badgeColor = 'bg-slate-700/50 text-slate-300';
-                                  if (isGrind) badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
-                                  else if (isRebuy) badgeColor = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
-                                  else if (isDerisk) badgeColor = 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
-                                  else if (isBuy) badgeColor = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-
-                                  return (
-                                    <div
-                                      key={ord.order_id || idx}
-                                      className="text-[10px] font-mono flex items-center justify-between bg-slate-900/40 px-2 py-1 rounded gap-1.5 min-w-0"
-                                    >
-                                      <div className="flex items-center gap-1.5 truncate min-w-0">
-                                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${badgeColor}`}>
-                                          {isBuy ? (locale === 'zh' ? '买入' : 'BUY') : (locale === 'zh' ? '卖出' : 'SELL')}
-                                        </span>
-                                        <span className="text-slate-300 font-medium truncate shrink min-w-0" title={tag}>
-                                          {tag}
-                                        </span>
-                                      </div>
-                                      <div className="text-slate-400 shrink-0 text-right">
-                                        @{ord.safe_price || ord.price || ord.average || 0}{' '}
-                                        <span className="text-slate-500">({ord.filled || ord.amount || 0})</span>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
                               </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
+
+                              <div className="text-[11px] text-slate-400 flex items-center justify-between font-mono mb-1.5">
+                                <span>{t('candle.open_price')}: {tr.open_rate}</span>
+                                {tr.close_rate && <span>{t('candle.avg_close')}: {tr.close_rate}</span>}
+                                <span className="text-cyan-400 font-semibold">{tr.enter_tag || tr.exit_reason || (locale === 'zh' ? '策略信号' : 'Signal')}</span>
+                              </div>
+
+                              {/* Orders breakdown */}
+                              {hasOrders && (
+                                <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-1.5">
+                                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                                    <span>{t('candle.order_history')} ({tr.orders!.length})</span>
+                                  </div>
+                                  {tr.orders!.map((ord, idx) => {
+                                    const isBuy = ord.ft_order_side === 'buy';
+                                    const defaultTag = isBuy ? (locale === 'zh' ? '入场' : 'Entry') : (locale === 'zh' ? '平仓' : 'Exit');
+                                    const tag = ord.ft_order_tag || defaultTag;
+                                    const isGrind = tag.includes('grind');
+                                    const isRebuy = tag.includes('rebuy') || tag === 'r';
+                                    const isDerisk = tag.includes('derisk');
+
+                                    let badgeColor = 'bg-slate-700/50 text-slate-300';
+                                    if (isGrind) badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
+                                    else if (isRebuy) badgeColor = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
+                                    else if (isDerisk) badgeColor = 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
+                                    else if (isBuy) badgeColor = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+
+                                    return (
+                                      <div
+                                        key={ord.order_id || idx}
+                                        className="text-[10px] font-mono flex items-center justify-between bg-slate-900/40 px-2 py-1 rounded gap-1.5 min-w-0"
+                                      >
+                                        <div className="flex items-center gap-1.5 truncate min-w-0">
+                                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${badgeColor}`}>
+                                            {isBuy ? (locale === 'zh' ? '买入' : 'BUY') : (locale === 'zh' ? '卖出' : 'SELL')}
+                                          </span>
+                                          <span className="text-slate-300 font-medium truncate shrink min-w-0" title={tag}>
+                                            {tag}
+                                          </span>
+                                        </div>
+                                        <div className="text-slate-400 shrink-0 text-right">
+                                          @{ord.safe_price || ord.price || ord.average || 0}{' '}
+                                          <span className="text-slate-500">({ord.filled || ord.amount || 0})</span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
-                </div>
-              </div>,
-              document.body
-            )}
+                </div>,
+                document.body
+              )}
             </div>
 
-          {/* Market Data HUD Toggle Button */}
-          <button
-            onClick={() => setShowCandleInfo((visible) => !visible)}
-            className={`p-1.5 sm:px-2 sm:py-0.5 rounded text-[11px] font-medium border flex items-center gap-1 transition-colors cursor-pointer shrink-0 ${
-              showCandleInfo
-                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
-                : isDark
-                ? 'bg-[#1a233a] text-slate-300 border-slate-700 hover:bg-[#202b46]'
-                : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
-            }`}
-            title={t('candle.market_data_title')}
-            aria-pressed={showCandleInfo}
-          >
-            <Activity className="w-3.5 h-3.5 sm:hidden" />
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-            <span className="hidden sm:inline">{t('candle.market_data')}</span>
-          </button>
+            {/* 行情看板 HUD 开关 */}
+            <button
+              onClick={() => setShowCandleInfo((visible) => !visible)}
+              className={`px-2 py-1 rounded-lg text-[11px] font-medium border flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
+                showCandleInfo
+                  ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                  : isDark
+                  ? 'bg-[#1a233a] text-slate-300 border-slate-700 hover:bg-[#202b46]'
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100 shadow-xs'
+              }`}
+              title={t('candle.market_data_title')}
+              aria-pressed={showCandleInfo}
+            >
+              <Activity className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span className="hidden xs:inline">{t('candle.market_data')}</span>
+              <span className={`w-1.5 h-1.5 rounded-full ${showCandleInfo ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+            </button>
 
-          {/* Refresh Candles Button */}
-          <button
-            onClick={loadCandles}
-            disabled={loading}
-            className={`p-1.5 rounded-lg border transition-colors cursor-pointer shrink-0 ${
-              isDark
-                ? 'border-slate-700 bg-[#1a233a] hover:bg-[#202b46] text-slate-300'
-                : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600'
-            }`}
-            title={t('candle.refresh_candles')}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-500' : ''}`} />
-          </button>
+            {/* 刷新按钮 */}
+            <button
+              onClick={loadCandles}
+              disabled={loading}
+              className={`p-1.5 rounded-lg border transition-colors cursor-pointer shrink-0 ${
+                isDark
+                  ? 'border-slate-700 bg-[#1a233a] hover:bg-[#202b46] text-slate-300'
+                  : 'border-slate-300 bg-white hover:bg-slate-100 text-slate-600 shadow-xs'
+              }`}
+              title={t('candle.refresh_candles')}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-500' : ''}`} />
+            </button>
 
-          {/* Quick Locale Toggle (EN / 中文) - Desktop only (already present in mobile header) */}
-          <button
-            type="button"
-            onClick={toggleLocale}
-            className={`hidden lg:flex px-2 py-1 rounded-lg border text-xs items-center gap-1 transition-colors cursor-pointer font-medium active:scale-95 shrink-0 ${
-              isDark
-                ? 'border-slate-700 bg-[#1a233a] hover:bg-[#202b46] text-cyan-400'
-                : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-cyan-700'
-            }`}
-            title={t('header.tooltip_language')}
-          >
-            <Globe className="w-3.5 h-3.5 shrink-0" />
-            <span className="font-mono text-[11px] font-bold">
-              {locale === 'zh' ? '中文' : 'EN'}
-            </span>
-          </button>
+            {/* 语言切换 */}
+            <button
+              type="button"
+              onClick={toggleLocale}
+              className={`px-2 py-1 rounded-lg border text-xs items-center gap-1 transition-colors cursor-pointer font-medium active:scale-95 shrink-0 hidden sm:flex ${
+                isDark
+                  ? 'border-slate-700 bg-[#1a233a] hover:bg-[#202b46] text-cyan-400'
+                  : 'border-slate-300 bg-white hover:bg-slate-100 text-cyan-700 shadow-xs'
+              }`}
+              title={t('header.tooltip_language')}
+            >
+              <Globe className="w-3.5 h-3.5 shrink-0" />
+              <span className="font-mono text-[11px] font-bold">
+                {locale === 'zh' ? '中文' : 'EN'}
+              </span>
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Mobile Timeframes Selector & Load Older (Row 2 on mobile) */}
-      <div className="md:hidden flex items-center justify-between gap-1 w-full pt-1 border-t border-slate-200/50 dark:border-slate-800/50 overflow-x-auto no-scrollbar">
-        <div className="flex items-center gap-1 font-mono text-[11px] shrink-0">
-          {TIMEFRAMES.map((tf) => {
-            const isStrategyTf = tf === (botState.timeframe || '5m');
-            return (
-              <button
-                key={tf}
-                onClick={() => setTimeframe(tf)}
-                className={`px-2 py-0.5 rounded transition-colors cursor-pointer flex items-center gap-1 ${
-                  timeframe === tf
-                    ? 'bg-emerald-600 text-white font-bold shadow-xs'
-                    : isDark
-                    ? 'text-slate-400 hover:text-slate-200 hover:bg-[#1a233a]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+        {/* Tier 2: 历史数据回溯与图表标记控制组 */}
+        <div className="flex flex-wrap items-center justify-between gap-2 w-full pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            {/* 加载更早历史按钮 */}
+            <button
+              onClick={() => handleLoadOlderCandles()}
+              disabled={loadingOlder || loading}
+              className={`px-2 py-0.5 rounded-lg text-[11px] font-medium border flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
+                loadingOlder
+                  ? 'border-emerald-500/50 text-emerald-500 bg-emerald-500/10'
+                  : isDark
+                  ? 'border-slate-700 bg-[#1a233a] text-slate-300 hover:text-slate-100 hover:bg-[#202b46]'
+                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 shadow-xs'
+              }`}
+              title={t('candle.load_older_title')}
+            >
+              {loadingOlder ? (
+                <Loader2 className="w-3 h-3 animate-spin text-emerald-500 shrink-0" />
+              ) : (
+                <History className="w-3 h-3 text-slate-400 shrink-0" />
+              )}
+              <span>{t('candle.load_older_btn')}</span>
+              <span className="font-mono text-[10px] text-slate-400">({candles.length})</span>
+            </button>
+
+            {/* 交易标记开关 */}
+            <button
+              onClick={() => setShowMarkers(!showMarkers)}
+              className={`px-2 py-0.5 rounded-lg text-[11px] font-medium border flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
+                showMarkers
+                  ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                  : isDark
+                  ? 'bg-[#1a233a] text-slate-400 border-slate-700'
+                  : 'bg-white text-slate-600 border-slate-300 shadow-xs'
+              }`}
+              title={t('candle.markers_title')}
+            >
+              <Bookmark className="w-3.5 h-3.5 shrink-0" />
+              <span>{t('candle.markers_label')}: {showMarkers ? t('candle.show') : t('candle.hide')}</span>
+              <span className="font-mono text-[10px] font-bold opacity-80">({tradeMarkers.length})</span>
+            </button>
+
+            {/* 标记图例指示 */}
+            {showMarkers && (
+              <div
+                className={`flex items-center gap-2 px-2 py-0.5 rounded-lg border text-[10px] font-medium whitespace-nowrap overflow-x-auto no-scrollbar shrink-0 ${
+                  isDark ? 'bg-[#162035]/80 border-slate-800 text-slate-300' : 'bg-slate-100/80 border-slate-200 text-slate-600'
                 }`}
-                title={isStrategyTf ? t('candle.native_timeframe') : `${t('candle.market_timeframe')} ${tf}`}
+                title={t('candle.markers_help')}
               >
-                <span>{tf}</span>
-                {isStrategyTf && <span className="text-[9px] opacity-75">{t('candle.strategy_tf')}</span>}
-              </button>
-            );
-          })}
+                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                  <span className="font-bold">↑</span> {t('candle.long')}
+                </span>
+                <span className="flex items-center gap-1 text-sky-700 dark:text-sky-300">
+                  <span className="font-bold">↑</span> {t('candle.add_marker')}
+                </span>
+                <span className="flex items-center gap-1 text-violet-700 dark:text-violet-300">
+                  <span className="font-bold">↑</span> {t('candle.build_marker')}
+                </span>
+                <span className="flex items-center gap-1 text-amber-700 dark:text-amber-300">
+                  <span className="font-bold">↓</span> {t('candle.reduce_marker')}
+                </span>
+                <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
+                  <span className="font-bold">↓</span> {t('candle.closed')}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
-        <button
-          onClick={() => handleLoadOlderCandles()}
-          disabled={loadingOlder || loading}
-          className={`px-2 py-0.5 rounded text-[10px] font-medium border flex items-center gap-1 transition-colors cursor-pointer shrink-0 ${
-            loadingOlder
-              ? 'border-emerald-500/50 text-emerald-500 bg-emerald-500/10'
-              : isDark
-              ? 'border-slate-700 bg-[#1a233a] text-slate-300 hover:text-slate-100 hover:bg-[#202b46]'
-              : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
-          }`}
-          title={t('candle.load_older_title')}
-        >
-          {loadingOlder ? (
-            <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
-          ) : (
-            <History className="w-3 h-3" />
-          )}
-          <span>+{t('candle.load_older_short')} ({candles.length})</span>
-        </button>
-      </div>
-
-      {/* Position Information Banner (Row 3, only when holding this pair) */}
-      {activeTrade && (
-        <div
-          className={`w-full flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg border font-mono text-[11px] whitespace-nowrap overflow-x-auto no-scrollbar ${
-            isDark ? 'bg-[#182236] border-slate-700 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'
-          }`}
-        >
+        {/* Tier 3: 当前持仓信息横幅 (仅在有持仓时显示) */}
+        {activeTrade && (
+          <div
+            className={`w-full flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg border font-mono text-[11px] whitespace-nowrap overflow-x-auto no-scrollbar ${
+              isDark ? 'bg-[#182236] border-slate-700 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'
+            }`}
+          >
           <div className="flex items-center gap-3 shrink-0">
             <span className="flex items-center gap-1 whitespace-nowrap shrink-0">
               <span className="text-slate-500 dark:text-slate-400 text-[10px] shrink-0 whitespace-nowrap">{t('candle.entry_price')}:</span>
