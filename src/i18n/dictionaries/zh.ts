@@ -339,6 +339,9 @@ export const zh: Record<string, string> = {
   'closed.newest_first': '最新优先',
   'closed.showing': '显示',
   'closed.trades_per_page': '条/页',
+  'closed.export_excel': '导出 Excel',
+  'closed.exporting': '导出中……',
+  'closed.export_tooltip': '导出全部已平仓记录为格式化 Excel 报表',
 
   // Equity Curve View
   'equity.adjust_baseline': '调整初始资金基准',

@@ -347,6 +347,9 @@ export const en: Record<string, string> = {
   'closed.newest_first': 'Newest first',
   'closed.showing': 'Showing',
   'closed.trades_per_page': 'per page',
+  'closed.export_excel': 'Export Excel',
+  'closed.exporting': 'Exporting...',
+  'closed.export_tooltip': 'Export all closed trades to formatted Excel report',
 
   // Equity Curve View
   'equity.adjust_baseline': 'Adjust initial capital baseline',

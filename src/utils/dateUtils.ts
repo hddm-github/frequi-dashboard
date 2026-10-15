@@ -33,11 +33,11 @@ export function parseToUtcDate(raw: string | number | Date | null | undefined): 
 /**
  * 转换并格式化为 UTC+8 时间
  * @param raw 原始时间（字符串、时间戳或 Date）
- * @param format 格式，支持 'MM-DD HH:mm' | 'YYYY-MM-DD HH:mm:ss' | 'YYYY-MM-DD HH:mm' | 'HH:mm:ss' | 'HH:mm'
+ * @param format 格式，支持 'MM-DD HH:mm' | 'YYYY-MM-DD HH:mm:ss' | 'YYYY-MM-DD HH:mm' | 'YYYY-MM-DD' | 'HH:mm:ss' | 'HH:mm'
  */
 export function formatUtc8(
   raw: string | number | Date | null | undefined,
-  format: 'MM-DD HH:mm' | 'YYYY-MM-DD HH:mm:ss' | 'YYYY-MM-DD HH:mm' | 'HH:mm:ss' | 'HH:mm' = 'MM-DD HH:mm'
+  format: 'MM-DD HH:mm' | 'YYYY-MM-DD HH:mm:ss' | 'YYYY-MM-DD HH:mm' | 'YYYY-MM-DD' | 'HH:mm:ss' | 'HH:mm' = 'MM-DD HH:mm'
 ): string {
   const d = parseToUtcDate(raw);
   if (!d) return '-';
@@ -55,6 +55,7 @@ export function formatUtc8(
   if (format === 'MM-DD HH:mm') return `${M}-${D} ${h}:${m}`;
   if (format === 'YYYY-MM-DD HH:mm:ss') return `${Y}-${M}-${D} ${h}:${m}:${s}`;
   if (format === 'YYYY-MM-DD HH:mm') return `${Y}-${M}-${D} ${h}:${m}`;
+  if (format === 'YYYY-MM-DD') return `${Y}-${M}-${D}`;
   if (format === 'HH:mm:ss') return `${h}:${m}:${s}`;
   if (format === 'HH:mm') return `${h}:${m}`;
 

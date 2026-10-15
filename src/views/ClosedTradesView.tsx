@@ -1,10 +1,11 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useBot } from '../context/BotContext';
 import { useOptionalWorkspace } from '@danfessler/trellis-react';
-import { CheckCircle2, XCircle, CandlestickChart, RefreshCw, History, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle2, XCircle, CandlestickChart, RefreshCw, History, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react';
 import { SignalBadge } from '../components/SignalBadge';
 import { formatUtc8 } from '../utils/dateUtils';
-import { useT } from '../i18n/LocaleContext';
+import { useLocale } from '../i18n/LocaleContext';
+import { exportClosedTradesToExcel } from '../utils/excelExport';
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => {
@@ -24,13 +25,14 @@ function useIsMobile() {
 }
 
 export function ClosedTradesView() {
-  const { closedTrades, setSelectedPair, theme, formatCurrency, refreshData, setMobileTab, isReadOnly } = useBot();
+  const { closedTrades, setSelectedPair, theme, formatCurrency, refreshData, setMobileTab, isReadOnly, activeProfile, currencyUnit, exchangeRates } = useBot();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isDark = theme === 'dark';
   const isMobile = useIsMobile();
-  const translate = useT();
+  const { locale, t: translate } = useLocale();
   const ws = useOptionalWorkspace();
 
   // Desktop: 50 trades per page, Mobile: 20 trades per page
@@ -68,6 +70,28 @@ export function ClosedTradesView() {
       return timeB - timeA;
     });
   }, [closedTrades]);
+
+  const handleExportExcel = () => {
+    if (isExporting || sortedTrades.length === 0) return;
+    setIsExporting(true);
+    try {
+      let rate = 1;
+      if (currencyUnit === 'USD') rate = exchangeRates.USD || 1;
+      else if (currencyUnit === 'CNY') rate = exchangeRates.CNY || 6.7025;
+      else if (currencyUnit === 'IDR') rate = exchangeRates.IDR || 16000;
+
+      exportClosedTradesToExcel(sortedTrades, {
+        locale,
+        botName: activeProfile?.name || 'Freqtrade Bot',
+        currencyUnit: currencyUnit || 'USDT',
+        exchangeRate: rate,
+      });
+    } catch (err) {
+      console.error('Failed to export closed trades to Excel:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const totalClosedProfit = useMemo(() => {
     return sortedTrades.reduce((sum, t) => sum + (t.profit_abs || 0), 0);
@@ -140,21 +164,21 @@ export function ClosedTradesView() {
     >
       {/* Header Summary Bar */}
       <div
-        className={`px-4 py-2.5 border-b flex flex-wrap items-center justify-between gap-2 shrink-0 ${
+        className={`px-3 sm:px-4 py-2 sm:py-2.5 border-b flex flex-wrap items-center justify-between gap-2 shrink-0 ${
           isDark ? 'border-slate-800 bg-[#0f1626]' : 'border-slate-200 bg-slate-50'
         }`}
       >
         <div className="flex items-center gap-2">
-          <History className="w-4 h-4 text-emerald-500" />
+          <History className="w-4 h-4 text-emerald-500 shrink-0" />
           <span className="text-xs font-bold uppercase tracking-wide">
             {translate('closed.sync_btn')} ( {sortedTrades.length} {translate('ui.trades')})
           </span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-mono">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-mono shrink-0">
             {translate('closed.newest_first')}
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2 sm:gap-3 flex-wrap">
           <div className="text-xs font-mono">
             <span className="text-slate-400 mr-1">{translate('closed.total_profit')}:</span>
             <span className={`font-bold ${totalClosedProfit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
@@ -162,19 +186,35 @@ export function ClosedTradesView() {
             </span>
           </div>
 
-          <button
-            onClick={handleManualRefresh}
-            disabled={isRefreshing}
-            className={`px-2.5 py-1 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 ${
-              isDark
-                ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
-                : 'border-slate-300 bg-white hover:bg-slate-100 text-slate-700'
-            }`}
-            title={translate('ui.refresh_data')}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>{translate('closed.sync_btn')}</span>
-          </button>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              onClick={handleExportExcel}
+              disabled={isExporting || sortedTrades.length === 0}
+              className={`px-2.5 py-1 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shrink-0 ${
+                isDark
+                  ? 'border-emerald-800/80 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300'
+                  : 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
+              }`}
+              title={translate('closed.export_tooltip')}
+            >
+              <FileSpreadsheet className={`w-3.5 h-3.5 text-emerald-500 ${isExporting ? 'animate-bounce' : ''}`} />
+              <span>{isExporting ? translate('closed.exporting') : translate('closed.export_excel')}</span>
+            </button>
+
+            <button
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              className={`px-2.5 py-1 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shrink-0 ${
+                isDark
+                  ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
+                  : 'border-slate-300 bg-white hover:bg-slate-100 text-slate-700'
+              }`}
+              title={translate('ui.refresh_data')}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>{translate('closed.sync_btn')}</span>
+            </button>
+          </div>
         </div>
       </div>
 

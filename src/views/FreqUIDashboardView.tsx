@@ -15,9 +15,11 @@ import {
   EyeOff,
   Calendar,
   X,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { SignalBadge } from '../components/SignalBadge';
 import { formatUtc8 } from '../utils/dateUtils';
+import { exportClosedTradesToExcel } from '../utils/excelExport';
 
 import { useOptionalWorkspace } from '@danfessler/trellis-react';
 import { useLocale } from '../i18n/LocaleContext';
@@ -39,6 +41,8 @@ export function FreqUIDashboardView() {
     isReadOnly,
     refreshData,
     setMobileTab,
+    activeProfile,
+    exchangeRates,
   } = useBot();
 
   const ws = useOptionalWorkspace();
@@ -723,7 +727,27 @@ export function FreqUIDashboardView() {
               <Layers className="w-4 h-4 text-purple-500" />
               {t('dashboard.recent_closed')}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  let rate = 1;
+                  if (currencyUnit === 'USD') rate = exchangeRates.USD || 1;
+                  else if (currencyUnit === 'CNY') rate = exchangeRates.CNY || 6.7025;
+                  else if (currencyUnit === 'IDR') rate = exchangeRates.IDR || 16000;
+
+                  exportClosedTradesToExcel(closedTrades, {
+                    locale,
+                    botName: activeProfile?.name || 'Freqtrade Bot',
+                    currencyUnit: currencyUnit || 'USDT',
+                    exchangeRate: rate,
+                  });
+                }}
+                disabled={closedTrades.length === 0}
+                className="p-1 rounded text-slate-400 hover:text-emerald-500 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                title={t('closed.export_tooltip')}
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+              </button>
               <button
                 onClick={handleRefreshHistory}
                 disabled={isRefreshingHistory}
