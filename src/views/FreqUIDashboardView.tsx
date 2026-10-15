@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useBot } from '../context/BotContext';
 import {
   DollarSign,
@@ -16,10 +16,13 @@ import {
   Calendar,
   X,
   FileSpreadsheet,
+  FileText,
+  ChevronDown,
 } from 'lucide-react';
 import { SignalBadge } from '../components/SignalBadge';
 import { formatUtc8 } from '../utils/dateUtils';
 import { exportClosedTradesToExcel } from '../utils/excelExport';
+import { exportClosedTradesToPdf } from '../utils/pdfExport';
 
 import { useOptionalWorkspace } from '@danfessler/trellis-react';
 import { useLocale } from '../i18n/LocaleContext';
@@ -171,6 +174,59 @@ export function FreqUIDashboardView() {
       })
       .slice(0, 10);
   }, [closedTrades]);
+
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    if (showExportMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showExportMenu]);
+
+  const handleExportDashboard = async (type: 'excel' | 'pdf') => {
+    setShowExportMenu(false);
+    if (isExporting || closedTrades.length === 0) return;
+    setIsExporting(true);
+    try {
+      let tradesToExport = closedTrades;
+      if (profitSummary?.closed_trade_count && profitSummary.closed_trade_count > closedTrades.length) {
+        const all = await loadAllClosedTrades();
+        if (all && all.length > 0) {
+          tradesToExport = all;
+        }
+      }
+
+      let rate = 1;
+      if (currencyUnit === 'USD') rate = exchangeRates.USD || 1;
+      else if (currencyUnit === 'CNY') rate = exchangeRates.CNY || 6.7025;
+      else if (currencyUnit === 'IDR') rate = exchangeRates.IDR || 16000;
+
+      const exportOptions = {
+        locale,
+        botName: activeProfile?.name || 'Freqtrade Bot',
+        currencyUnit: currencyUnit || 'USDT',
+        exchangeRate: rate,
+      };
+
+      if (type === 'excel') {
+        exportClosedTradesToExcel(tradesToExport, exportOptions);
+      } else {
+        exportClosedTradesToPdf(tradesToExport, exportOptions);
+      }
+    } catch (err) {
+      console.error(`Failed to export closed trades to ${type}:`, err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleRefreshHistory = async () => {
     setIsRefreshingHistory(true);
@@ -729,34 +785,47 @@ export function FreqUIDashboardView() {
               {t('dashboard.recent_closed')}
             </span>
             <div className="flex items-center gap-1.5">
-              <button
-                onClick={async () => {
-                  let tradesToExport = closedTrades;
-                  if (profitSummary?.closed_trade_count && profitSummary.closed_trade_count > closedTrades.length) {
-                    const all = await loadAllClosedTrades();
-                    if (all && all.length > 0) {
-                      tradesToExport = all;
-                    }
-                  }
+              <div className="relative" ref={exportMenuRef}>
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  disabled={closedTrades.length === 0 || isExporting}
+                  className="p-1 rounded text-slate-400 hover:text-emerald-500 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-0.5"
+                  title={t('closed.export_tooltip')}
+                >
+                  <FileSpreadsheet className={`w-3.5 h-3.5 ${isExporting ? 'animate-bounce text-emerald-500' : ''}`} />
+                  <ChevronDown className={`w-2.5 h-2.5 opacity-60 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
+                </button>
 
-                  let rate = 1;
-                  if (currencyUnit === 'USD') rate = exchangeRates.USD || 1;
-                  else if (currencyUnit === 'CNY') rate = exchangeRates.CNY || 6.7025;
-                  else if (currencyUnit === 'IDR') rate = exchangeRates.IDR || 16000;
-
-                  exportClosedTradesToExcel(tradesToExport, {
-                    locale,
-                    botName: activeProfile?.name || 'Freqtrade Bot',
-                    currencyUnit: currencyUnit || 'USDT',
-                    exchangeRate: rate,
-                  });
-                }}
-                disabled={closedTrades.length === 0}
-                className="p-1 rounded text-slate-400 hover:text-emerald-500 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                title={t('closed.export_tooltip')}
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-              </button>
+                {showExportMenu && (
+                  <div
+                    className={`absolute right-0 top-full mt-1.5 w-52 rounded-xl border shadow-xl z-50 p-1.5 transition-all ${
+                      isDark ? 'bg-[#131b2e] border-slate-700 text-slate-100 shadow-black/60' : 'bg-white border-slate-200 text-slate-800 shadow-slate-300/50'
+                    }`}
+                  >
+                    <div className="text-[10px] font-semibold text-slate-400 px-2 py-1 uppercase tracking-wider">
+                      {t('closed.export_btn')}
+                    </div>
+                    <button
+                      onClick={() => handleExportDashboard('excel')}
+                      className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center gap-2 transition-colors cursor-pointer ${
+                        isDark ? 'hover:bg-slate-800/80' : 'hover:bg-slate-100'
+                      }`}
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span className="text-xs font-medium">{t('closed.export_excel_option')}</span>
+                    </button>
+                    <button
+                      onClick={() => handleExportDashboard('pdf')}
+                      className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center gap-2 transition-colors cursor-pointer mt-0.5 ${
+                        isDark ? 'hover:bg-slate-800/80' : 'hover:bg-slate-100'
+                      }`}
+                    >
+                      <FileText className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                      <span className="text-xs font-medium">{t('closed.export_pdf_option')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 onClick={handleRefreshHistory}
                 disabled={isRefreshingHistory}

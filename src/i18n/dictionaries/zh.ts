@@ -339,9 +339,15 @@ export const zh: Record<string, string> = {
   'closed.newest_first': '最新优先',
   'closed.showing': '显示',
   'closed.trades_per_page': '条/页',
+  'closed.export_btn': '导出报表',
   'closed.export_excel': '导出 Excel',
+  'closed.export_pdf': '导出 PDF',
+  'closed.export_excel_option': 'Excel 表格 (.xlsx)',
+  'closed.export_pdf_option': 'PDF 报表 (.pdf)',
+  'closed.export_excel_desc': '格式化电子表格，含详细交易流水与指标统计',
+  'closed.export_pdf_desc': '高清矢量打印报表，适配打印与另存为 PDF 文件',
   'closed.exporting': '导出中……',
-  'closed.export_tooltip': '导出全部已平仓记录为格式化 Excel 报表',
+  'closed.export_tooltip': '导出平仓交易为 Excel 或 PDF 报表',
 
   // Equity Curve View
   'equity.adjust_baseline': '调整初始资金基准',

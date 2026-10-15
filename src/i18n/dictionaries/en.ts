@@ -347,9 +347,15 @@ export const en: Record<string, string> = {
   'closed.newest_first': 'Newest first',
   'closed.showing': 'Showing',
   'closed.trades_per_page': 'per page',
+  'closed.export_btn': 'Export Report',
   'closed.export_excel': 'Export Excel',
+  'closed.export_pdf': 'Export PDF',
+  'closed.export_excel_option': 'Excel Spreadsheet (.xlsx)',
+  'closed.export_pdf_option': 'PDF Document (.pdf)',
+  'closed.export_excel_desc': 'Formatted spreadsheet with full trade log and metrics',
+  'closed.export_pdf_desc': 'Vector printable report suitable for printing or saving as PDF',
   'closed.exporting': 'Exporting...',
-  'closed.export_tooltip': 'Export all closed trades to formatted Excel report',
+  'closed.export_tooltip': 'Export closed trades to Excel or PDF report',
 
   // Equity Curve View
   'equity.adjust_baseline': 'Adjust initial capital baseline',

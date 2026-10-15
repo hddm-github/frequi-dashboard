@@ -1,11 +1,12 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useBot } from '../context/BotContext';
 import { useOptionalWorkspace } from '@danfessler/trellis-react';
-import { CheckCircle2, XCircle, CandlestickChart, RefreshCw, History, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react';
+import { CheckCircle2, XCircle, CandlestickChart, RefreshCw, History, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, FileSpreadsheet, FileText, ChevronDown } from 'lucide-react';
 import { SignalBadge } from '../components/SignalBadge';
 import { formatUtc8 } from '../utils/dateUtils';
 import { useLocale } from '../i18n/LocaleContext';
 import { exportClosedTradesToExcel } from '../utils/excelExport';
+import { exportClosedTradesToPdf } from '../utils/pdfExport';
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => {
@@ -42,12 +43,27 @@ export function ClosedTradesView() {
   } = useBot();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isDark = theme === 'dark';
   const isMobile = useIsMobile();
   const { locale, t: translate } = useLocale();
   const ws = useOptionalWorkspace();
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    if (showExportMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showExportMenu]);
 
   // Desktop: 50 trades per page, Mobile: 20 trades per page
   const pageSize = isMobile ? 20 : 50;
@@ -85,7 +101,8 @@ export function ClosedTradesView() {
     });
   }, [closedTrades]);
 
-  const handleExportExcel = async () => {
+  const handleExport = async (type: 'excel' | 'pdf') => {
+    setShowExportMenu(false);
     if (isExporting || sortedTrades.length === 0) return;
     setIsExporting(true);
     try {
@@ -102,14 +119,20 @@ export function ClosedTradesView() {
       else if (currencyUnit === 'CNY') rate = exchangeRates.CNY || 6.7025;
       else if (currencyUnit === 'IDR') rate = exchangeRates.IDR || 16000;
 
-      exportClosedTradesToExcel(tradesToExport, {
+      const exportOptions = {
         locale,
         botName: activeProfile?.name || 'Freqtrade Bot',
         currencyUnit: currencyUnit || 'USDT',
         exchangeRate: rate,
-      });
+      };
+
+      if (type === 'excel') {
+        exportClosedTradesToExcel(tradesToExport, exportOptions);
+      } else {
+        exportClosedTradesToPdf(tradesToExport, exportOptions);
+      }
     } catch (err) {
-      console.error('Failed to export closed trades to Excel:', err);
+      console.error(`Failed to export closed trades to ${type}:`, err);
     } finally {
       setIsExporting(false);
     }
@@ -232,19 +255,67 @@ export function ClosedTradesView() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <button
-              onClick={handleExportExcel}
-              disabled={isExporting || sortedTrades.length === 0}
-              className={`px-2.5 py-1 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shrink-0 ${
-                isDark
-                  ? 'border-emerald-800/80 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300'
-                  : 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
-              }`}
-              title={translate('closed.export_tooltip')}
-            >
-              <FileSpreadsheet className={`w-3.5 h-3.5 text-emerald-500 ${isExporting ? 'animate-bounce' : ''}`} />
-              <span>{isExporting ? translate('closed.exporting') : translate('closed.export_excel')}</span>
-            </button>
+            {/* Export Dropdown (Excel or PDF) */}
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={isExporting || sortedTrades.length === 0}
+                className={`px-2.5 py-1 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shrink-0 ${
+                  isDark
+                    ? 'border-emerald-800/80 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300'
+                    : 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
+                }`}
+                title={translate('closed.export_tooltip')}
+              >
+                <FileSpreadsheet className={`w-3.5 h-3.5 text-emerald-500 ${isExporting ? 'animate-bounce' : ''}`} />
+                <span>{isExporting ? translate('closed.exporting') : translate('closed.export_btn')}</span>
+                <ChevronDown className={`w-3 h-3 opacity-70 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showExportMenu && (
+                <div
+                  className={`absolute right-0 mt-1.5 w-60 rounded-xl border shadow-xl z-50 p-1.5 transition-all ${
+                    isDark ? 'bg-[#131b2e] border-slate-700 text-slate-100 shadow-black/60' : 'bg-white border-slate-200 text-slate-800 shadow-slate-300/50'
+                  }`}
+                >
+                  <div className="text-[10px] font-semibold text-slate-400 px-2 py-1 uppercase tracking-wider">
+                    {translate('closed.export_btn')}
+                  </div>
+
+                  {/* Option 1: Excel (.xlsx) */}
+                  <button
+                    onClick={() => handleExport('excel')}
+                    className={`w-full text-left px-2.5 py-2 rounded-lg flex items-start gap-2.5 transition-colors cursor-pointer ${
+                      isDark ? 'hover:bg-slate-800/80' : 'hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-500 shrink-0 mt-0.5">
+                      <FileSpreadsheet className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold">{translate('closed.export_excel_option')}</div>
+                      <div className="text-[10px] text-slate-400 leading-tight mt-0.5">{translate('closed.export_excel_desc')}</div>
+                    </div>
+                  </button>
+
+                  {/* Option 2: PDF (.pdf) */}
+                  <button
+                    onClick={() => handleExport('pdf')}
+                    className={`w-full text-left px-2.5 py-2 rounded-lg flex items-start gap-2.5 transition-colors cursor-pointer mt-0.5 ${
+                      isDark ? 'hover:bg-slate-800/80' : 'hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="p-1.5 rounded-md bg-rose-500/10 text-rose-500 shrink-0 mt-0.5">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold">{translate('closed.export_pdf_option')}</div>
+                      <div className="text-[10px] text-slate-400 leading-tight mt-0.5">{translate('closed.export_pdf_desc')}</div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
 
             <button
               onClick={handleManualRefresh}
