@@ -56,7 +56,7 @@ export const zh: Record<string, string> = {
   'login.default_bot_name': 'Freqtrade 机器人',
   'login.error_unknown': '连接异常，请重试。',
   'login.footer': 'FreqUI · 直连真实交易数据',
-  'logs.autoscroll': '自动',
+  'logs.autoscroll': '自动滚动',
   'logs.autoscroll_on': '自动滚动：开启',
   'logs.autoscroll_off': '自动滚动：关闭',
   'logs.autoscroll_title': '切换是否自动滚动至最新日志',
