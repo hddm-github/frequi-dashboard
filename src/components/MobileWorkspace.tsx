@@ -90,7 +90,7 @@ export function MobileWorkspace() {
 
   return (
     <div
-      className={`flex flex-col w-full h-[100dvh] overflow-hidden font-sans transition-colors ${
+      className={`flex flex-col w-full h-full max-h-[100dvh] h-[100dvh] overflow-hidden font-sans transition-colors ${
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-100 text-slate-900'
       }`}
     >
@@ -284,7 +284,7 @@ export function MobileWorkspace() {
 
       {/* Mobile Bottom Navigation Bar (safe-area bottom navigation) */}
       <nav
-        className={`shrink-0 border-t z-30 pt-1.5 pb-[max(env(safe-area-inset-bottom),8px)] px-1 flex items-center justify-around transition-colors ${
+        className={`sticky bottom-0 inset-x-0 shrink-0 border-t z-30 pt-1.5 pb-[max(env(safe-area-inset-bottom),8px)] px-1 flex items-center justify-around transition-colors ${
           isDark
             ? 'bg-[#0f1626]/95 border-slate-800/90 text-slate-400 backdrop-blur-md'
             : 'bg-white/95 border-slate-200 text-slate-500 backdrop-blur-md shadow-lg'

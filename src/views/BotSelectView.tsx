@@ -14,6 +14,7 @@ import {
   Loader2,
   AlertCircle,
   X,
+  Globe,
 } from 'lucide-react';
 import { EditBotModal } from '../components/EditBotModal';
 import { normalizeApiUrl } from '../api/client';
@@ -31,7 +32,7 @@ export function BotSelectView() {
     setTheme,
   } = useBot();
 
-  const { t } = useLocale();
+  const { locale, toggleLocale, t } = useLocale();
 
   const [isAdding, setIsAdding] = useState(false);
   // Both fields start empty — the user fills them in manually.
@@ -94,28 +95,44 @@ export function BotSelectView() {
     >
       {/* Top Header */}
       <header
-        className={`px-6 py-4 flex items-center justify-between border-b transition-colors ${
+        className={`px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b transition-colors ${
           isDark ? 'border-slate-800 bg-[#0f1626]/90' : 'border-slate-200 bg-white/80'
         } backdrop-blur-sm`}
       >
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-md overflow-hidden border border-slate-700/40">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-md overflow-hidden border border-slate-700/40 shrink-0">
             <img src={freqtradeLogo} alt="Freqtrade" className="w-full h-full object-contain p-0.5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2 font-bold text-sm tracking-tight">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 font-bold text-sm tracking-tight">
               <span>FreqUI</span>
-              <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/80 px-1.5 py-0.5 rounded border border-cyan-800/60">
+              <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/80 px-1.5 py-0.5 rounded border border-cyan-800/60 shrink-0">
                 {t('botselect.manager')}
               </span>
             </div>
-            <div className="text-[11px] text-slate-500">
+            <div className="text-[11px] text-slate-500 truncate max-w-[130px] xs:max-w-[180px] sm:max-w-none">
               {t('botselect.manager_desc')}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* Language Switcher */}
+          <button
+            type="button"
+            onClick={toggleLocale}
+            className={`p-2 rounded-lg border text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
+              isDark
+                ? 'border-slate-700 bg-[#1a233a] text-cyan-400 hover:bg-[#222e4c]'
+                : 'border-slate-300 bg-slate-100 text-cyan-700 hover:bg-slate-200'
+            }`}
+            title={t('header.tooltip_language')}
+          >
+            <Globe className="w-4 h-4" />
+            <span className="font-mono text-xs font-bold">{locale === 'zh' ? '中文' : 'EN'}</span>
+          </button>
+
+          {/* Theme Switcher */}
           <button
             onClick={() => setTheme(isDark ? 'light' : 'dark')}
             className={`p-2 rounded-lg border text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
