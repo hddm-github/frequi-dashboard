@@ -17,17 +17,128 @@ export const SIGNAL_COLOR_STYLES = {
   slate: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700',
 };
 
-export const SIGNAL_CATEGORY_EN: Record<string, string> = {
-  '常规入场': 'Regular entry',
-  '做空信号体系': 'Short signal system',
-  '高频超短头皮': 'High-frequency scalping',
-  '头部主流大币': 'Large-cap leaders',
-  '趋势波段多头': 'Trend swing long',
-  '放量拉升追多': 'Volume breakout long',
-  '超跌快速反弹': 'Oversold rebound',
-  '回调低吸加仓': 'Pullback accumulation',
-  '策略信号': 'Strategy signal',
+export const STRATEGY_CATEGORY_TRANSLATIONS: Record<string, string> = {
+  // Common E0V1E / E0V1EN / NFI categories
+  '超跌插针': 'Oversold Pin',
+  '深度重挫': 'Deep Plummet',
+  '超跌': 'Oversold',
+  '插针': 'Pin Bar',
+  '重挫': 'Plummet',
+  '抄底': 'Bottom Buy',
+  '低吸': 'Pullback Buy',
+  '回调': 'Pullback',
+  '回调低吸': 'Pullback Dip',
+  '回调低吸加仓': 'Pullback DCA',
+  '放量拉升': 'Volume Surge',
+  '放量突破': 'Volume Breakout',
+  '放量拉升追多': 'Volume Breakout Long',
+  '超跌反弹': 'Oversold Rebound',
+  '超卖反弹': 'Oversold Rebound',
+  '超跌快速反弹': 'Oversold Rebound',
+  '趋势波段': 'Trend Swing',
+  '趋势波段多头': 'Trend Swing Long',
+  '头部主流大币': 'Large-Cap Leaders',
+  '头部主流': 'Major Leaders',
+  '主流大币': 'Large-Cap Coins',
+  '高频超短': 'High-Freq Scalp',
+  '高频超短头皮': 'High-Freq Scalp',
+  '做空信号体系': 'Short Signal System',
+  '做空体系': 'Short System',
+  '顶背离': 'Top Divergence',
+  '高位顶背离': 'Top Divergence',
+  '底背离': 'Bullish Divergence',
+  '均线回踩': 'MA Retest',
+  '均线支撑': 'MA Support',
+  '均线突破': 'MA Breakout',
+  '跌破均线': 'MA Breakdown',
+  '跌破支撑': 'Breakdown Support',
+  '突破阻力': 'Break Resistance',
+  '常规入场': 'Regular Entry',
+  '策略信号': 'Strategy Signal',
+  '未公开': 'Hidden',
+  '强力反弹': 'Strong Rebound',
+  '强力抄底': 'Strong Bottom Buy',
+  '追多': 'Breakout Long',
+  '做多': 'Long',
+  '做空': 'Short',
+  '剥头皮': 'Scalp',
+  '头皮': 'Scalp',
+  '震荡': 'Range Oscillation',
+  '吸筹': 'Accumulation',
+  '反弹': 'Rebound',
+  '突破': 'Breakout',
+  '支撑': 'Support',
+  '阻力': 'Resistance',
+  '死叉': 'Death Cross',
+  '金叉': 'Golden Cross',
+  '超卖': 'Oversold',
+  '超买': 'Overbought',
+  '加速': 'Acceleration',
+  '急跌': 'Flash Crash',
+  '急涨': 'Flash Pump',
+  '横盘': 'Sideways',
+  '盘整': 'Consolidation',
+  '量能': 'Volume Power',
+  '动量': 'Momentum',
+  '突破追多': 'Breakout Long',
+  '波段做多': 'Swing Long',
+  '波段做空': 'Swing Short',
+  '超短线': 'Ultra Scalp',
+  '长线': 'Position Trading',
+  '日内': 'Intraday',
 };
+
+// Aliases for backward compatibility
+export const SIGNAL_CATEGORY_EN = STRATEGY_CATEGORY_TRANSLATIONS;
+
+/**
+ * Translates Chinese strategy terms or tags into clean English
+ */
+export function translateStrategyTerm(text?: string | null): string {
+  if (!text) return '';
+  const trimmed = text.trim();
+  if (STRATEGY_CATEGORY_TRANSLATIONS[trimmed]) {
+    return STRATEGY_CATEGORY_TRANSLATIONS[trimmed];
+  }
+
+  let result = trimmed;
+  // Replace longer matching phrases first
+  const sortedKeys = Object.keys(STRATEGY_CATEGORY_TRANSLATIONS).sort((a, b) => b.length - a.length);
+  for (const k of sortedKeys) {
+    if (result.includes(k)) {
+      result = result.split(k).join(` ${STRATEGY_CATEGORY_TRANSLATIONS[k]} `);
+    }
+  }
+
+  const commonSubTerms: [RegExp, string][] = [
+    [/跌破/g, 'Break below '],
+    [/突破/g, 'Break above '],
+    [/均线/g, 'MA '],
+    [/且/g, ' and '],
+    [/或/g, ' or '],
+    [/超卖/g, 'Oversold '],
+    [/超买/g, 'Overbought '],
+    [/强力/g, 'Strong '],
+    [/快速/g, 'Quick '],
+    [/顺势/g, 'Trend following '],
+    [/微观/g, 'Micro '],
+    [/结构/g, 'Structure '],
+    [/套利/g, 'Arbitrage '],
+  ];
+
+  for (const [regex, replacement] of commonSubTerms) {
+    result = result.replace(regex, replacement);
+  }
+
+  // Clean up punctuation and strip any leftover Chinese characters
+  result = result
+    .replace(/[：:]/g, ': ')
+    .replace(/[\u4e00-\u9fa5]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return result || trimmed;
+}
 
 /**
  * 📖 NFI / E0V1E / 通用策略入场信号智能解析速查字典：
@@ -53,12 +164,24 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
 
   const cleanTag = tag.trim();
 
-  // 1. 结构化带括号/方括号的策略标签匹配 (如 E0V1E/NFI 常用: "buy_new [深度重挫：跌破SMA15均线4.0%强力抄底]" 或 "buy_1 [超跌插针：跌破SMA15均线2.7%且RSI超卖]")
+  // 1. 结构化带括号/方括号或分隔符的策略标签匹配
+  // (如: "buy_new [深度重挫：跌破SMA15均线4.0%强力抄底]" 或 "buy_1 [超跌插针：跌破SMA15均线2.7%且RSI超卖]" 或 "buy_1 · 超跌插针")
+  let rawPrefix = '';
+  let rawInside = '';
+
   const bracketMatch = cleanTag.match(/^([^[(\s]+)?\s*[[(]([^\])]+)[\])]/i);
   if (bracketMatch) {
-    const rawPrefix = bracketMatch[1]?.trim() || '';
-    const rawInside = bracketMatch[2]?.trim() || '';
+    rawPrefix = bracketMatch[1]?.trim() || '';
+    rawInside = bracketMatch[2]?.trim() || '';
+  } else {
+    const dotMatch = cleanTag.match(/^([^·:：\s]+)\s*[·:：]\s*(.+)$/);
+    if (dotMatch) {
+      rawPrefix = dotMatch[1].trim();
+      rawInside = dotMatch[2].trim();
+    }
+  }
 
+  if (rawInside || bracketMatch) {
     let category = rawInside;
     if (rawInside.includes('：') || rawInside.includes(':')) {
       const parts = rawInside.split(/[：:]/);
@@ -107,10 +230,13 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
       colorClasses = SIGNAL_COLOR_STYLES.emerald;
     }
 
+    const localizedCategory = isZh ? category : translateStrategyTerm(category);
+    const localizedDescription = isZh ? cleanTag : translateStrategyTerm(cleanTag);
+
     return {
       code,
-      category,
-      description: cleanTag,
+      category: localizedCategory,
+      description: localizedDescription,
       isShort,
       colorClasses,
     };
@@ -125,7 +251,7 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
     if (num >= 500) {
       return {
         code: `${num}`,
-        category: isZh ? '做空信号体系' : (SIGNAL_CATEGORY_EN['做空信号体系'] || 'Short system'),
+        category: isZh ? '做空信号体系' : 'Short Signal System',
         description: isZh ? '高位顶背离与反转做空信号体系' : 'High top-divergence & reversal short system',
         isShort: true,
         colorClasses: SIGNAL_COLOR_STYLES.rose,
@@ -136,7 +262,7 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
     if (num >= 161 && num <= 173) {
       return {
         code: `${num}`,
-        category: isZh ? '高频超短头皮' : (SIGNAL_CATEGORY_EN['高频超短头皮'] || 'High-frequency scalp'),
+        category: isZh ? '高频超短头皮' : 'High-Freq Scalp',
         description: isZh ? '微观结构快速剥头皮套利' : 'Microstructure quick scalping arbitrage',
         isShort: false,
         colorClasses: SIGNAL_COLOR_STYLES.pink,
@@ -147,7 +273,7 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
     if (num >= 141 && num <= 145) {
       return {
         code: `${num}`,
-        category: isZh ? '头部主流大币' : (SIGNAL_CATEGORY_EN['头部主流大币'] || 'Top leader coins'),
+        category: isZh ? '头部主流大币' : 'Large-Cap Leaders',
         description: isZh ? 'BTC/ETH 主流核心资产专属做多信号' : 'BTC/ETH major assets dedicated long signals',
         isShort: false,
         colorClasses: SIGNAL_COLOR_STYLES.purple,
@@ -158,7 +284,7 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
     if ((num >= 1 && num <= 13) || num === 120 || num === 12) {
       return {
         code: `${num}`,
-        category: isZh ? '趋势波段多头' : (SIGNAL_CATEGORY_EN['趋势波段多头'] || 'Trend wave long'),
+        category: isZh ? '趋势波段多头' : 'Trend Swing Long',
         description: isZh ? '大级别均线顺势波段多头' : 'Higher timeframe MA trend swing long',
         isShort: false,
         colorClasses: SIGNAL_COLOR_STYLES.emerald,
@@ -169,7 +295,7 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
     if (num >= 21 && num <= 26) {
       return {
         code: `${num}`,
-        category: isZh ? '放量拉升追多' : (SIGNAL_CATEGORY_EN['放量拉升追多'] || 'Volume breakout long'),
+        category: isZh ? '放量拉升追多' : 'Volume Breakout Long',
         description: isZh ? '成交量异动放大与突破追强' : 'Volume spike & breakout momentum long',
         isShort: false,
         colorClasses: SIGNAL_COLOR_STYLES.cyan,
@@ -180,7 +306,7 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
     if (num >= 41 && num <= 53) {
       return {
         code: `${num}`,
-        category: isZh ? '超跌快速反弹' : (SIGNAL_CATEGORY_EN['超跌快速反弹'] || 'Oversold quick bounce'),
+        category: isZh ? '超跌快速反弹' : 'Oversold Rebound',
         description: isZh ? '极端下挫超卖快速抢反弹' : 'Extreme drop & oversold bounce entry',
         isShort: false,
         colorClasses: SIGNAL_COLOR_STYLES.amber,
@@ -191,7 +317,7 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
     if (num >= 61 && num <= 68) {
       return {
         code: `${num}`,
-        category: isZh ? '回调低吸加仓' : (SIGNAL_CATEGORY_EN['回调低吸加仓'] || 'Pullback DCA entry'),
+        category: isZh ? '回调低吸加仓' : 'Pullback DCA',
         description: isZh ? '稳健支撑均线回踩低吸' : 'Support MA retest & low-absorption entry',
         isShort: false,
         colorClasses: SIGNAL_COLOR_STYLES.blue,
@@ -201,10 +327,11 @@ export function parseNfiSignal(tag?: string | null, isZh = true): NfiSignalInfo 
 
   // 3. 通用命名标签兜底
   const isShort = cleanTag.toLowerCase().includes('short') || cleanTag.includes('做空');
+  const localizedTag = isZh ? cleanTag : translateStrategyTerm(cleanTag);
   return {
     code: cleanTag.length > 14 ? `${cleanTag.slice(0, 12)}…` : cleanTag,
-    category: isZh ? '策略信号' : 'Strategy signal',
-    description: isZh ? `策略入场信号: ${cleanTag}` : `Strategy entry signal: ${cleanTag}`,
+    category: isZh ? '策略信号' : 'Strategy Signal',
+    description: isZh ? `策略入场信号: ${cleanTag}` : `Strategy entry signal: ${localizedTag}`,
     isShort,
     colorClasses: isShort ? SIGNAL_COLOR_STYLES.rose : SIGNAL_COLOR_STYLES.cyan,
   };
