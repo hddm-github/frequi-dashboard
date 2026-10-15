@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useBot } from '../context/BotContext';
-import { Terminal, Filter, RefreshCw, ArrowDownToLine } from 'lucide-react';
+import { Terminal, Filter, RefreshCw } from 'lucide-react';
 import { useT } from '../i18n/LocaleContext';
 
 function formatLogTimestamp(raw: string): string {
@@ -14,7 +14,7 @@ function formatLogTimestamp(raw: string): string {
 }
 
 export function BotLogsView() {
-  const { logs, refreshData, theme } = useBot();
+  const { logs, theme } = useBot();
   const t = useT();
   const levelLabel = (level: string) => t(`logs.level_${level.toLowerCase()}`, level);
   const [filterLevel, setFilterLevel] = useState<string>('ALL');
@@ -72,19 +72,10 @@ export function BotLogsView() {
             }`}
             title={t('logs.autoscroll_title')}
             aria-label={t('logs.autoscroll_title')}
+            aria-pressed={autoScroll}
           >
-            <ArrowDownToLine className={`w-3 h-3 ${autoScroll ? 'text-cyan-400' : 'text-slate-400 opacity-60'}`} />
-            <span className="hidden sm:inline">{t('logs.autoscroll')}</span>
-          </button>
-
-          <button
-            onClick={() => refreshData()}
-            className={`p-1 rounded transition-colors cursor-pointer ${
-              isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-slate-200' : 'hover:bg-slate-200 text-slate-600'
-            }`}
-            title={t('logs.refresh')}
-          >
-            <RefreshCw className="w-3 h-3" />
+            <RefreshCw className={`w-3 h-3 ${autoScroll ? 'text-cyan-400' : 'text-slate-400 opacity-60'}`} />
+            <span>{t('logs.autoscroll')}</span>
           </button>
 
           <div className="flex items-center gap-1.5">
