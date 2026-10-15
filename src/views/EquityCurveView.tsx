@@ -346,7 +346,7 @@ export function EquityCurveView() {
 
   return (
     <div
-      className={`w-full p-2.5 sm:p-4 pb-24 md:pb-4 flex flex-col gap-3 sm:gap-4 font-sans select-none transition-colors md:h-full md:overflow-y-auto ${
+      className={`w-full p-2.5 sm:p-4 pb-2.5 sm:pb-4 flex flex-col gap-3 sm:gap-4 font-sans select-none transition-colors md:h-full md:overflow-y-auto ${
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-50 text-slate-800'
       }`}
     >

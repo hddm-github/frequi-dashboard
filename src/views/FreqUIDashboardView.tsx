@@ -243,7 +243,7 @@ export function FreqUIDashboardView() {
 
   return (
     <div
-      className={`w-full flex flex-col p-2.5 sm:p-4 pb-24 md:pb-4 gap-2.5 sm:gap-3 select-text transition-colors h-full md:h-full overflow-y-auto [-webkit-overflow-scrolling:touch] ${
+      className={`w-full flex flex-col p-2.5 sm:p-4 pb-2.5 sm:pb-4 gap-2.5 sm:gap-3 select-text transition-colors h-full md:h-full overflow-y-auto [-webkit-overflow-scrolling:touch] ${
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-100/70 text-slate-800'
       }`}
     >
