@@ -252,7 +252,7 @@ export function FreqUIDashboardView() {
       <div className="shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         {/* Card 1: Realized Profit */}
         <div
-          className={`rounded-xl p-2.5 sm:p-3 shadow-xs border transition-colors min-w-0 flex flex-col justify-between ${
+          className={`rounded-xl p-2.5 sm:p-3 shadow-xs border transition-colors min-w-0 flex flex-col justify-between h-full ${
             isDark ? 'bg-[#162033] border-slate-700/80' : 'bg-white border-slate-200'
           }`}
         >
@@ -260,22 +260,20 @@ export function FreqUIDashboardView() {
             <span className="font-medium truncate">{t('dashboard.realized_profit')}</span>
             <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
           </div>
-          <div className="flex items-center justify-between gap-1.5 mt-0.5">
-            <div className="text-lg sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight whitespace-nowrap truncate min-w-0">
-              {isReadOnly ? t('ui.hidden') : formatCurrency(profitSummary?.profit_closed_coin || 0, { showSign: true })}
-            </div>
-            <div className="flex flex-col items-end justify-center font-mono text-[10px] sm:text-[11px] text-slate-400 leading-tight shrink-0 text-right">
-              <span className="text-slate-500 dark:text-slate-400">{t('dashboard.return')}:</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">
-                +{((profitSummary?.profit_closed_ratio || 0) * 100).toFixed(2)}%
-              </span>
-            </div>
+          <div className="text-lg sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight whitespace-nowrap truncate my-0.5">
+            {isReadOnly ? t('ui.hidden') : formatCurrency(profitSummary?.profit_closed_coin || 0, { showSign: true })}
+          </div>
+          <div className="h-5 flex items-center text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap overflow-hidden truncate">
+            <span>{t('dashboard.return')}:</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold ml-1">
+              +{((profitSummary?.profit_closed_ratio || 0) * 100).toFixed(2)}%
+            </span>
           </div>
         </div>
 
         {/* Card 2: Win Rate */}
         <div
-          className={`rounded-xl p-2.5 sm:p-3 shadow-xs border transition-colors min-w-0 flex flex-col justify-between ${
+          className={`rounded-xl p-2.5 sm:p-3 shadow-xs border transition-colors min-w-0 flex flex-col justify-between h-full ${
             isDark ? 'bg-[#162033] border-slate-700/80' : 'bg-white border-slate-200'
           }`}
         >
@@ -283,31 +281,21 @@ export function FreqUIDashboardView() {
             <span className="font-medium truncate">{t('dashboard.win_rate')}</span>
             <Award className="w-3.5 h-3.5 text-blue-500 shrink-0" />
           </div>
-          <div className="flex items-center justify-between gap-1.5 mt-0.5">
-            <div className="text-lg sm:text-2xl font-bold font-mono text-blue-600 dark:text-blue-400 tracking-tight whitespace-nowrap truncate min-w-0">
-              {winRate}%
-            </div>
-            <div className="flex flex-col items-end justify-center font-mono text-[10px] sm:text-[11px] text-slate-400 leading-tight shrink-0 text-right">
-              <div className="whitespace-nowrap truncate">
-                <span className="text-slate-500 dark:text-slate-400">{t('dashboard.closed')}: </span>
-                <span className="font-bold text-slate-700 dark:text-slate-200">{closedCount}</span>
-              </div>
-              <div className="whitespace-nowrap truncate mt-0.5">
-                <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                  {profitSummary?.winning_trades || 0}
-                </span>
-                <span className="text-slate-400">/</span>
-                <span className="text-rose-600 dark:text-rose-400 font-bold">
-                  {profitSummary?.losing_trades || 0}
-                </span>
-              </div>
-            </div>
+          <div className="text-lg sm:text-2xl font-bold font-mono text-blue-600 dark:text-blue-400 tracking-tight whitespace-nowrap truncate my-0.5">
+            {winRate}%
+          </div>
+          <div className="h-5 flex items-center text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap overflow-hidden truncate">
+            <span>{t('dashboard.closed')}: <span className="font-bold text-slate-700 dark:text-slate-200">{closedCount}</span></span>
+            <span className="ml-1 opacity-90">
+              (<span className="text-emerald-600 dark:text-emerald-400 font-medium">{profitSummary?.winning_trades || 0}</span>
+              /<span className="text-rose-600 dark:text-rose-400 font-medium">{profitSummary?.losing_trades || 0}</span>)
+            </span>
           </div>
         </div>
 
         {/* Card 3: Unrealized P&L */}
         <div
-          className={`rounded-xl p-2.5 sm:p-3 shadow-xs border transition-colors min-w-0 flex flex-col justify-between ${
+          className={`rounded-xl p-2.5 sm:p-3 shadow-xs border transition-colors min-w-0 flex flex-col justify-between h-full ${
             isDark ? 'bg-[#162033] border-slate-700/80' : 'bg-white border-slate-200'
           }`}
         >
@@ -315,41 +303,37 @@ export function FreqUIDashboardView() {
             <span className="font-medium truncate">{t('dashboard.unrealized')}</span>
             <Activity className="w-3.5 h-3.5 text-amber-500 shrink-0" />
           </div>
-          <div className="flex items-center justify-between gap-1.5 mt-0.5">
-            <div
-              className={`text-lg sm:text-2xl font-bold font-mono tracking-tight whitespace-nowrap truncate min-w-0 ${
-                totalUnrealized >= 0
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-rose-600 dark:text-rose-400'
-              }`}
-            >
-              {isReadOnly ? t('ui.hidden') : formatCurrency(totalUnrealized, { showSign: true })}
-            </div>
-            <div className="flex flex-col items-end justify-center font-mono text-[10px] sm:text-[11px] text-slate-400 leading-tight shrink-0 text-right">
-              <div className="whitespace-nowrap truncate">
-                <span className="text-slate-500 dark:text-slate-400">{t('dashboard.position')}: </span>
-                <span className="font-bold text-slate-700 dark:text-slate-200">
-                  {activeTrades.length}
-                </span>
-                <span className="text-slate-400">/{botState.max_open_trades}</span>
-              </div>
-              <div className="whitespace-nowrap truncate mt-0.5 text-cyan-600 dark:text-cyan-400 font-medium">
-                <span className="text-slate-500 dark:text-slate-400">{t('dashboard.used')}: </span>
-                <span className="font-bold">
-                  {isReadOnly
-                    ? t('ui.hidden')
-                    : formatCurrency(totalStake, {
-                        decimals: totalStake >= 1000 ? 0 : 2,
-                      })}
-                </span>
-              </div>
-            </div>
+          <div
+            className={`text-lg sm:text-2xl font-bold font-mono tracking-tight whitespace-nowrap truncate my-0.5 ${
+              totalUnrealized >= 0
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-rose-600 dark:text-rose-400'
+            }`}
+          >
+            {isReadOnly ? t('ui.hidden') : formatCurrency(totalUnrealized, { showSign: true })}
+          </div>
+          <div className="h-5 flex items-center justify-between gap-1 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap overflow-hidden">
+            <span className="truncate">
+              {t('dashboard.position')}:{' '}
+              <span className="font-bold text-slate-700 dark:text-slate-200">
+                {activeTrades.length}
+              </span>{' '}
+              / {botState.max_open_trades}
+            </span>
+            <span className="text-cyan-600 dark:text-cyan-400 font-medium truncate text-right shrink-0">
+              {t('dashboard.used')}:{' '}
+              {isReadOnly
+                ? t('ui.hidden')
+                : formatCurrency(totalStake, {
+                    decimals: totalStake >= 1000 ? 0 : 2,
+                  })}
+            </span>
           </div>
         </div>
 
         {/* Card 4: Account Balance */}
         <div
-          className={`rounded-xl p-2.5 sm:p-3 shadow-xs border transition-colors min-w-0 flex flex-col justify-between ${
+          className={`rounded-xl p-2.5 sm:p-3 shadow-xs border transition-colors min-w-0 flex flex-col justify-between h-full ${
             isDark ? 'bg-[#162033] border-slate-700/80' : 'bg-white border-slate-200'
           }`}
         >
@@ -368,40 +352,40 @@ export function FreqUIDashboardView() {
               <Layers className="w-3.5 h-3.5 text-purple-500" />
             </div>
           </div>
-          <div className="flex items-center justify-between gap-1.5 mt-0.5">
-            <div className="text-lg sm:text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight whitespace-nowrap truncate min-w-0">
-              {isReadOnly ? t('ui.hidden') : formatCurrency(botState.balance)}
-            </div>
-            <div className="flex flex-col items-end justify-center font-mono text-[10px] sm:text-[11px] text-slate-400 leading-tight shrink-0 text-right">
-              <div
-                className="whitespace-nowrap truncate"
-                title={`${t('dashboard.available')}: ${isReadOnly ? t('ui.hidden') : formatCurrency(botState.free_balance ?? botState.balance)}`}
+          <div className="text-lg sm:text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight whitespace-nowrap truncate my-0.5">
+            {isReadOnly ? t('ui.hidden') : formatCurrency(botState.balance)}
+          </div>
+          <div className="h-5 flex items-center justify-between gap-1 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap overflow-hidden">
+            <span
+              className="truncate"
+              title={`${t('dashboard.available')}: ${isReadOnly ? t('ui.hidden') : formatCurrency(botState.free_balance ?? botState.balance)}`}
+            >
+              <span className="hidden sm:inline">{t('dashboard.available')}</span>
+              <span className="sm:hidden">{t('dashboard.available_short')}</span>:{' '}
+              <span className="text-slate-700 dark:text-slate-200 font-semibold">
+                {isReadOnly
+                  ? t('ui.hidden')
+                  : formatCurrency(botState.free_balance ?? botState.balance, {
+                      decimals: (botState.free_balance ?? botState.balance ?? 0) >= 1000 ? 0 : 2,
+                    })}
+              </span>
+            </span>
+            <span
+              className="truncate text-right shrink-0"
+              title={`${t('dashboard.per_trade')}: ${nextStakeInfo.label}`}
+            >
+              <span className="hidden sm:inline">{t('dashboard.per_trade')}</span>
+              <span className="sm:hidden">{t('dashboard.per_trade_short')}</span>:{' '}
+              <span
+                className={`font-semibold ${
+                  nextStakeInfo.isFull
+                    ? 'text-amber-500 dark:text-amber-400'
+                    : 'text-slate-700 dark:text-slate-200'
+                }`}
               >
-                <span className="text-slate-500 dark:text-slate-400">{t('dashboard.available_short')}: </span>
-                <span className="text-slate-700 dark:text-slate-200 font-bold">
-                  {isReadOnly
-                    ? t('ui.hidden')
-                    : formatCurrency(botState.free_balance ?? botState.balance, {
-                        decimals: (botState.free_balance ?? botState.balance ?? 0) >= 1000 ? 0 : 2,
-                      })}
-                </span>
-              </div>
-              <div
-                className="whitespace-nowrap truncate mt-0.5"
-                title={`${t('dashboard.per_trade')}: ${nextStakeInfo.label}`}
-              >
-                <span className="text-slate-500 dark:text-slate-400">{t('dashboard.per_trade_short')}: </span>
-                <span
-                  className={`font-bold ${
-                    nextStakeInfo.isFull
-                      ? 'text-amber-500 dark:text-amber-400'
-                      : 'text-slate-700 dark:text-slate-200'
-                  }`}
-                >
-                  {nextStakeInfo.label}
-                </span>
-              </div>
-            </div>
+                {nextStakeInfo.label}
+              </span>
+            </span>
           </div>
         </div>
       </div>
