@@ -117,6 +117,7 @@ export function ClosedTradesView() {
       let rate = 1;
       if (currencyUnit === 'USD') rate = exchangeRates.USD || 1;
       else if (currencyUnit === 'CNY') rate = exchangeRates.CNY || 6.7025;
+      else if (currencyUnit === 'EUR') rate = exchangeRates.EUR || 0.8929;
       else if (currencyUnit === 'IDR') rate = exchangeRates.IDR || 16000;
 
       const exportOptions = {

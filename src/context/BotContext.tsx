@@ -12,13 +12,13 @@ import type {
 import { FreqtradeClient, EMPTY_BOT_STATE, normalizeApiUrl } from '../api/client';
 import { useLocale } from '../i18n/LocaleContext';
 
-export type CurrencyUnit = 'USDT' | 'USD' | 'CNY' | 'IDR';
+export type CurrencyUnit = 'USD' | 'CNY' | 'EUR' | 'IDR';
 
 export interface ExchangeRates {
   USD: number;
   CNY: number;
+  EUR: number;
   IDR: number;
-  EUR?: number;
 }
 
 interface BotContextValue {
@@ -215,11 +215,14 @@ export function BotProvider({ children }: { children: ReactNode }) {
   // Branch 'hide-operation-buttons': Default to Read-Only mode to hide all dangerous operation buttons
   const isReadOnly = false;
 
-  // Global Currency Unit State: 默认 CNY 计价
+  // Global Currency Unit State: 优先保留用户设置(CNY/EUR/IDR/USD)，旧版USDT自动平滑升级为USD
   const [currencyUnit, setCurrencyUnitState] = useState<CurrencyUnit>(() => {
     const saved = localStorage.getItem('frequi_currency_unit');
-    if (saved === 'EUR') return 'CNY';
-    return (saved as CurrencyUnit) || 'CNY';
+    if (saved === 'USDT' || !saved) return 'USD';
+    if (['USD', 'CNY', 'EUR', 'IDR'].includes(saved)) {
+      return saved as CurrencyUnit;
+    }
+    return 'USD';
   });
 
   const setCurrencyUnit = (unit: CurrencyUnit) => {
@@ -273,7 +276,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
     refreshIntervalRef.current = refreshInterval;
   }, [refreshInterval]);
 
-  // Live & Configurable Exchange Rates (defaults to real market rates: ~6.7025 for CNY, ~0.8929 for EUR)
+  // Live & Configurable Exchange Rates (defaults to real market rates: ~6.7025 for CNY, ~0.8929 for EUR, ~16000 for IDR)
   const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(() => {
     try {
       const saved = localStorage.getItem('frequi_exchange_rates');
@@ -308,7 +311,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
   }, [fetchLiveRates]);
 
   const setCustomRate = useCallback((unit: CurrencyUnit, newRate: number) => {
-    if (unit === 'USD' || unit === 'USDT' || newRate <= 0) return;
+    if (unit === 'USD' || newRate <= 0) return;
     setExchangeRates((prev) => {
       const updated = { ...prev, [unit]: newRate };
       localStorage.setItem('frequi_exchange_rates', JSON.stringify(updated));
@@ -333,7 +336,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
     if (hideBalances) return '••••••';
     const decimals = options?.decimals ?? (currencyUnit === 'IDR' ? 0 : 2);
     let rate = 1;
-    let symbol = 'USDT';
+    let symbol = '$';
 
     if (currencyUnit === 'USD') {
       rate = exchangeRates.USD || 1;
@@ -341,11 +344,12 @@ export function BotProvider({ children }: { children: ReactNode }) {
     } else if (currencyUnit === 'CNY') {
       rate = exchangeRates.CNY || 6.7025;
       symbol = '¥';
+    } else if (currencyUnit === 'EUR') {
+      rate = exchangeRates.EUR || 0.8929;
+      symbol = '€';
     } else if (currencyUnit === 'IDR') {
       rate = exchangeRates.IDR || 16000;
       symbol = 'Rp';
-    } else {
-      symbol = 'USDT';
     }
 
     const converted = val * rate;
@@ -355,9 +359,6 @@ export function BotProvider({ children }: { children: ReactNode }) {
       maximumFractionDigits: decimals,
     });
 
-    if (currencyUnit === 'USDT') {
-      return `${sign}${formattedNum} USDT`;
-    }
     return `${sign}${symbol}${formattedNum}`;
   }, [currencyUnit, exchangeRates, hideBalances]);
 

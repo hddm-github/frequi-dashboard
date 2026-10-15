@@ -47,6 +47,7 @@ export function exportClosedTradesToPdf(trades: Trade[], options: ExportTradeOpt
   const getCurrencySymbol = (unit: string) => {
     if (unit === 'CNY') return '¥';
     if (unit === 'USD') return '$';
+    if (unit === 'EUR') return '€';
     if (unit === 'IDR') return 'Rp';
     return '';
   };
