@@ -28,6 +28,7 @@ export interface FlowTag {
   protections: number;
   live: boolean;
   description: string;
+  descriptionZh?: string;
   gates: FlowGate[];
 }
 

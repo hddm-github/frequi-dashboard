@@ -163,6 +163,17 @@ export function ModeRoutingTable({ isDark = true, isZh = false }: SubViewProps) 
 // ============================================================================
 // 2. PROTECTION GATES COMPONENT
 // ============================================================================
+const HARDWIRED_LABELS_ZH: Record<string, string> = {
+  protections_long_global: '多头全局宏观风控开关 (防大盘系统性风险)',
+  global_protections_long_pump: '多头大盘极速拉升风控保护 (防追高受阻)',
+  global_protections_long_dump: '多头大盘恐慌暴跌风控保护 (防飞刀断头台)',
+  protections_long_rebuy: '多头补仓风控保护 (防止补仓过载)',
+  protections_short_global: '空头全局宏观风控开关 (防大盘单边暴拉爆仓)',
+  global_protections_short_pump: '空头大盘单边冲高风控保护 (防空头挤压爆仓)',
+  global_protections_short_dump: '空头大盘急跌熔断风控保护 (防底部超卖杀跌)',
+  protections_short_rebuy: '空头补仓风控保护 (防止高位逆势补空)',
+};
+
 export function ProtectionGatesTable({ isDark = true, isZh = false }: SubViewProps) {
   return (
     <div className="flex flex-col gap-5">
@@ -202,7 +213,7 @@ export function ProtectionGatesTable({ isDark = true, isZh = false }: SubViewPro
                     {ruleStr}
                   </span>
                   <div className={`text-[11px] font-sans mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-800'}`}>
-                    {isZh ? '100% 上游硬编码前置断言' : '100% hardwired upstream assertion'}
+                    {isZh ? (HARDWIRED_LABELS_ZH[ruleStr] || '100% 上游硬编码前置断言') : '100% hardwired upstream assertion'}
                   </div>
                 </div>
               </div>
@@ -240,17 +251,22 @@ export function ProtectionGatesTable({ isDark = true, isZh = false }: SubViewPro
                 }`}
               >
                 <tr>
-                  <th className="py-2 px-3 font-black">{isZh ? '门禁判定表达式' : 'Gate Expression'}</th>
-                  <th className="py-2 px-3 font-black">{isZh ? '覆盖判定条件数' : 'Conditions'}</th>
+                  <th className="py-2 px-3 font-black">{isZh ? '门禁判定表达式与说明' : 'Gate Expression & Context'}</th>
+                  <th className="py-2 px-3 font-black text-right">{isZh ? '覆盖条件数' : 'Conditions'}</th>
                 </tr>
               </thead>
-              <tbody className={`divide-y font-mono ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
-                {PROTECTION_GATES.slice(0, 7).map((g, idx) => (
+              <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
+                {PROTECTION_GATES.map((g, idx) => (
                   <tr key={idx}>
-                    <td className={`py-2 px-3 text-[11px] ${isDark ? 'text-cyan-300' : 'text-indigo-950 font-bold'}`}>
-                      {g.gate}
+                    <td className="py-2 px-3">
+                      <div className={`font-mono text-[11px] ${isDark ? 'text-cyan-300' : 'text-indigo-950 font-bold'}`}>
+                        {g.gate}
+                      </div>
+                      <div className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        {isZh && g.descriptionZh ? g.descriptionZh : g.description}
+                      </div>
                     </td>
-                    <td className={`py-2 px-3 font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>
+                    <td className={`py-2 px-3 font-mono font-bold text-right ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>
                       {g.conditions}
                     </td>
                   </tr>
@@ -283,7 +299,8 @@ export function EntrySignalsTable({ isDark = true, isZh = false }: SubViewProps)
       return (
         sig.tag.toLowerCase().includes(q) ||
         sig.mode.toLowerCase().includes(q) ||
-        sig.description.toLowerCase().includes(q)
+        sig.description.toLowerCase().includes(q) ||
+        (sig.descriptionZh && sig.descriptionZh.toLowerCase().includes(q))
       );
     });
   }, [filterQuery, sideFilter, statusFilter]);
@@ -419,7 +436,7 @@ export function EntrySignalsTable({ isDark = true, isZh = false }: SubViewProps)
                     </span>
                   </td>
                   <td className={`py-2.5 px-3 ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
-                    {sig.description}
+                    {isZh && sig.descriptionZh ? sig.descriptionZh : sig.description}
                   </td>
                   <td className={`py-2.5 px-3 font-mono ${isDark ? 'text-slate-400' : 'text-black font-bold'}`}>
                     {sig.masks}
@@ -516,36 +533,44 @@ export function ExitEnginesTable({ isDark = true, isZh = false }: SubViewProps) 
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
-              {EXIT_ENGINES.map((eng, idx) => (
-                <tr key={idx}>
-                  <td className="py-2.5 px-3">
-                    <span
-                      className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                        eng.family.includes('Long')
-                          ? isDark
-                            ? 'bg-blue-500/20 text-blue-400'
-                            : 'bg-blue-100 text-blue-950 border border-blue-400'
-                          : isDark
-                          ? 'bg-rose-500/20 text-rose-400'
-                          : 'bg-rose-100 text-rose-950 border border-rose-400'
-                      }`}
-                    >
-                      {isZh ? (eng.family.includes('Long') ? '做多家族' : '做空家族') : eng.family}
-                    </span>
-                  </td>
-                  <td className={`py-2.5 px-3 font-semibold ${isDark ? 'text-white' : 'text-black font-bold'}`}>
-                    {eng.name}
-                  </td>
-                  <td className="py-2.5 px-3 font-mono text-[11px]">
-                    <span className={isDark ? 'text-slate-300' : 'text-black font-medium'}>
-                      {eng.sellSignals} {isZh ? '个卖出信号' : 'sell signals'} · {eng.lines} {isZh ? '行代码' : 'lines'}
-                    </span>
-                  </td>
-                  <td className={`py-2.5 px-3 font-mono font-bold ${isDark ? 'text-cyan-400' : 'text-indigo-900'}`}>
-                    {eng.exitBranches} {isZh ? '条分支' : 'branches'}
-                  </td>
-                </tr>
-              ))}
+              {EXIT_ENGINES.map((eng, idx) => {
+                const isLong = eng.side === 'long';
+                return (
+                  <tr key={idx}>
+                    <td className="py-2.5 px-3">
+                      <span
+                        className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                          isLong
+                            ? isDark
+                              ? 'bg-blue-500/20 text-blue-400'
+                              : 'bg-blue-100 text-blue-950 border border-blue-400'
+                            : isDark
+                            ? 'bg-rose-500/20 text-rose-400'
+                            : 'bg-rose-100 text-rose-950 border border-rose-400'
+                        }`}
+                      >
+                        {isZh ? (isLong ? '做多' : '做空') : eng.side.toUpperCase()} · {isZh && eng.familyZh ? eng.familyZh : eng.family}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <div className={`font-semibold ${isDark ? 'text-white' : 'text-black font-bold'}`}>
+                        {isZh && eng.nameZh ? eng.nameZh : eng.name}
+                      </div>
+                      <div className={`text-[10px] font-mono mt-0.5 ${isDark ? 'text-cyan-400' : 'text-indigo-800'}`}>
+                        {isZh && eng.roleZh ? eng.roleZh : eng.role}
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3 font-mono text-[11px]">
+                      <span className={isDark ? 'text-slate-300' : 'text-black font-medium'}>
+                        {eng.sellSignals} {isZh ? '个卖出信号' : 'sell signals'} · {eng.lines} {isZh ? '行代码' : 'lines'}
+                      </span>
+                    </td>
+                    <td className={`py-2.5 px-3 font-mono font-bold ${isDark ? 'text-cyan-400' : 'text-indigo-900'}`}>
+                      {eng.exitBranches} {isZh ? '条分支' : 'branches'}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

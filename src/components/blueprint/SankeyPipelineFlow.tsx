@@ -1,6 +1,17 @@
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { RotateCcw, Info, X, MousePointerClick, Maximize2, Minimize2 } from 'lucide-react';
+import {
+  RotateCcw,
+  Info,
+  X,
+  MousePointerClick,
+  Maximize2,
+  Minimize2,
+  ZoomIn,
+  ZoomOut,
+  Scan,
+  Move,
+} from 'lucide-react';
 import { buildFlowGraph } from './flowData';
 import type {
   FlowGraph,
@@ -334,6 +345,15 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
   const [hoverNode, setHoverNode] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // Pan & Zoom state
+  const [scale, setScale] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const hasDraggedRef = useRef(false);
+  const touchStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0, dist: 0 });
+
   const graph: FlowGraph = useMemo(() => buildFlowGraph(isDark, isZh), [isDark, isZh]);
   const { nodes, edges, tagByCode } = useMemo(() => buildGeometry(graph, isZh), [graph, isZh]);
 
@@ -350,6 +370,188 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [isFullscreen]);
+
+  const fitToView = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const cw = container.clientWidth;
+    const ch = container.clientHeight;
+    if (cw <= 0 || ch <= 0) return;
+    const availW = Math.max(100, cw - 32);
+    const availH = Math.max(100, ch - 32);
+    const s = Math.min(availW / W, availH / H);
+    const clampedScale = Math.min(Math.max(s, 0.35), 1.6);
+    const ox = (cw - W * clampedScale) / 2;
+    const oy = Math.max(16, (ch - H * clampedScale) / 2);
+    setScale(clampedScale);
+    setPan({ x: ox, y: oy });
+  }, []);
+
+  const resetZoom = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) {
+      setScale(1);
+      setPan({ x: 0, y: 0 });
+      return;
+    }
+    const cw = container.clientWidth;
+    const ch = container.clientHeight;
+    const ox = Math.max(16, (cw - W) / 2);
+    const oy = Math.max(16, (ch - H) / 2);
+    setScale(1);
+    setPan({ x: ox, y: oy });
+  }, []);
+
+  const zoomBy = useCallback((multiplier: number) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const cw = container.clientWidth;
+    const ch = container.clientHeight;
+    const centerX = cw / 2;
+    const centerY = ch / 2;
+    setScale((prevScale) => {
+      const nextScale = Math.min(Math.max(prevScale * multiplier, 0.35), 4.5);
+      setPan((prevPan) => {
+        const contentX = (centerX - prevPan.x) / prevScale;
+        const contentY = (centerY - prevPan.y) / prevScale;
+        return {
+          x: centerX - contentX * nextScale,
+          y: centerY - contentY * nextScale,
+        };
+      });
+      return nextScale;
+    });
+  }, []);
+
+  // Fit view on initial mount and when fullscreen toggles
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fitToView();
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [isFullscreen, fitToView]);
+
+  // Window resize listener to refit view cleanly if needed
+  useEffect(() => {
+    const handleResize = () => {
+      fitToView();
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [fitToView]);
+
+  // Wheel zoom centered on cursor
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = container.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const factor = e.deltaY < 0 ? 1.15 : 0.87;
+      setScale((prevScale) => {
+        const nextScale = Math.min(Math.max(prevScale * factor, 0.35), 4.5);
+        setPan((prevPan) => {
+          const contentX = (mouseX - prevPan.x) / prevScale;
+          const contentY = (mouseY - prevPan.y) / prevScale;
+          return {
+            x: mouseX - contentX * nextScale,
+            y: mouseY - contentY * nextScale,
+          };
+        });
+        return nextScale;
+      });
+    };
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  // Global mouseup listener for dragging
+  useEffect(() => {
+    const onGlobalMouseUp = () => {
+      setIsDragging(false);
+    };
+    window.addEventListener('mouseup', onGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', onGlobalMouseUp);
+  }, []);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0 && e.button !== 1) return;
+    setIsDragging(true);
+    hasDraggedRef.current = false;
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      panX: pan.x,
+      panY: pan.y,
+    };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      hasDraggedRef.current = true;
+    }
+    setPan({
+      x: dragStartRef.current.panX + dx,
+      y: dragStartRef.current.panY + dy,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      hasDraggedRef.current = false;
+      touchStartRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        panX: pan.x,
+        panY: pan.y,
+        dist: 0,
+      };
+    } else if (e.touches.length === 2) {
+      setIsDragging(false);
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      touchStartRef.current.dist = dist;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && isDragging) {
+      const dx = e.touches[0].clientX - touchStartRef.current.x;
+      const dy = e.touches[0].clientY - touchStartRef.current.y;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+        hasDraggedRef.current = true;
+      }
+      setPan({
+        x: touchStartRef.current.panX + dx,
+        y: touchStartRef.current.panY + dy,
+      });
+    } else if (e.touches.length === 2 && touchStartRef.current.dist > 0) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const factor = dist / touchStartRef.current.dist;
+      touchStartRef.current.dist = dist;
+      setScale((prev) => Math.min(Math.max(prev * factor, 0.35), 4.5));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
 
   const select = useCallback((sel: TraceSelection) => {
     setTrace((prev) => (prev && prev.kind === sel.kind && prev.id === sel.id ? null : sel));
@@ -402,10 +604,10 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
   };
 
   const headers = isZh
-    ? ['入场信号', '风控保护', '分流体量', '标签 → 模式', '退出体系', '动态阶梯', '平仓结算']
+    ? ['入场信号 (84条规则)', '风控门禁 (4大防御网)', '体量汇聚分流', '模式归属路由', '退出引擎架构', '动态阶梯调仓 (V4)', '平仓出场结算']
     : ['Entry signals', 'Protections', 'Volume', 'tag → mode', 'Exit systems', 'Ladders', 'Closed'];
   const headerX = isZh
-    ? [COL.entry, COL.prot, COL.vol - 14, COL.mode - 50, COL.exit - 40, COL.ladder - 40, COL.closed - 44]
+    ? [COL.entry, COL.prot, COL.vol - 20, COL.mode - 65, COL.exit - 65, COL.ladder - 65, COL.closed - 50]
     : [COL.entry, COL.prot, COL.vol - 14, COL.mode - 78, COL.exit - 84, COL.ladder - 64, COL.closed - 44];
 
   // ---- breadcrumb --------------------------------------------------------------
@@ -424,12 +626,12 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
       parts.push(`${tg.display} · ${tg.ops} ${isZh ? '算子' : 'ops'}`);
       parts.push(
         tg.gates.length > 0
-          ? `${tg.gates.length} ${isZh ? '个门禁' : tg.gates.length === 1 ? 'gate' : 'gates'}`
+          ? `${tg.gates.length} ${isZh ? '个风控门禁' : tg.gates.length === 1 ? 'gate' : 'gates'}`
           : isZh ? '4 组风控保护' : '4 protection groups',
       );
       if (mode) parts.push(mode.label);
       if (exits.length) parts.push(exits.join(' + '));
-      parts.push(isZh ? '平仓结算' : 'Closed');
+      parts.push(isZh ? '平仓出场结算' : 'Closed');
     } else if (trace.kind === 'mode') {
       const m = graph.modes.find((x) => x.id === trace.id);
       if (!m) return null;
@@ -438,25 +640,25 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
       parts.push(
         (m.exitSystems.map((e) => graph.exits.find((x) => x.id === e)?.label ?? e)).join(' + '),
       );
-      parts.push(isZh ? '平仓结算' : 'Closed');
+      parts.push(isZh ? '平仓出场结算' : 'Closed');
     } else if (trace.kind === 'protection') {
       const p = graph.protections.find((x) => x.id === trace.id);
       if (!p) return null;
       parts.push(p.label.split(' ·')[0]);
-      parts.push(isZh ? '分流体量' : 'Volume');
-      parts.push(isZh ? '模式 → 退出 → 平仓结算' : 'modes → exits → Closed');
+      parts.push(isZh ? '体量汇聚分流' : 'Volume');
+      parts.push(isZh ? '模式 → 退出 → 平仓出场结算' : 'modes → exits → Closed');
     } else if (trace.kind === 'exit') {
       const e = graph.exits.find((x) => x.id === trace.id);
       if (!e) return null;
       parts.push(e.label);
-      parts.push(e.id === 'eng_v4' ? (isZh ? `${graph.ladders.length} 级阶梯` : `${graph.ladders.length} ladders`) : (isZh ? '直接平仓' : 'direct'));
-      parts.push(isZh ? '平仓结算' : 'Closed');
+      parts.push(e.id === 'eng_v4' ? (isZh ? `${graph.ladders.length} 级动态阶梯` : `${graph.ladders.length} ladders`) : (isZh ? '直接平仓退出' : 'direct'));
+      parts.push(isZh ? '平仓出场结算' : 'Closed');
     } else {
       const l = graph.ladders.find((x) => x.id === trace.id);
       if (!l) return null;
       parts.push('system_v4');
       parts.push(l.label);
-      parts.push(isZh ? '平仓结算' : 'Closed');
+      parts.push(isZh ? '平仓出场结算' : 'Closed');
     }
     return { parts, detailTag };
   }, [trace, graph, tagByCode, isZh]);
@@ -603,136 +805,231 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
 
       {/* ---- Main canvas ---- */}
       <div
-        className={`w-full overflow-x-auto rounded-xl border shadow-2xl p-2 select-none ${
-          isFullscreen ? 'flex-1 min-h-0 flex items-center justify-center' : ''
+        ref={containerRef}
+        className={`w-full relative overflow-hidden rounded-xl border shadow-2xl select-none ${
+          isFullscreen ? 'flex-1 min-h-0' : 'h-[620px]'
         }`}
-        style={{ background: t.panelBg, borderColor: isDark ? '#2a2a2a' : '#cbd5e1' }}
+        style={{
+          background: t.panelBg,
+          borderColor: isDark ? '#2a2a2a' : '#cbd5e1',
+          cursor: isDragging ? 'grabbing' : 'grab',
+        }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          className={`w-full font-sans ${isFullscreen ? 'h-full max-h-[85vh] min-w-[1200px]' : 'min-w-[1100px] h-auto'}`}
-          role="img"
-          aria-label="NFI X8 decision flow"
+        {/* Floating Pan & Zoom Hint */}
+        <div className="absolute top-3 left-3 z-20 pointer-events-none flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium backdrop-blur-md bg-black/60 border border-white/10 text-slate-200 shadow-md">
+          <Move className="w-3.5 h-3.5 text-cyan-400" />
+          <span>{isZh ? '按住鼠标拖拽平移 · 滚轮自由缩放' : 'Drag to pan · Scroll to zoom'}</span>
+        </div>
+
+        {/* Floating Zoom Toolbar Controls */}
+        <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 p-1 rounded-xl border shadow-xl backdrop-blur-md bg-slate-900/90 border-slate-700/80 text-white">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              zoomBy(0.8);
+            }}
+            title={isZh ? '缩小 (滚轮向下)' : 'Zoom out'}
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer"
+          >
+            <ZoomOut className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              resetZoom();
+            }}
+            title={isZh ? '点击重置为 100%' : 'Reset to 100%'}
+            className="px-2 py-0.5 rounded-md text-xs font-mono font-bold bg-white/10 hover:bg-white/20 text-cyan-300 transition-colors cursor-pointer"
+          >
+            {Math.round(scale * 100)}%
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              zoomBy(1.25);
+            }}
+            title={isZh ? '放大 (滚轮向上)' : 'Zoom in'}
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer"
+          >
+            <ZoomIn className="w-3.5 h-3.5" />
+          </button>
+          <div className="w-[1px] h-4 bg-slate-700 mx-0.5" />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              fitToView();
+            }}
+            title={isZh ? '全景自适应' : 'Fit to screen'}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-800 text-xs font-medium text-slate-300 hover:text-white transition-colors cursor-pointer"
+          >
+            <Scan className="w-3.5 h-3.5 text-cyan-400" />
+            <span>{isZh ? '自适应' : 'Fit'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              resetZoom();
+            }}
+            title={isZh ? '原始 1:1 比例' : 'Reset 1:1'}
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Transformable Canvas Surface */}
+        <div
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+            transformOrigin: '0 0',
+            transition: isDragging ? 'none' : 'transform 0.08s ease-out',
+            width: `${W}px`,
+            height: `${H}px`,
+            willChange: 'transform',
+          }}
         >
-          <defs>
-            <filter id="nfiGlow" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="4" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
+          <svg
+            width={W}
+            height={H}
+            viewBox={`0 0 ${W} ${H}`}
+            className="w-full h-full font-sans pointer-events-auto"
+            role="img"
+            aria-label="NFI X8 decision flow"
+          >
+            <defs>
+              <filter id="nfiGlow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
 
-          {/* column headers */}
-          {headers.map((hTxt, i) => (
-            <text key={hTxt} x={headerX[i]} y={HEADER_Y} fontSize="11" fontWeight="700" fill={t.header}>
-              {hTxt}
-            </text>
-          ))}
+            {/* column headers */}
+            {headers.map((hTxt, i) => (
+              <text key={hTxt} x={headerX[i]} y={HEADER_Y} fontSize="11" fontWeight="700" fill={t.header}>
+                {hTxt}
+              </text>
+            ))}
 
-          {/* edges */}
-          <g>
-            {edges.map((e) => {
-              const isActive = traceState ? traceState.activeEdgeIds.has(e.id) : false;
-              const dimmed = traceState && !isActive;
-              return (
-                <path
-                  key={e.id}
-                  d={e.d}
-                  fill="none"
-                  stroke={e.color}
-                  strokeWidth={isActive ? e.width + 1.2 : e.width}
-                  strokeOpacity={dimmed ? 0.05 : isActive ? 1 : 0.5}
-                  strokeLinecap="round"
-                  className={`nfi-edge${isActive ? ' nfi-edge-active' : ''}`}
-                  filter={isActive ? 'url(#nfiGlow)' : undefined}
-                >
-                  <title>{e.title}</title>
-                </path>
-              );
-            })}
-          </g>
+            {/* edges */}
+            <g>
+              {edges.map((e) => {
+                const isActive = traceState ? traceState.activeEdgeIds.has(e.id) : false;
+                const dimmed = traceState && !isActive;
+                return (
+                  <path
+                    key={e.id}
+                    d={e.d}
+                    fill="none"
+                    stroke={e.color}
+                    strokeWidth={isActive ? e.width + 1.2 : e.width}
+                    strokeOpacity={dimmed ? 0.05 : isActive ? 1 : 0.5}
+                    strokeLinecap="round"
+                    className={`nfi-edge${isActive ? ' nfi-edge-active' : ''}`}
+                    filter={isActive ? 'url(#nfiGlow)' : undefined}
+                  >
+                    <title>{e.title}</title>
+                  </path>
+                );
+              })}
+            </g>
 
-          {/* nodes */}
-          <g>
-            {nodes.map((n) => {
-              const sel = nodeSelFor(n);
-              const isActiveNode = traceState ? traceState.activeNodeIds.has(n.id) : false;
-              const dimmed = traceState && !isActiveNode;
-              const hovered = hoverNode === n.id;
-              const nodeOpacity = dimmed ? 0.25 : n.off && !isActiveNode ? 0.38 : 1;
-              const labelAnchor = n.kind === 'tag' || n.kind === 'protection' ? 'start' : 'end';
-              const labelX = labelAnchor === 'start' ? n.x + BAR_W + 6 : n.x - 8;
-              const showLabel = n.kind !== 'volume';
-              return (
-                <g
-                  key={n.id}
-                  className={sel ? 'nfi-node' : undefined}
-                  opacity={nodeOpacity}
-                  role={sel ? 'button' : undefined}
-                  tabIndex={sel ? 0 : undefined}
-                  aria-label={sel ? `${n.label} — trace pipeline` : undefined}
-                  onClick={sel ? () => select(sel) : undefined}
-                  onKeyDown={sel ? onNodeKey(sel) : undefined}
-                  onMouseEnter={() => setHoverNode(n.id)}
-                  onMouseLeave={() => setHoverNode(null)}
-                >
-                  <title>{n.sub ? `${n.label}\n${n.sub}` : n.label}</title>
-                  <rect
-                    x={n.x}
-                    y={n.y - n.h / 2}
-                    width={BAR_W}
-                    height={n.h}
-                    rx={1}
-                    fill={n.color}
-                    className="nfi-bar"
-                    stroke={isActiveNode ? '#ffffff' : 'none'}
-                    strokeWidth={isActiveNode ? 1.4 : 0}
-                  />
-                  {showLabel && (
-                    <text
-                      x={labelX}
-                      y={n.y + 3.5}
-                      textAnchor={labelAnchor}
-                      fontSize={n.kind === 'closed' ? 13 : 11}
-                      fontWeight={n.kind === 'closed' ? 800 : 600}
-                      fill={hovered || isActiveNode ? t.label : t.label}
-                      opacity={hovered || isActiveNode ? 1 : 0.92}
-                      style={{ paintOrder: 'stroke', stroke: t.halo, strokeWidth: 3 }}
-                    >
-                      {n.label}
-                    </text>
-                  )}
-                  {n.sub && n.kind !== 'closed' && (
-                    <text
-                      x={labelX}
-                      y={n.y + 16}
-                      textAnchor={labelAnchor}
-                      fontSize="9"
-                      fill={t.sub}
-                      style={{ paintOrder: 'stroke', stroke: t.halo, strokeWidth: 3 }}
-                    >
-                      {n.sub}
-                    </text>
-                  )}
-                  {n.kind === 'closed' && n.sub && (
-                    <text
-                      x={labelX}
-                      y={n.y + 22}
-                      textAnchor={labelAnchor}
-                      fontSize="10"
-                      fill={t.sub}
-                      style={{ paintOrder: 'stroke', stroke: t.halo, strokeWidth: 3 }}
-                    >
-                      {n.sub}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-          </g>
-        </svg>
+            {/* nodes */}
+            <g>
+              {nodes.map((n) => {
+                const sel = nodeSelFor(n);
+                const isActiveNode = traceState ? traceState.activeNodeIds.has(n.id) : false;
+                const dimmed = traceState && !isActiveNode;
+                const hovered = hoverNode === n.id;
+                const nodeOpacity = dimmed ? 0.25 : n.off && !isActiveNode ? 0.38 : 1;
+                const labelAnchor = n.kind === 'tag' || n.kind === 'protection' ? 'start' : 'end';
+                const labelX = labelAnchor === 'start' ? n.x + BAR_W + 6 : n.x - 8;
+                const showLabel = n.kind !== 'volume';
+                return (
+                  <g
+                    key={n.id}
+                    className={sel ? 'nfi-node' : undefined}
+                    opacity={nodeOpacity}
+                    role={sel ? 'button' : undefined}
+                    tabIndex={sel ? 0 : undefined}
+                    aria-label={sel ? `${n.label} — trace pipeline` : undefined}
+                    onClick={sel ? () => {
+                      if (hasDraggedRef.current) return;
+                      select(sel);
+                    } : undefined}
+                    onKeyDown={sel ? onNodeKey(sel) : undefined}
+                    onMouseEnter={() => setHoverNode(n.id)}
+                    onMouseLeave={() => setHoverNode(null)}
+                  >
+                    <title>{n.sub ? `${n.label}\n${n.sub}` : n.label}</title>
+                    <rect
+                      x={n.x}
+                      y={n.y - n.h / 2}
+                      width={BAR_W}
+                      height={n.h}
+                      rx={1}
+                      fill={n.color}
+                      className="nfi-bar"
+                      stroke={isActiveNode ? '#ffffff' : 'none'}
+                      strokeWidth={isActiveNode ? 1.4 : 0}
+                    />
+                    {showLabel && (
+                      <text
+                        x={labelX}
+                        y={n.y + 3.5}
+                        textAnchor={labelAnchor}
+                        fontSize={n.kind === 'closed' ? 13 : 11}
+                        fontWeight={n.kind === 'closed' ? 800 : 600}
+                        fill={hovered || isActiveNode ? t.label : t.label}
+                        opacity={hovered || isActiveNode ? 1 : 0.92}
+                        style={{ paintOrder: 'stroke', stroke: t.halo, strokeWidth: 3 }}
+                      >
+                        {n.label}
+                      </text>
+                    )}
+                    {n.sub && n.kind !== 'closed' && (
+                      <text
+                        x={labelX}
+                        y={n.y + 16}
+                        textAnchor={labelAnchor}
+                        fontSize="9"
+                        fill={t.sub}
+                        style={{ paintOrder: 'stroke', stroke: t.halo, strokeWidth: 3 }}
+                      >
+                        {n.sub}
+                      </text>
+                    )}
+                    {n.kind === 'closed' && n.sub && (
+                      <text
+                        x={labelX}
+                        y={n.y + 22}
+                        textAnchor={labelAnchor}
+                        fontSize="10"
+                        fill={t.sub}
+                        style={{ paintOrder: 'stroke', stroke: t.halo, strokeWidth: 3 }}
+                      >
+                        {n.sub}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </g>
+          </svg>
+        </div>
       </div>
 
       {/* ---- Tag detail: its gates ---- */}
@@ -746,7 +1043,7 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
             <div className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-black'}`}>
               {crumb.detailTag.display}
               <span className={`ml-2 font-mono font-semibold normal-case tracking-normal ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                {crumb.detailTag.description}
+                {isZh && crumb.detailTag.descriptionZh ? crumb.detailTag.descriptionZh : crumb.detailTag.description}
               </span>
             </div>
             <div className={`text-[11px] font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>

@@ -48,15 +48,16 @@ export const MODE_FAMILY_COLORS: Record<string, { dark: string; light: string }>
 };
 
 export const FAMILY_ZH: Record<string, string> = {
-  Normal: '常规',
-  Pump: '冲高',
-  Quick: '极速',
-  Rebuy: '补仓',
-  Rapid: '快速',
-  Grind: '网格',
-  'Top coins': '头部主流币',
-  Scalp: '超短',
-  Highprofit: '高收益',
+  Normal: '核心趋势 (Normal)',
+  Pump: '动能追涨 (Pump)',
+  Quick: '极速快波 (Quick)',
+  Rebuy: '阶梯补仓 (Rebuy)',
+  Rapid: '高频动量 (Rapid)',
+  Grind: '动态网格 (Grind)',
+  'Top coins': '主流币 (Top coins)',
+  Scalp: '5m剥头皮 (Scalp)',
+  Highprofit: '高盈亏比 (High profit)',
+  BTC: 'BTC专属 (BTC)',
 };
 
 export const translateFamily = (family: string): string => FAMILY_ZH[family] || family;
@@ -67,30 +68,30 @@ export const EXIT_SYSTEM_META: Record<
 > = {
   eng_l_exit: {
     label: 'L exit engines',
-    labelZh: '做多退出引擎',
+    labelZh: '多头退出引擎群 (L-Exit)',
     sub: 'signals / williams / stoploss',
-    subZh: '信号 / Williams / 止损',
+    subZh: '信号卖出 / 威廉指标 / 追踪止损',
     color: { dark: '#4589ff', light: '#1d4ed8' },
   },
   eng_v4: {
     label: 'system_v4',
-    labelZh: 'system_v4 动态阶梯',
+    labelZh: 'System_V4 动态阶梯管理',
     sub: 'dynamic new-trade ladder',
-    subZh: '新开仓动态加减仓阶梯',
+    subZh: '动态阶梯减仓 · 网格套利回收',
     color: { dark: '#be95ff', light: '#7c3aed' },
   },
   eng_legacy_grind: {
     label: 'legacy grind · rebuy',
-    labelZh: '经典网格 · 循环补仓',
+    labelZh: '经典震荡网格 · 循环补仓',
     sub: 'staged grid recovery',
-    subZh: '分段式网格回本复原',
+    subZh: '多段网格浮亏修复解套机制',
     color: { dark: '#8d8d8d', light: '#64748b' },
   },
   eng_s_exit: {
     label: 'S exit engines',
-    labelZh: '做空退出引擎',
+    labelZh: '空头退出引擎群 (S-Exit)',
     sub: 'short reversal exit stack',
-    subZh: '做空反转退出引擎栈',
+    subZh: '空头动能反转 / 超卖止盈 / 止损',
     color: { dark: '#fa4d56', light: '#dc2626' },
   },
 };
@@ -101,22 +102,22 @@ export const PROTECTION_META: Record<
 > = {
   overflow: {
     label: 'Overflow guards',
-    labelZh: '溢出防护门禁',
+    labelZh: '风控溢出过滤 (Overflow)',
     color: { dark: '#08bdba', light: '#0f766e' },
   },
   global: {
     label: 'Global protections',
-    labelZh: '全局宏观防护',
+    labelZh: '全局宏观保护 (Global)',
     color: { dark: '#78a9ff', light: '#3b5bdb' },
   },
   candle: {
     label: 'Candle health',
-    labelZh: 'K线健康度门禁',
+    labelZh: 'K线连续健康度 (Health)',
     color: { dark: '#82cfff', light: '#1971c2' },
   },
   pair: {
     label: 'Pair mode guards',
-    labelZh: '交易对模式门禁',
+    labelZh: '币种通道门禁 (Pair Mode)',
     color: { dark: '#3ddbd9', light: '#0e7490' },
   },
 };
@@ -223,6 +224,7 @@ export function buildFlowGraph(isDark = true, isZh = false): FlowGraph {
       protections: s.protections,
       live: true,
       description: s.description,
+      descriptionZh: s.descriptionZh,
       gates,
     };
   });
@@ -263,7 +265,7 @@ export function buildFlowGraph(isDark = true, isZh = false): FlowGraph {
         const id = `lad_grind_${i + 1}`;
         return {
           id,
-          label: `${l.name} · ${l.steps ?? 5} ${isZh ? '步分批' : 'steps'}`,
+          label: `${l.name} · ${l.steps ?? 5} ${isZh ? '步网格分批' : 'steps'}`,
           color: MODE_FAMILY_COLORS.Grind[theme],
           kind: 'grind' as const,
           on: ladderOn(id, l.on),
@@ -273,7 +275,7 @@ export function buildFlowGraph(isDark = true, isZh = false): FlowGraph {
       const id = `lad_derisk_${i + 1}`;
       return {
         id,
-        label: `${l.name} · ${isZh ? '减仓 ' : ''}${l.spotSell ?? ''}`,
+        label: `${l.name} · ${isZh ? '阶梯减仓 ' : ''}${l.spotSell ?? ''}`,
         color: MODE_FAMILY_COLORS.Pump[theme],
         kind: 'derisk' as const,
         on: ladderOn(id, l.on),
@@ -285,7 +287,7 @@ export function buildFlowGraph(isDark = true, isZh = false): FlowGraph {
         const id = `lad_buyback_${i + 1}`;
         return {
           id,
-          label: `${l.name} · 100%${isZh ? ' 回补' : ''}`,
+          label: `${l.name} · 100%${isZh ? ' 跌深回补' : ''}`,
           color: MODE_FAMILY_COLORS.Quick[theme],
           kind: 'buyback' as const,
           on: ladderOn(id, l.on),
