@@ -353,13 +353,13 @@ export function HeaderBar() {
                   <span>{t('dashboard.display_currency')}</span>
                   {currencyUnit !== 'USDT' && (
                     <span className="font-mono text-[9px] text-slate-500">
-                      1 USDT ≈ {currencyUnit === 'USD' ? '$1' : currencyUnit === 'CNY' ? `¥${exchangeRates.CNY}` : currencyUnit === 'EUR' ? `€${exchangeRates.EUR}` : `Rp${exchangeRates.IDR.toLocaleString()}`}
+                      1 USDT ≈ {currencyUnit === 'USD' ? '$1' : currencyUnit === 'CNY' ? `¥${exchangeRates.CNY}` : `Rp${exchangeRates.IDR.toLocaleString()}`}
                     </span>
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-1 mb-2">
-                  {(['USDT', 'USD', 'CNY', 'EUR', 'IDR'] as const).map((unit) => (
+                  {(['USDT', 'USD', 'CNY', 'IDR'] as const).map((unit) => (
                     <button
                       key={unit}
                       type="button"
@@ -386,7 +386,7 @@ export function HeaderBar() {
                     <button
                       type="button"
                       onClick={() => {
-                        const current = currencyUnit === 'CNY' ? exchangeRates.CNY : currencyUnit === 'EUR' ? exchangeRates.EUR : exchangeRates.IDR;
+                        const current = currencyUnit === 'CNY' ? exchangeRates.CNY : exchangeRates.IDR;
                         const input = prompt(
                           t('header.custom_rate_prompt')
                             .replace('{currency}', currencyUnit)
@@ -831,12 +831,12 @@ export function HeaderBar() {
                   </span>
                   {currencyUnit !== 'USDT' && (
                     <span className="font-mono text-[10px] text-slate-500">
-                      1 USDT ≈ {currencyUnit === 'USD' ? '$1' : currencyUnit === 'CNY' ? `¥${exchangeRates.CNY}` : currencyUnit === 'EUR' ? `€${exchangeRates.EUR}` : `Rp${exchangeRates.IDR.toLocaleString()}`}
+                      1 USDT ≈ {currencyUnit === 'USD' ? '$1' : currencyUnit === 'CNY' ? `¥${exchangeRates.CNY}` : `Rp${exchangeRates.IDR.toLocaleString()}`}
                     </span>
                   )}
                 </div>
-                <div className="grid grid-cols-5 gap-1.5">
-                  {(['USDT', 'USD', 'CNY', 'EUR', 'IDR'] as const).map((unit) => (
+                <div className="grid grid-cols-4 gap-1.5">
+                  {(['USDT', 'USD', 'CNY', 'IDR'] as const).map((unit) => (
                     <button
                       key={unit}
                       type="button"
@@ -859,7 +859,7 @@ export function HeaderBar() {
                     <button
                       type="button"
                       onClick={() => {
-                        const current = currencyUnit === 'CNY' ? exchangeRates.CNY : currencyUnit === 'EUR' ? exchangeRates.EUR : exchangeRates.IDR;
+                        const current = currencyUnit === 'CNY' ? exchangeRates.CNY : exchangeRates.IDR;
                         const input = prompt(
                           t('header.custom_rate_prompt')
                             .replace('{currency}', currencyUnit)

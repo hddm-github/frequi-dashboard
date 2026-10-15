@@ -12,13 +12,13 @@ import type {
 import { FreqtradeClient, EMPTY_BOT_STATE, normalizeApiUrl } from '../api/client';
 import { useLocale } from '../i18n/LocaleContext';
 
-export type CurrencyUnit = 'USDT' | 'USD' | 'CNY' | 'EUR' | 'IDR';
+export type CurrencyUnit = 'USDT' | 'USD' | 'CNY' | 'IDR';
 
 export interface ExchangeRates {
   USD: number;
   CNY: number;
-  EUR: number;
   IDR: number;
+  EUR?: number;
 }
 
 interface BotContextValue {
@@ -215,8 +215,9 @@ export function BotProvider({ children }: { children: ReactNode }) {
 
   // Global Currency Unit State: 默认 CNY 计价
   const [currencyUnit, setCurrencyUnitState] = useState<CurrencyUnit>(() => {
-    const saved = localStorage.getItem('frequi_currency_unit') as CurrencyUnit;
-    return saved || 'CNY';
+    const saved = localStorage.getItem('frequi_currency_unit');
+    if (saved === 'EUR') return 'CNY';
+    return (saved as CurrencyUnit) || 'CNY';
   });
 
   const setCurrencyUnit = (unit: CurrencyUnit) => {
@@ -338,9 +339,6 @@ export function BotProvider({ children }: { children: ReactNode }) {
     } else if (currencyUnit === 'CNY') {
       rate = exchangeRates.CNY || 6.7025;
       symbol = '¥';
-    } else if (currencyUnit === 'EUR') {
-      rate = exchangeRates.EUR || 0.8929;
-      symbol = '€';
     } else if (currencyUnit === 'IDR') {
       rate = exchangeRates.IDR || 16000;
       symbol = 'Rp';
