@@ -865,18 +865,18 @@ export function CandleChartView() {
           isDark ? 'border-slate-700/80 bg-[#141d2f]' : 'border-slate-200 bg-slate-50'
         }`}
       >
-        {/* Tier 1: 核心标的与周期控制 + 核心操作工具组 */}
-        <div className="flex flex-wrap items-center justify-between gap-2 w-full">
-          {/* 左侧：标的选择器与周期切换栏 */}
-          <div className="flex items-center gap-2 flex-wrap min-w-0">
+        {/* Tier 1: 核心标的与交易操作工具组 (桌面端包含周期栏) */}
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full">
+          {/* 左侧：标的选择器 + 桌面端周期栏 */}
+          <div className="flex items-center gap-2 min-w-0">
             {/* 交易对选择器 */}
             <div className="flex items-center gap-1.5 shrink-0">
               <CandlestickChart className="w-4 h-4 text-emerald-500 shrink-0" />
               <select
                 value={selectedPair}
                 onChange={(e) => setSelectedPair(e.target.value)}
-                className={`border rounded-lg px-2 py-1 font-mono text-xs font-semibold focus:outline-none focus:border-emerald-500 transition-colors max-w-[200px] sm:max-w-xs truncate cursor-pointer ${
-                  isDark ? 'bg-[#1a233a] border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-800'
+                className={`border rounded-lg px-2 py-1 font-mono text-xs font-semibold focus:outline-none focus:border-emerald-500 transition-colors max-w-[150px] xs:max-w-[190px] sm:max-w-xs truncate cursor-pointer ${
+                  isDark ? 'bg-[#1a233a] border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-800 shadow-2xs'
                 }`}
               >
                 {availablePairs.map((pair) => (
@@ -887,8 +887,8 @@ export function CandleChartView() {
               </select>
             </div>
 
-            {/* 周期切换栏 */}
-            <div className="flex items-center gap-1 font-mono text-[11px] shrink-0 overflow-x-auto no-scrollbar py-0.5">
+            {/* 周期切换栏 (桌面端: hidden md:flex) */}
+            <div className="hidden md:flex items-center gap-1 font-mono text-[11px] shrink-0 overflow-x-auto no-scrollbar py-0.5">
               {TIMEFRAMES.map((tf) => {
                 const isStrategyTf = tf === (botState.timeframe || '5m');
                 return (
@@ -913,7 +913,7 @@ export function CandleChartView() {
           </div>
 
           {/* 右侧：交易工具组 (明细、看板、刷新、语言) */}
-          <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto">
             {/* 本对交易明细下拉/弹窗 */}
             <div className="relative">
               <button
@@ -923,12 +923,13 @@ export function CandleChartView() {
                     ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40'
                     : isDark
                     ? 'bg-[#1a233a] text-slate-300 border-slate-700 hover:bg-[#202b46]'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100 shadow-2xs'
                 }`}
                 title={t('candle.trade_history_title')}
               >
                 <History className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
-                <span>{t('candle.trade_history_btn')}</span>
+                <span className="hidden xs:inline">{t('candle.trade_history_btn')}</span>
+                <span className="xs:hidden">{locale === 'zh' ? '历史' : 'Trades'}</span>
                 <span className="font-mono text-[10px] font-bold opacity-80">({pairTrades.length})</span>
                 <ChevronDown className="w-3 h-3 opacity-60" />
               </button>
@@ -949,11 +950,11 @@ export function CandleChartView() {
                       isDark ? 'border-slate-700/60 bg-[#162036]' : 'border-slate-200 bg-slate-50'
                     }`}>
                       <div className="flex items-center gap-2">
-                        <History className="w-4 h-4 text-cyan-400" />
-                        <span className="font-bold text-sm tracking-wide">
+                        <History className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
+                        <span className="font-bold text-sm tracking-wide text-slate-900 dark:text-slate-100">
                           {selectedPair}
                         </span>
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                           {t('candle.trade_history_btn')} ({pairTrades.length})
                         </span>
                       </div>
@@ -970,7 +971,7 @@ export function CandleChartView() {
 
                     <div className="p-3.5 space-y-2.5 overflow-y-auto flex-1 text-xs">
                       {pairTrades.length === 0 ? (
-                        <div className="py-8 text-center text-slate-500 text-xs">
+                        <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs">
                           {t('candle.no_pair_trades')}
                         </div>
                       ) : (
@@ -984,29 +985,29 @@ export function CandleChartView() {
                                 focusTradeOnChart(tr);
                                 setShowTradeDropdown(false);
                               }}
-                              className={`p-2.5 rounded-xl border cursor-pointer transition-colors ${
+                              className={`p-3 rounded-xl border cursor-pointer transition-colors ${
                                 isDark
                                   ? 'bg-slate-800/40 hover:bg-slate-800/80 border-slate-700/60'
-                                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                                  : 'bg-white hover:bg-slate-50/90 border-slate-200/90 shadow-xs'
                               }`}
                             >
                               <div className="flex items-center justify-between mb-1.5">
-                                <span className="font-mono font-bold text-xs flex items-center gap-1.5">
+                                <span className="font-mono font-bold text-xs flex items-center gap-1.5 text-slate-900 dark:text-slate-100">
                                   #{tr.trade_id}
                                   <span
                                     className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
                                       tr.is_short
-                                        ? 'bg-rose-500/20 text-rose-400'
-                                        : 'bg-emerald-500/20 text-emerald-400'
+                                        ? isDark ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700 border border-rose-200'
+                                        : isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
                                     }`}
                                   >
                                     {tr.is_short ? t('candle.short') : t('candle.long')}
                                   </span>
                                   <span
-                                    className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                    className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
                                       tr.is_open
-                                        ? 'bg-amber-500/20 text-amber-400'
-                                        : 'bg-slate-600/30 text-slate-400'
+                                        ? isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                        : isDark ? 'bg-slate-700/50 text-slate-300' : 'bg-slate-100 text-slate-600 border border-slate-200'
                                     }`}
                                   >
                                     {tr.is_open ? t('candle.open_position') : t('candle.closed_position')}
@@ -1014,7 +1015,9 @@ export function CandleChartView() {
                                 </span>
                                 <span
                                   className={`font-mono font-bold text-xs ${
-                                    isProfit ? 'text-emerald-500' : 'text-rose-500'
+                                    isProfit
+                                      ? isDark ? 'text-emerald-400' : 'text-emerald-600'
+                                      : isDark ? 'text-rose-400' : 'text-rose-600'
                                   }`}
                                 >
                                   {isProfit ? '+' : ''}
@@ -1022,16 +1025,34 @@ export function CandleChartView() {
                                 </span>
                               </div>
 
-                              <div className="text-[11px] text-slate-400 flex items-center justify-between font-mono mb-1.5">
-                                <span>{t('candle.open_price')}: {tr.open_rate}</span>
-                                {tr.close_rate && <span>{t('candle.avg_close')}: {tr.close_rate}</span>}
-                                <span className="text-cyan-400 font-semibold">{tr.enter_tag || tr.exit_reason || (locale === 'zh' ? '策略信号' : 'Signal')}</span>
+                              <div className={`text-[11px] flex items-center justify-between font-mono mb-1.5 ${
+                                isDark ? 'text-slate-300' : 'text-slate-700'
+                              }`}>
+                                <span className="flex items-center gap-1">
+                                  <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{t('candle.open_price')}:</span>
+                                  <span className="font-semibold text-slate-900 dark:text-slate-100">{tr.open_rate}</span>
+                                </span>
+                                {tr.close_rate && (
+                                  <span className="flex items-center gap-1">
+                                    <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{t('candle.avg_close')}:</span>
+                                    <span className="font-semibold text-slate-900 dark:text-slate-100">{tr.close_rate}</span>
+                                  </span>
+                                )}
+                                <span className={`font-semibold ${
+                                  isDark ? 'text-cyan-400' : 'text-cyan-700 font-bold'
+                                }`}>
+                                  {tr.enter_tag || tr.exit_reason || (locale === 'zh' ? '策略信号' : 'Signal')}
+                                </span>
                               </div>
 
                               {/* Orders breakdown */}
                               {hasOrders && (
-                                <div className="mt-2 pt-2 border-t border-slate-700/40 space-y-1.5">
-                                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                                <div className={`mt-2 pt-2 border-t space-y-1.5 ${
+                                  isDark ? 'border-slate-700/60' : 'border-slate-200'
+                                }`}>
+                                  <div className={`text-[10px] font-bold uppercase tracking-wider flex items-center justify-between ${
+                                    isDark ? 'text-slate-400' : 'text-slate-500'
+                                  }`}>
                                     <span>{t('candle.order_history')} ({tr.orders!.length})</span>
                                   </div>
                                   {tr.orders!.map((ord, idx) => {
@@ -1042,28 +1063,58 @@ export function CandleChartView() {
                                     const isRebuy = tag.includes('rebuy') || tag === 'r';
                                     const isDerisk = tag.includes('derisk');
 
-                                    let badgeColor = 'bg-slate-700/50 text-slate-300';
-                                    if (isGrind) badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
-                                    else if (isRebuy) badgeColor = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
-                                    else if (isDerisk) badgeColor = 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
-                                    else if (isBuy) badgeColor = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                                    let badgeColor = isDark
+                                      ? 'bg-slate-700/50 text-slate-300'
+                                      : 'bg-slate-100 text-slate-700 border border-slate-200';
+                                    if (isGrind) {
+                                      badgeColor = isDark
+                                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                        : 'bg-purple-100 text-purple-800 border border-purple-200 font-semibold';
+                                    } else if (isRebuy) {
+                                      badgeColor = isDark
+                                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                        : 'bg-amber-100 text-amber-800 border border-amber-200 font-semibold';
+                                    } else if (isDerisk) {
+                                      badgeColor = isDark
+                                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                        : 'bg-rose-100 text-rose-800 border border-rose-200 font-semibold';
+                                    } else if (isBuy) {
+                                      badgeColor = isDark
+                                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                        : 'bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold';
+                                    }
 
                                     return (
                                       <div
                                         key={ord.order_id || idx}
-                                        className="text-[10px] font-mono flex items-center justify-between bg-slate-900/40 px-2 py-1 rounded gap-1.5 min-w-0"
+                                        className={`text-[10px] font-mono flex items-center justify-between px-2 py-1.5 rounded-lg gap-1.5 min-w-0 transition-colors ${
+                                          isDark
+                                            ? 'bg-slate-900/60 border border-slate-800/80 text-slate-200'
+                                            : 'bg-slate-50 hover:bg-slate-100 border border-slate-200/90 text-slate-800 shadow-2xs'
+                                        }`}
                                       >
                                         <div className="flex items-center gap-1.5 truncate min-w-0">
                                           <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${badgeColor}`}>
                                             {isBuy ? (locale === 'zh' ? '买入' : 'BUY') : (locale === 'zh' ? '卖出' : 'SELL')}
                                           </span>
-                                          <span className="text-slate-300 font-medium truncate shrink min-w-0" title={tag}>
+                                          <span
+                                            className={`font-semibold truncate shrink min-w-0 ${
+                                              isDark ? 'text-slate-200' : 'text-slate-800'
+                                            }`}
+                                            title={tag}
+                                          >
                                             {tag}
                                           </span>
                                         </div>
-                                        <div className="text-slate-400 shrink-0 text-right">
-                                          @{ord.safe_price || ord.price || ord.average || 0}{' '}
-                                          <span className="text-slate-500">({ord.filled || ord.amount || 0})</span>
+                                        <div className={`shrink-0 text-right ${
+                                          isDark ? 'text-slate-300' : 'text-slate-700'
+                                        }`}>
+                                          <span className="font-semibold text-slate-900 dark:text-slate-100">
+                                            @{ord.safe_price || ord.price || ord.average || 0}
+                                          </span>{' '}
+                                          <span className={isDark ? 'text-slate-400' : 'text-slate-500 font-medium'}>
+                                            ({ord.filled || ord.amount || 0})
+                                          </span>
                                         </div>
                                       </div>
                                     );
@@ -1089,13 +1140,14 @@ export function CandleChartView() {
                   ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
                   : isDark
                   ? 'bg-[#1a233a] text-slate-300 border-slate-700 hover:bg-[#202b46]'
-                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100 shadow-2xs'
               }`}
               title={t('candle.market_data_title')}
               aria-pressed={showCandleInfo}
             >
               <Activity className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
               <span className="hidden xs:inline">{t('candle.market_data')}</span>
+              <span className="xs:hidden">{locale === 'zh' ? '看板' : 'HUD'}</span>
               <span className={`w-1.5 h-1.5 rounded-full ${showCandleInfo ? 'bg-emerald-500' : 'bg-slate-400'}`} />
             </button>
 
@@ -1106,7 +1158,7 @@ export function CandleChartView() {
               className={`p-1.5 rounded-lg border transition-colors cursor-pointer shrink-0 ${
                 isDark
                   ? 'border-slate-700 bg-[#1a233a] hover:bg-[#202b46] text-slate-300'
-                  : 'border-slate-300 bg-white hover:bg-slate-100 text-slate-600 shadow-xs'
+                  : 'border-slate-300 bg-white hover:bg-slate-100 text-slate-600 shadow-2xs'
               }`}
               title={t('candle.refresh_candles')}
             >
@@ -1120,7 +1172,7 @@ export function CandleChartView() {
               className={`px-2 py-1 rounded-lg border text-xs items-center gap-1 transition-colors cursor-pointer font-medium active:scale-95 shrink-0 hidden sm:flex ${
                 isDark
                   ? 'border-slate-700 bg-[#1a233a] hover:bg-[#202b46] text-cyan-400'
-                  : 'border-slate-300 bg-white hover:bg-slate-100 text-cyan-700 shadow-xs'
+                  : 'border-slate-300 bg-white hover:bg-slate-100 text-cyan-700 shadow-2xs'
               }`}
               title={t('header.tooltip_language')}
             >
@@ -1132,74 +1184,121 @@ export function CandleChartView() {
           </div>
         </div>
 
-        {/* Tier 2: 历史数据回溯与图表标记控制组 */}
-        <div className="flex flex-wrap items-center justify-between gap-2 w-full pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80">
-          <div className="flex items-center gap-2 flex-wrap min-w-0">
-            {/* 加载更早历史按钮 */}
-            <button
-              onClick={() => handleLoadOlderCandles()}
-              disabled={loadingOlder || loading}
-              className={`px-2 py-0.5 rounded-lg text-[11px] font-medium border flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
-                loadingOlder
-                  ? 'border-emerald-500/50 text-emerald-500 bg-emerald-500/10'
-                  : isDark
-                  ? 'border-slate-700 bg-[#1a233a] text-slate-300 hover:text-slate-100 hover:bg-[#202b46]'
-                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 shadow-xs'
-              }`}
-              title={t('candle.load_older_title')}
-            >
-              {loadingOlder ? (
-                <Loader2 className="w-3 h-3 animate-spin text-emerald-500 shrink-0" />
-              ) : (
-                <History className="w-3 h-3 text-slate-400 shrink-0" />
-              )}
-              <span>{t('candle.load_older_btn')}</span>
-              <span className="font-mono text-[10px] text-slate-400">({candles.length})</span>
-            </button>
-
-            {/* 交易标记开关 */}
-            <button
-              onClick={() => setShowMarkers(!showMarkers)}
-              className={`px-2 py-0.5 rounded-lg text-[11px] font-medium border flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
-                showMarkers
-                  ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
-                  : isDark
-                  ? 'bg-[#1a233a] text-slate-400 border-slate-700'
-                  : 'bg-white text-slate-600 border-slate-300 shadow-xs'
-              }`}
-              title={t('candle.markers_title')}
-            >
-              <Bookmark className="w-3.5 h-3.5 shrink-0" />
-              <span>{t('candle.markers_label')}: {showMarkers ? t('candle.show') : t('candle.hide')}</span>
-              <span className="font-mono text-[10px] font-bold opacity-80">({tradeMarkers.length})</span>
-            </button>
-
-            {/* 标记图例指示 */}
-            {showMarkers && (
-              <div
-                className={`flex items-center gap-2 px-2 py-0.5 rounded-lg border text-[10px] font-medium whitespace-nowrap overflow-x-auto no-scrollbar shrink-0 ${
-                  isDark ? 'bg-[#162035]/80 border-slate-800 text-slate-300' : 'bg-slate-100/80 border-slate-200 text-slate-600'
-                }`}
-                title={t('candle.markers_help')}
-              >
-                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                  <span className="font-bold">↑</span> {t('candle.long')}
-                </span>
-                <span className="flex items-center gap-1 text-sky-700 dark:text-sky-300">
-                  <span className="font-bold">↑</span> {t('candle.add_marker')}
-                </span>
-                <span className="flex items-center gap-1 text-violet-700 dark:text-violet-300">
-                  <span className="font-bold">↑</span> {t('candle.build_marker')}
-                </span>
-                <span className="flex items-center gap-1 text-amber-700 dark:text-amber-300">
-                  <span className="font-bold">↓</span> {t('candle.reduce_marker')}
-                </span>
-                <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
-                  <span className="font-bold">↓</span> {t('candle.closed')}
-                </span>
-              </div>
-            )}
+        {/* Tier 2 (移动端专有行 md:hidden): 周期切换与更早数据加载 */}
+        <div className="flex md:hidden items-center justify-between gap-1 w-full pt-1 border-t border-slate-200/60 dark:border-slate-800/60 font-mono text-[11px] overflow-x-auto no-scrollbar">
+          {/* 周期切换栏 */}
+          <div className="flex items-center gap-1 shrink-0 overflow-x-auto no-scrollbar py-0.5">
+            {TIMEFRAMES.map((tf) => {
+              const isStrategyTf = tf === (botState.timeframe || '5m');
+              return (
+                <button
+                  key={tf}
+                  onClick={() => setTimeframe(tf)}
+                  className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer flex items-center gap-0.5 shrink-0 ${
+                    timeframe === tf
+                      ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                      : isDark
+                      ? 'text-slate-400 hover:text-slate-200 hover:bg-[#1a233a]'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                  }`}
+                  title={isStrategyTf ? t('candle.native_timeframe') : `${t('candle.market_timeframe')} ${tf}`}
+                >
+                  <span>{tf}</span>
+                  {isStrategyTf && <span className="text-[9px] opacity-75">{t('candle.strategy_tf')}</span>}
+                </button>
+              );
+            })}
           </div>
+
+          {/* 移动端：加载更早历史按钮 */}
+          <button
+            onClick={() => handleLoadOlderCandles()}
+            disabled={loadingOlder || loading}
+            className={`px-2 py-0.5 rounded-lg text-[11px] font-medium border flex items-center gap-1 transition-colors cursor-pointer shrink-0 ml-auto ${
+              loadingOlder
+                ? 'border-emerald-500/50 text-emerald-500 bg-emerald-500/10'
+                : isDark
+                ? 'border-slate-700 bg-[#1a233a] text-slate-300 hover:text-slate-100 hover:bg-[#202b46]'
+                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 shadow-2xs'
+            }`}
+            title={t('candle.load_older_title')}
+          >
+            {loadingOlder ? (
+              <Loader2 className="w-3 h-3 animate-spin text-emerald-500 shrink-0" />
+            ) : (
+              <History className="w-3 h-3 text-slate-400 shrink-0" />
+            )}
+            <span>{t('candle.load_older_btn')}</span>
+            <span className="font-mono text-[10px] text-slate-400">({candles.length})</span>
+          </button>
+        </div>
+
+        {/* Tier 3: 交易标记控制与图例 (桌面端包含桌面版加载更早历史) */}
+        <div className="flex items-center gap-2 w-full pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80 overflow-x-auto no-scrollbar">
+          {/* 加载更早历史按钮 (桌面端 md:flex) */}
+          <button
+            onClick={() => handleLoadOlderCandles()}
+            disabled={loadingOlder || loading}
+            className={`hidden md:flex px-2 py-0.5 rounded-lg text-[11px] font-medium border items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
+              loadingOlder
+                ? 'border-emerald-500/50 text-emerald-500 bg-emerald-500/10'
+                : isDark
+                ? 'border-slate-700 bg-[#1a233a] text-slate-300 hover:text-slate-100 hover:bg-[#202b46]'
+                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 shadow-2xs'
+            }`}
+            title={t('candle.load_older_title')}
+          >
+            {loadingOlder ? (
+              <Loader2 className="w-3 h-3 animate-spin text-emerald-500 shrink-0" />
+            ) : (
+              <History className="w-3 h-3 text-slate-400 shrink-0" />
+            )}
+            <span>{t('candle.load_older_btn')}</span>
+            <span className="font-mono text-[10px] text-slate-400">({candles.length})</span>
+          </button>
+
+          {/* 交易标记开关 */}
+          <button
+            onClick={() => setShowMarkers(!showMarkers)}
+            className={`px-2 py-0.5 rounded-lg text-[11px] font-medium border flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
+              showMarkers
+                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                : isDark
+                ? 'bg-[#1a233a] text-slate-400 border-slate-700'
+                : 'bg-white text-slate-600 border-slate-300 shadow-2xs'
+            }`}
+            title={t('candle.markers_title')}
+          >
+            <Bookmark className="w-3.5 h-3.5 shrink-0" />
+            <span>{t('candle.markers_label')}: {showMarkers ? t('candle.show') : t('candle.hide')}</span>
+            <span className="font-mono text-[10px] font-bold opacity-80">({tradeMarkers.length})</span>
+          </button>
+
+          {/* 标记图例指示 */}
+          {showMarkers && (
+            <div
+              className={`flex items-center gap-2 px-2 py-0.5 rounded-lg border text-[10px] font-medium whitespace-nowrap overflow-x-auto no-scrollbar shrink-0 ${
+                isDark ? 'bg-[#162035]/80 border-slate-800 text-slate-300' : 'bg-slate-100/90 border-slate-200 text-slate-700'
+              }`}
+              title={t('candle.markers_help')}
+            >
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <span className="font-bold">↑</span> {t('candle.long')}
+              </span>
+              <span className="flex items-center gap-1 text-sky-700 dark:text-sky-300">
+                <span className="font-bold">↑</span> {t('candle.add_marker')}
+              </span>
+              <span className="flex items-center gap-1 text-violet-700 dark:text-violet-300">
+                <span className="font-bold">↑</span> {t('candle.build_marker')}
+              </span>
+              <span className="flex items-center gap-1 text-amber-700 dark:text-amber-300">
+                <span className="font-bold">↓</span> {t('candle.reduce_marker')}
+              </span>
+              <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
+                <span className="font-bold">↓</span> {t('candle.closed')}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Tier 3: 当前持仓信息横幅 (仅在有持仓时显示) */}
