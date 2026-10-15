@@ -1,5 +1,6 @@
-import { useMemo, useState, useCallback } from 'react';
-import { RotateCcw, Info, X, MousePointerClick } from 'lucide-react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { RotateCcw, Info, X, MousePointerClick, Maximize2, Minimize2 } from 'lucide-react';
 import { buildFlowGraph } from './flowData';
 import type {
   FlowGraph,
@@ -80,7 +81,7 @@ export interface BuiltFlow {
   tagByCode: Map<string, FlowTag>;
 }
 
-export function buildGeometry(g: FlowGraph): BuiltFlow {
+export function buildGeometry(g: FlowGraph, isZh = false): BuiltFlow {
   const nodes: NodePos[] = [];
   const edges: Edge[] = [];
   const tagByCode = new Map<string, FlowTag>();
@@ -99,7 +100,7 @@ export function buildGeometry(g: FlowGraph): BuiltFlow {
     const mode = g.modes.find((m) => m.id === t.modeId);
     nodes.push({
       id: `tag-${t.code}`, kind: 'tag', x: COL.entry, y, h: BAR_H,
-      label: `${t.display} · ${t.ops} ops`, color: mode ? mode.color : '#8d8d8d',
+      label: `${t.display} · ${t.ops} ${isZh ? '算子' : 'ops'}`, color: mode ? mode.color : '#8d8d8d',
       refId: t.code,
     });
   });
@@ -127,7 +128,7 @@ export function buildGeometry(g: FlowGraph): BuiltFlow {
     const liveCount = g.tags.filter((t) => t.modeId === m.id).length;
     nodes.push({
       id: `mode-${m.id}`, kind: 'mode', x: COL.mode, y, h: BAR_H,
-      label: `${m.label} · ${liveCount} tags`, color: m.color, refId: m.id,
+      label: `${m.label} · ${liveCount} ${isZh ? '标签' : 'tags'}`, color: m.color, refId: m.id,
     });
   });
 
@@ -154,7 +155,7 @@ export function buildGeometry(g: FlowGraph): BuiltFlow {
     ladderY.set(l.id, y);
     nodes.push({
       id: `lad-${l.id}`, kind: 'ladder', x: COL.ladder, y, h: BAR_H,
-      label: l.on ? l.label : `${l.label} · off`, color: l.color, refId: l.id,
+      label: l.on ? l.label : `${l.label} · ${isZh ? '停用' : 'off'}`, color: l.color, refId: l.id,
       off: !l.on,
     });
   });
@@ -162,7 +163,7 @@ export function buildGeometry(g: FlowGraph): BuiltFlow {
   const closedY = 360;
   nodes.push({
     id: 'closed', kind: 'closed', x: COL.closed, y: closedY, h: 150,
-    label: 'Closed', sub: `${g.closedBranches} branches`, color: '#8d8d8d', refId: 'closed',
+    label: isZh ? '平仓结算' : 'Closed', sub: `${g.closedBranches} ${isZh ? '分支' : 'branches'}`, color: '#8d8d8d', refId: 'closed',
   });
 
   // ---- edges ---------------------------------------------------------------
@@ -182,7 +183,7 @@ export function buildGeometry(g: FlowGraph): BuiltFlow {
         d: bezier(COL.entry + BAR_W, tagY.get(t.code)!, COL.prot, protY.get(grp)!),
         color: p.color,
         width: logWidth(t.ops, maxOps, 1.2, 3.4),
-        title: `${t.display} passes ${p.label.split(' ·')[0]}`,
+        title: isZh ? `${t.display} 通过 ${p.label.split(' ·')[0]}` : `${t.display} passes ${p.label.split(' ·')[0]}`,
         tags: [t.code], modes: t.modeId ? [t.modeId] : [],
         protections: [grp], exits: exitsOfTag(t), ladders: [],
       });
@@ -203,7 +204,7 @@ export function buildGeometry(g: FlowGraph): BuiltFlow {
       d: bezier(COL.prot + BAR_W, protY.get(p.id)!, COL.vol, volY),
       color: p.color,
       width: logWidth(protOps.get(p.id) ?? 0, maxProtOps, 1.6, 4.2),
-      title: `${p.label.split(' ·')[0]} → volume funnel`,
+      title: isZh ? `${p.label.split(' ·')[0]} → 分流汇聚` : `${p.label.split(' ·')[0]} → volume funnel`,
       tags: codes,
       modes: [...new Set(codes.map((c) => tagByCode.get(c)?.modeId).filter(Boolean) as string[])],
       protections: [p.id], exits: pExits, ladders: [],
@@ -230,7 +231,7 @@ export function buildGeometry(g: FlowGraph): BuiltFlow {
       d: bezier(COL.vol + 8, volY, COL.mode, modeY.get(m.id)!),
       color: m.color,
       width: logWidth(modeOps.get(m.id) ?? 0, maxModeOps, 2, 5.2),
-      title: `${m.label} ← volume funnel`,
+      title: isZh ? `${m.label} ← 分流汇聚` : `${m.label} ← volume funnel`,
       tags: mtags.map((t) => t.code),
       modes: [m.id], protections: [...groups], exits: m.exitSystems, ladders: [],
     });
@@ -289,7 +290,7 @@ export function buildGeometry(g: FlowGraph): BuiltFlow {
       d: bezier(COL.exit + BAR_W, exitY.get(e.id)!, COL.closed, closedY),
       color: e.color,
       width: 3,
-      title: `${e.label} → Closed (direct)`,
+      title: isZh ? `${e.label} → 平仓结算 (直接)` : `${e.label} → Closed (direct)`,
       tags: feed.tags, modes: feed.modes, protections: feed.protections,
       exits: [e.id], ladders: [],
     });
@@ -304,7 +305,7 @@ export function buildGeometry(g: FlowGraph): BuiltFlow {
         d: bezier(COL.ladder + BAR_W, ladderY.get(l.id)!, COL.closed, closedY),
         color: l.color,
         width: 2,
-        title: `${l.label} → Closed`,
+        title: isZh ? `${l.label} → 平仓结算` : `${l.label} → Closed`,
         tags: feed.tags, modes: feed.modes, protections: feed.protections,
         exits: ['eng_v4'], ladders: [l.id],
       });
@@ -331,9 +332,24 @@ export function edgeMatches(e: Edge, sel: TraceSelection): boolean {
 export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipelineFlowProps) {
   const [trace, setTrace] = useState<TraceSelection | null>(null);
   const [hoverNode, setHoverNode] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const graph: FlowGraph = useMemo(() => buildFlowGraph(isDark), [isDark]);
-  const { nodes, edges, tagByCode } = useMemo(() => buildGeometry(graph), [graph]);
+  const graph: FlowGraph = useMemo(() => buildFlowGraph(isDark, isZh), [isDark, isZh]);
+  const { nodes, edges, tagByCode } = useMemo(() => buildGeometry(graph, isZh), [graph, isZh]);
+
+  // Capture Escape key when diagram is in fullscreen so it closes fullscreen without closing parent modal
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [isFullscreen]);
 
   const select = useCallback((sel: TraceSelection) => {
     setTrace((prev) => (prev && prev.kind === sel.kind && prev.id === sel.id ? null : sel));
@@ -385,8 +401,12 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
     barBorder: isDark ? '#334155' : '#cbd5e1',
   };
 
-  const headers = ['Entry signals', 'Protections', 'Volume', 'tag → mode', 'Exit systems', 'Ladders', 'Closed'];
-  const headerX = [COL.entry, COL.prot, COL.vol - 14, COL.mode - 78, COL.exit - 84, COL.ladder - 64, COL.closed - 44];
+  const headers = isZh
+    ? ['入场信号', '风控保护', '分流体量', '标签 → 模式', '退出体系', '动态阶梯', '平仓结算']
+    : ['Entry signals', 'Protections', 'Volume', 'tag → mode', 'Exit systems', 'Ladders', 'Closed'];
+  const headerX = isZh
+    ? [COL.entry, COL.prot, COL.vol - 14, COL.mode - 50, COL.exit - 40, COL.ladder - 40, COL.closed - 44]
+    : [COL.entry, COL.prot, COL.vol - 14, COL.mode - 78, COL.exit - 84, COL.ladder - 64, COL.closed - 44];
 
   // ---- breadcrumb --------------------------------------------------------------
   const crumb = useMemo(() => {
@@ -401,45 +421,45 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
       const exits = (mode?.exitSystems ?? []).map(
         (e) => graph.exits.find((x) => x.id === e)?.label ?? e,
       );
-      parts.push(`${tg.display} · ${tg.ops} ops`);
+      parts.push(`${tg.display} · ${tg.ops} ${isZh ? '算子' : 'ops'}`);
       parts.push(
         tg.gates.length > 0
-          ? `${tg.gates.length} gate${tg.gates.length === 1 ? '' : 's'}`
-          : '4 protection groups',
+          ? `${tg.gates.length} ${isZh ? '个门禁' : tg.gates.length === 1 ? 'gate' : 'gates'}`
+          : isZh ? '4 组风控保护' : '4 protection groups',
       );
       if (mode) parts.push(mode.label);
       if (exits.length) parts.push(exits.join(' + '));
-      parts.push('Closed');
+      parts.push(isZh ? '平仓结算' : 'Closed');
     } else if (trace.kind === 'mode') {
       const m = graph.modes.find((x) => x.id === trace.id);
       if (!m) return null;
       const n = graph.tags.filter((x) => x.modeId === m.id).length;
-      parts.push(`${m.label} · ${n} tags`);
+      parts.push(`${m.label} · ${n} ${isZh ? '个标签' : 'tags'}`);
       parts.push(
         (m.exitSystems.map((e) => graph.exits.find((x) => x.id === e)?.label ?? e)).join(' + '),
       );
-      parts.push('Closed');
+      parts.push(isZh ? '平仓结算' : 'Closed');
     } else if (trace.kind === 'protection') {
       const p = graph.protections.find((x) => x.id === trace.id);
       if (!p) return null;
       parts.push(p.label.split(' ·')[0]);
-      parts.push('Volume');
-      parts.push('modes → exits → Closed');
+      parts.push(isZh ? '分流体量' : 'Volume');
+      parts.push(isZh ? '模式 → 退出 → 平仓结算' : 'modes → exits → Closed');
     } else if (trace.kind === 'exit') {
       const e = graph.exits.find((x) => x.id === trace.id);
       if (!e) return null;
       parts.push(e.label);
-      parts.push(e.id === 'eng_v4' ? `${graph.ladders.length} ladders` : 'direct');
-      parts.push('Closed');
+      parts.push(e.id === 'eng_v4' ? (isZh ? `${graph.ladders.length} 级阶梯` : `${graph.ladders.length} ladders`) : (isZh ? '直接平仓' : 'direct'));
+      parts.push(isZh ? '平仓结算' : 'Closed');
     } else {
       const l = graph.ladders.find((x) => x.id === trace.id);
       if (!l) return null;
       parts.push('system_v4');
       parts.push(l.label);
-      parts.push('Closed');
+      parts.push(isZh ? '平仓结算' : 'Closed');
     }
     return { parts, detailTag };
-  }, [trace, graph, tagByCode]);
+  }, [trace, graph, tagByCode, isZh]);
 
   const onNodeKey = (sel: TraceSelection) => (ev: React.KeyboardEvent) => {
     if (ev.key === 'Enter' || ev.key === ' ') {
@@ -461,8 +481,16 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
     }
   };
 
-  return (
-    <div className="flex flex-col gap-3">
+  const flowInner = (
+    <div
+      className={
+        isFullscreen
+          ? `fixed inset-0 z-[200] flex flex-col p-4 sm:p-6 backdrop-blur-md overflow-hidden ${
+              isDark ? 'bg-[#0b1120] text-slate-100' : 'bg-slate-100 text-black'
+            }`
+          : 'flex flex-col gap-3'
+      }
+    >
       <style>{`
         .nfi-edge { transition: opacity 0.25s ease, stroke-width 0.25s ease; }
         .nfi-edge:hover { stroke-opacity: 0.95 !important; }
@@ -476,6 +504,28 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
         .nfi-node:focus-visible .nfi-bar { stroke-dasharray: 3 2; }
       `}</style>
 
+      {/* Fullscreen Header Banner when expanded */}
+      {isFullscreen && (
+        <div className="flex items-center justify-between pb-3 border-b border-slate-700/60 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <span className="font-black text-sm sm:text-base tracking-tight">
+              {isZh ? 'NFI 策略架构执行流链路图' : 'NFI Strategy Execution Pipeline Flow'}
+            </span>
+            <span className="text-[11px] px-2 py-0.5 rounded font-mono font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+              {isZh ? '全屏拓扑视图' : 'Fullscreen Canvas'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsFullscreen(false)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
+          >
+            <Minimize2 className="w-3.5 h-3.5" />
+            <span>{isZh ? '退出全屏 (ESC)' : 'Exit Fullscreen (ESC)'}</span>
+          </button>
+        </div>
+      )}
+
       {/* ---- Trace control / breadcrumb bar ---- */}
       <div
         className={`px-3.5 py-2.5 rounded-xl border flex items-center justify-between gap-3 flex-wrap ${
@@ -487,7 +537,7 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
           {crumb ? (
             <>
               <span className={`text-[11px] font-black uppercase tracking-wider ${isDark ? 'text-cyan-400' : 'text-cyan-800'}`}>
-                {isZh ? '追踪' : 'Tracing'}:
+                {isZh ? '追踪链路' : 'Tracing'}:
               </span>
               {crumb.parts.map((p, i) => (
                 <span key={i} className="flex items-center gap-2">
@@ -505,35 +555,65 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
           ) : (
             <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               {isZh
-                ? '点击任意节点追踪其完整执行链路 — 全 flow 保持可见'
+                ? '点击任意节点追踪其完整执行链路 — 全流程保持高亮可见'
                 : 'Click any node to trace its full execution path — the whole flow stays visible'}
-              <span className={isDark ? 'text-slate-600' : 'text-slate-400'}>
-                {'  '}· {graph.tags.length} live tags · {graph.modes.length} modes · {graph.exits.length} exit systems · {graph.ladders.length} ladders → Closed ({graph.closedBranches} branches)
+              <span className={isDark ? 'text-slate-500' : 'text-slate-400'}>
+                {isZh
+                  ? `  · ${graph.tags.length} 个活跃标签 · ${graph.modes.length} 组模式 · ${graph.exits.length} 个退出引擎 · ${graph.ladders.length} 级阶梯 → 平仓结算 (${graph.closedBranches} 个分支)`
+                  : `  · ${graph.tags.length} live tags · ${graph.modes.length} modes · ${graph.exits.length} exit systems · ${graph.ladders.length} ladders → Closed (${graph.closedBranches} branches)`}
               </span>
             </span>
           )}
         </div>
-        {crumb && (
+        <div className="flex items-center gap-2 shrink-0">
+          {crumb && (
+            <button
+              onClick={reset}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg border transition-all shrink-0 cursor-pointer ${
+                isDark
+                  ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700'
+                  : 'bg-slate-100 border-slate-400 text-black hover:bg-slate-200'
+              }`}
+            >
+              {isZh ? <X className="w-3.5 h-3.5" /> : <RotateCcw className="w-3.5 h-3.5" />}
+              {isZh ? '重置全景' : 'Full flow'}
+            </button>
+          )}
+
+          {/* Flow diagram dedicated fullscreen button */}
           <button
-            onClick={reset}
-            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg border transition-all shrink-0 ${
+            type="button"
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            title={
+              isFullscreen
+                ? isZh ? '退出全屏 (ESC)' : 'Exit full screen (ESC)'
+                : isZh ? '全屏查看执行链路图' : 'Fullscreen flow diagram'
+            }
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg border transition-all shrink-0 cursor-pointer ${
               isDark
-                ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700'
-                : 'bg-slate-100 border-slate-400 text-black hover:bg-slate-200'
+                ? 'bg-slate-800/90 border-slate-700 text-cyan-400 hover:bg-slate-700 hover:text-cyan-300'
+                : 'bg-white border-slate-300 text-indigo-700 hover:bg-slate-100 hover:text-indigo-900 shadow-xs'
             }`}
           >
-            {isZh ? <X className="w-3.5 h-3.5" /> : <RotateCcw className="w-3.5 h-3.5" />}
-            {isZh ? '全 flow' : 'Full flow'}
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            <span>{isFullscreen ? (isZh ? '退出全屏' : 'Exit') : (isZh ? '全屏链路图' : 'Fullscreen')}</span>
           </button>
-        )}
+        </div>
       </div>
 
       {/* ---- Main canvas ---- */}
       <div
-        className="w-full overflow-x-auto rounded-xl border shadow-2xl p-2 select-none"
+        className={`w-full overflow-x-auto rounded-xl border shadow-2xl p-2 select-none ${
+          isFullscreen ? 'flex-1 min-h-0 flex items-center justify-center' : ''
+        }`}
         style={{ background: t.panelBg, borderColor: isDark ? '#2a2a2a' : '#cbd5e1' }}
       >
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[1100px] h-auto font-sans" role="img" aria-label="NFI X8 decision flow">
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className={`w-full font-sans ${isFullscreen ? 'h-full max-h-[85vh] min-w-[1200px]' : 'min-w-[1100px] h-auto'}`}
+          role="img"
+          aria-label="NFI X8 decision flow"
+        >
           <defs>
             <filter id="nfiGlow" x="-30%" y="-30%" width="160%" height="160%">
               <feGaussianBlur stdDeviation="4" result="blur" />
@@ -670,11 +750,11 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
               </span>
             </div>
             <div className={`text-[11px] font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              {crumb.detailTag.ops} ops · {crumb.detailTag.masks} masks · {crumb.detailTag.protections} protections
+              {crumb.detailTag.ops} {isZh ? '算子' : 'ops'} · {crumb.detailTag.masks} {isZh ? '掩码' : 'masks'} · {crumb.detailTag.protections} {isZh ? '保护项' : 'protections'}
             </div>
           </div>
           <div className="text-[11px] font-bold uppercase tracking-wider mb-1.5" style={{ color: t.header }}>
-            {isZh ? '它的门禁' : 'Its gates'} ({crumb.detailTag.gates.length || '—'})
+            {isZh ? '所属保护门禁' : 'Its gates'} ({crumb.detailTag.gates.length || '—'})
           </div>
           {crumb.detailTag.gates.length > 0 ? (
             <div className="flex flex-col gap-1">
@@ -696,7 +776,7 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
             </div>
           ) : (
             <div className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
-              {isZh ? '门禁明细将随 strategy 解析更新' : 'Gate detail populates from the strategy parse (data/nfiTagGates.ts)'}
+              {isZh ? '门禁明细将随策略解析动态加载' : 'Gate detail populates from the strategy parse (data/nfiTagGates.ts)'}
             </div>
           )}
         </div>
@@ -712,12 +792,14 @@ export function SankeyPipelineFlow({ isDark = true, isZh = false }: SankeyPipeli
         <div className="flex-1">
           <span className="font-bold">{isZh ? '执行管道流转提示' : 'Execution Pipeline Insight'}: </span>
           {isZh
-            ? '左→右为执行顺序，线宽按计数对数缩放。点击任意节点（信号 / 保护组 / 模式 / 退出引擎 / 阶梯）即可追踪其完整链路：选中路径以流动虚线高亮，其余保持可见但变暗。'
+            ? '从左至右为量化执行顺序，连线粗细按条件频次对数缩放。点击任意节点（信号 / 保护组 / 模式 / 退出引擎 / 阶梯）即可追踪完整上下游链路：选中路径以流动虚线高亮动画呈现，其余流保持低亮背景可见。支持全屏查看以获得更开阔的拓扑视野。'
             : 'Left → right is execution order; line thickness is log-scaled by count. Click any node (signal, protection group, mode, exit engine, ladder) to trace its full path — the selected pipeline animates while the rest of the flow stays visible but dimmed.'}
         </div>
       </div>
     </div>
   );
+
+  return isFullscreen ? createPortal(flowInner, document.body) : flowInner;
 }
 
 function edgeTouchesNode(e: Edge, n: NodePos): boolean {

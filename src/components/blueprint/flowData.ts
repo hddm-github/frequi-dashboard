@@ -47,50 +47,76 @@ export const MODE_FAMILY_COLORS: Record<string, { dark: string; light: string }>
   Scalp: { dark: '#ff7eb6', light: '#9d174d' },
 };
 
+export const FAMILY_ZH: Record<string, string> = {
+  Normal: '常规',
+  Pump: '冲高',
+  Quick: '极速',
+  Rebuy: '补仓',
+  Rapid: '快速',
+  Grind: '网格',
+  'Top coins': '头部主流币',
+  Scalp: '超短',
+  Highprofit: '高收益',
+};
+
+export const translateFamily = (family: string): string => FAMILY_ZH[family] || family;
+
 export const EXIT_SYSTEM_META: Record<
   string,
-  { label: string; sub: string; color: { dark: string; light: string } }
+  { label: string; labelZh: string; sub: string; subZh: string; color: { dark: string; light: string } }
 > = {
   eng_l_exit: {
     label: 'L exit engines',
+    labelZh: '做多退出引擎',
     sub: 'signals / williams / stoploss',
+    subZh: '信号 / Williams / 止损',
     color: { dark: '#4589ff', light: '#1d4ed8' },
   },
   eng_v4: {
     label: 'system_v4',
+    labelZh: 'system_v4 动态阶梯',
     sub: 'dynamic new-trade ladder',
+    subZh: '新开仓动态加减仓阶梯',
     color: { dark: '#be95ff', light: '#7c3aed' },
   },
   eng_legacy_grind: {
     label: 'legacy grind · rebuy',
+    labelZh: '经典网格 · 循环补仓',
     sub: 'staged grid recovery',
+    subZh: '分段式网格回本复原',
     color: { dark: '#8d8d8d', light: '#64748b' },
   },
   eng_s_exit: {
     label: 'S exit engines',
+    labelZh: '做空退出引擎',
     sub: 'short reversal exit stack',
+    subZh: '做空反转退出引擎栈',
     color: { dark: '#fa4d56', light: '#dc2626' },
   },
 };
 
 export const PROTECTION_META: Record<
   string,
-  { label: string; color: { dark: string; light: string } }
+  { label: string; labelZh: string; color: { dark: string; light: string } }
 > = {
   overflow: {
     label: 'Overflow guards',
+    labelZh: '溢出防护门禁',
     color: { dark: '#08bdba', light: '#0f766e' },
   },
   global: {
     label: 'Global protections',
+    labelZh: '全局宏观防护',
     color: { dark: '#78a9ff', light: '#3b5bdb' },
   },
   candle: {
     label: 'Candle health',
+    labelZh: 'K线健康度门禁',
     color: { dark: '#82cfff', light: '#1971c2' },
   },
   pair: {
     label: 'Pair mode guards',
+    labelZh: '交易对模式门禁',
     color: { dark: '#3ddbd9', light: '#0e7490' },
   },
 };
@@ -151,7 +177,7 @@ function strategyModeName(side: 'long' | 'short', family: string): string {
   return `${side}_${map[fam] ?? fam}`;
 }
 
-export function buildFlowGraph(isDark = true): FlowGraph {
+export function buildFlowGraph(isDark = true, isZh = false): FlowGraph {
   const theme = isDark ? 'dark' : 'light';
   const famColor = (family: string) =>
     (MODE_FAMILY_COLORS[family] ?? MODE_FAMILY_COLORS.Normal)[theme];
@@ -159,9 +185,11 @@ export function buildFlowGraph(isDark = true): FlowGraph {
   // --- modes (live families only) -------------------------------------------
   const modes: FlowMode[] = MODE_ROUTING.filter((m) => !m.idle).map((m) => {
     const sName = strategyModeName(m.side as 'long' | 'short', m.family);
+    const sidePrefix = isZh ? (m.side === 'long' ? '多' : '空') : (m.side === 'long' ? 'L' : 'S');
+    const famName = isZh ? translateFamily(m.family) : m.family;
     return {
       id: modeIdFor(m.side as 'long' | 'short', m.family),
-      label: `${m.side === 'long' ? 'L' : 'S'} ${m.family}`,
+      label: `${sidePrefix} ${famName}`,
       modeName: sName,
       side: m.side as 'long' | 'short',
       color: famColor(m.family),
@@ -170,7 +198,11 @@ export function buildFlowGraph(isDark = true): FlowGraph {
     };
   });
   const modeByKey = new Map<string, FlowMode>();
-  for (const m of modes) modeByKey.set(`${m.side}:${m.label.split(' ').slice(1).join(' ')}`, m);
+  // Match using original English family for lookup
+  for (const m of MODE_ROUTING.filter((x) => !x.idle)) {
+    const built = modes.find((mode) => mode.id === modeIdFor(m.side as 'long' | 'short', m.family));
+    if (built) modeByKey.set(`${m.side}:${m.family}`, built);
+  }
 
   // --- tags (live signals only) ----------------------------------------------
   const tags: FlowTag[] = ENTRY_SIGNALS.filter((s) => s.on).map((s) => {
@@ -199,7 +231,7 @@ export function buildFlowGraph(isDark = true): FlowGraph {
   const protections: FlowProtection[] = Object.entries(PROTECTION_META).map(
     ([id, meta]) => ({
       id,
-      label: `${meta.label} · ${protectionCountLabel(id)}`,
+      label: `${isZh ? meta.labelZh : meta.label} · ${protectionCountLabel(id)}`,
       countLabel: protectionCountLabel(id),
       color: meta.color[theme],
     }),
@@ -213,7 +245,12 @@ export function buildFlowGraph(isDark = true): FlowGraph {
     .filter((id) => usedExits.has(id))
     .map((id) => {
       const meta = EXIT_SYSTEM_META[id];
-      return { id, label: meta.label, sub: meta.sub, color: meta.color[theme] };
+      return {
+        id,
+        label: isZh ? meta.labelZh : meta.label,
+        sub: isZh ? meta.subZh : meta.sub,
+        color: meta.color[theme],
+      };
     });
 
   // --- ladders -----------------------------------------------------------------
@@ -226,7 +263,7 @@ export function buildFlowGraph(isDark = true): FlowGraph {
         const id = `lad_grind_${i + 1}`;
         return {
           id,
-          label: `${l.name} · ${l.steps ?? 5} steps`,
+          label: `${l.name} · ${l.steps ?? 5} ${isZh ? '步分批' : 'steps'}`,
           color: MODE_FAMILY_COLORS.Grind[theme],
           kind: 'grind' as const,
           on: ladderOn(id, l.on),
@@ -236,7 +273,7 @@ export function buildFlowGraph(isDark = true): FlowGraph {
       const id = `lad_derisk_${i + 1}`;
       return {
         id,
-        label: `${l.name} · ${l.spotSell ?? ''}`,
+        label: `${l.name} · ${isZh ? '减仓 ' : ''}${l.spotSell ?? ''}`,
         color: MODE_FAMILY_COLORS.Pump[theme],
         kind: 'derisk' as const,
         on: ladderOn(id, l.on),
@@ -248,7 +285,7 @@ export function buildFlowGraph(isDark = true): FlowGraph {
         const id = `lad_buyback_${i + 1}`;
         return {
           id,
-          label: `${l.name} · 100%`,
+          label: `${l.name} · 100%${isZh ? ' 回补' : ''}`,
           color: MODE_FAMILY_COLORS.Quick[theme],
           kind: 'buyback' as const,
           on: ladderOn(id, l.on),

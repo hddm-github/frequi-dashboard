@@ -7,6 +7,7 @@ import {
   EXIT_ENGINES,
   LADDERS_SYSTEM_V4,
 } from '../../data/nfiStrategyBlueprint';
+import { translateFamily } from './flowData';
 import {
   Search,
   CheckCircle2,
@@ -63,14 +64,14 @@ export function ModeRoutingTable({ isDark = true, isZh = false }: SubViewProps) 
             }`}
           >
             <tr>
-              <th className="py-3 px-3.5 font-black">Side</th>
-              <th className="py-3 px-3.5 font-black">Family</th>
-              <th className="py-3 px-3.5 font-black">Mode Name</th>
-              <th className="py-3 px-3.5 font-black">Live Tags</th>
-              <th className="py-3 px-3.5 font-black">Match</th>
-              <th className="py-3 px-3.5 font-black">Exit Pipeline</th>
-              <th className="py-3 px-3.5 font-black">Engine Chain</th>
-              <th className="py-3 px-3.5 font-black">Adjust System</th>
+              <th className="py-3 px-3.5 font-black">{isZh ? '方向' : 'Side'}</th>
+              <th className="py-3 px-3.5 font-black">{isZh ? '策略家族' : 'Family'}</th>
+              <th className="py-3 px-3.5 font-black">{isZh ? '模式名称' : 'Mode Name'}</th>
+              <th className="py-3 px-3.5 font-black">{isZh ? '活跃标签数' : 'Live Tags'}</th>
+              <th className="py-3 px-3.5 font-black">{isZh ? '匹配规则' : 'Match'}</th>
+              <th className="py-3 px-3.5 font-black">{isZh ? '退出管道' : 'Exit Pipeline'}</th>
+              <th className="py-3 px-3.5 font-black">{isZh ? '退出引擎链' : 'Engine Chain'}</th>
+              <th className="py-3 px-3.5 font-black">{isZh ? '调仓系统' : 'Adjust System'}</th>
             </tr>
           </thead>
           <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
@@ -97,11 +98,11 @@ export function ModeRoutingTable({ isDark = true, isZh = false }: SubViewProps) 
                           : 'bg-rose-100 text-rose-900 border border-rose-400'
                       }`}
                     >
-                      {m.side.toUpperCase()}
+                      {isZh ? (isLong ? '做多' : '做空') : m.side.toUpperCase()}
                     </span>
                   </td>
                   <td className={`py-2.5 px-3.5 font-semibold ${isDark ? 'text-slate-200' : 'text-black'}`}>
-                    {m.family}
+                    {isZh ? `${translateFamily(m.family)} (${m.family})` : m.family}
                   </td>
                   <td className="py-2.5 px-3.5 font-mono font-bold">
                     <span className={isDark ? 'text-cyan-300' : 'text-indigo-900'}>{m.modeName}</span>
@@ -121,7 +122,7 @@ export function ModeRoutingTable({ isDark = true, isZh = false }: SubViewProps) 
                           : 'bg-purple-100 text-purple-950 border border-purple-400'
                       }`}
                     >
-                      {m.match.toUpperCase()}
+                      {isZh ? (m.match === 'any' ? '任一 (ANY)' : '全部 (ALL)') : m.match.toUpperCase()}
                     </span>
                   </td>
                   <td className="py-2.5 px-3.5 font-mono">
@@ -201,7 +202,7 @@ export function ProtectionGatesTable({ isDark = true, isZh = false }: SubViewPro
                     {ruleStr}
                   </span>
                   <div className={`text-[11px] font-sans mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-800'}`}>
-                    100% hardwired upstream assertion
+                    {isZh ? '100% 上游硬编码前置断言' : '100% hardwired upstream assertion'}
                   </div>
                 </div>
               </div>
@@ -239,8 +240,8 @@ export function ProtectionGatesTable({ isDark = true, isZh = false }: SubViewPro
                 }`}
               >
                 <tr>
-                  <th className="py-2 px-3 font-black">Gate Expression</th>
-                  <th className="py-2 px-3 font-black">Conditions</th>
+                  <th className="py-2 px-3 font-black">{isZh ? '门禁判定表达式' : 'Gate Expression'}</th>
+                  <th className="py-2 px-3 font-black">{isZh ? '覆盖判定条件数' : 'Conditions'}</th>
                 </tr>
               </thead>
               <tbody className={`divide-y font-mono ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
@@ -303,7 +304,7 @@ export function EntrySignalsTable({ isDark = true, isZh = false }: SubViewProps)
             type="text"
             value={filterQuery}
             onChange={(e) => setFilterQuery(e.target.value)}
-            placeholder={isZh ? '搜索 Tag (如 L#1, S#501)、Mode 或描述...' : 'Search Tag (e.g. L#1, S#501), Mode, description...'}
+            placeholder={isZh ? '搜索标签 (如 L#1, S#501)、归属模式或特征描述...' : 'Search Tag (e.g. L#1, S#501), Mode, description...'}
             className={`w-full pl-9 pr-3 py-2 text-xs rounded-lg border focus:outline-none transition-colors ${
               isDark
                 ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500'
@@ -314,43 +315,49 @@ export function EntrySignalsTable({ isDark = true, isZh = false }: SubViewProps)
 
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex rounded-lg border border-slate-400/60 overflow-hidden text-xs">
-            {(['all', 'long', 'short'] as const).map((side) => (
-              <button
-                key={side}
-                onClick={() => setSideFilter(side)}
-                className={`px-3 py-1.5 font-black uppercase transition-colors ${
-                  sideFilter === side
-                    ? isDark
-                      ? 'bg-cyan-600 text-white'
-                      : 'bg-slate-900 text-white'
-                    : isDark
-                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                    : 'bg-slate-100 text-black hover:bg-slate-200'
-                }`}
-              >
-                {side}
-              </button>
-            ))}
+            {(['all', 'long', 'short'] as const).map((side) => {
+              const sideLabel = side === 'all' ? (isZh ? '全部' : 'ALL') : side === 'long' ? (isZh ? '做多' : 'LONG') : (isZh ? '做空' : 'SHORT');
+              return (
+                <button
+                  key={side}
+                  onClick={() => setSideFilter(side)}
+                  className={`px-3 py-1.5 font-black uppercase transition-colors ${
+                    sideFilter === side
+                      ? isDark
+                        ? 'bg-cyan-600 text-white'
+                        : 'bg-slate-900 text-white'
+                      : isDark
+                      ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      : 'bg-slate-100 text-black hover:bg-slate-200'
+                  }`}
+                >
+                  {sideLabel}
+                </button>
+              );
+            })}
           </div>
 
           <div className="flex rounded-lg border border-slate-400/60 overflow-hidden text-xs">
-            {(['all', 'live', 'idle'] as const).map((st) => (
-              <button
-                key={st}
-                onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1.5 font-black uppercase transition-colors ${
-                  statusFilter === st
-                    ? isDark
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-900 text-white'
-                    : isDark
-                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                    : 'bg-slate-100 text-black hover:bg-slate-200'
-                }`}
-              >
-                {st}
-              </button>
-            ))}
+            {(['all', 'live', 'idle'] as const).map((st) => {
+              const stLabel = st === 'all' ? (isZh ? '全部' : 'ALL') : st === 'live' ? (isZh ? '活跃' : 'LIVE') : (isZh ? '未启用' : 'IDLE');
+              return (
+                <button
+                  key={st}
+                  onClick={() => setStatusFilter(st)}
+                  className={`px-3 py-1.5 font-black uppercase transition-colors ${
+                    statusFilter === st
+                      ? isDark
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-900 text-white'
+                      : isDark
+                      ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      : 'bg-slate-100 text-black hover:bg-slate-200'
+                  }`}
+                >
+                  {stLabel}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -370,15 +377,15 @@ export function EntrySignalsTable({ isDark = true, isZh = false }: SubViewProps)
             }`}
           >
             <tr>
-              <th className="py-3 px-3 font-black">Tag</th>
-              <th className="py-3 px-3 font-black">Mode</th>
-              <th className="py-3 px-3 font-black">Signal Description</th>
-              <th className="py-3 px-3 font-black">Masks</th>
-              <th className="py-3 px-3 font-black">Prot.</th>
-              <th className="py-3 px-3 font-black">Ops</th>
-              <th className="py-3 px-3 font-black">Ind.</th>
-              <th className="py-3 px-3 font-black">TFs</th>
-              <th className="py-3 px-3 font-black">Status</th>
+              <th className="py-3 px-3 font-black">{isZh ? '信号标签' : 'Tag'}</th>
+              <th className="py-3 px-3 font-black">{isZh ? '归属模式' : 'Mode'}</th>
+              <th className="py-3 px-3 font-black">{isZh ? '信号逻辑描述' : 'Signal Description'}</th>
+              <th className="py-3 px-3 font-black">{isZh ? '掩码' : 'Masks'}</th>
+              <th className="py-3 px-3 font-black">{isZh ? '保护项' : 'Prot.'}</th>
+              <th className="py-3 px-3 font-black">{isZh ? '算子数' : 'Ops'}</th>
+              <th className="py-3 px-3 font-black">{isZh ? '指标数' : 'Ind.'}</th>
+              <th className="py-3 px-3 font-black">{isZh ? '周期' : 'TFs'}</th>
+              <th className="py-3 px-3 font-black">{isZh ? '状态' : 'Status'}</th>
             </tr>
           </thead>
           <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
@@ -439,7 +446,7 @@ export function EntrySignalsTable({ isDark = true, isZh = false }: SubViewProps)
                         }`}
                       >
                         <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                        LIVE
+                        {isZh ? '活跃' : 'LIVE'}
                       </span>
                     ) : (
                       <span
@@ -450,7 +457,7 @@ export function EntrySignalsTable({ isDark = true, isZh = false }: SubViewProps)
                         }`}
                       >
                         <XCircle className="w-3 h-3 text-slate-500" />
-                        OFF
+                        {isZh ? '停用' : 'OFF'}
                       </span>
                     )}
                   </td>
@@ -502,10 +509,10 @@ export function ExitEnginesTable({ isDark = true, isZh = false }: SubViewProps) 
               }`}
             >
               <tr>
-                <th className="py-2.5 px-3 font-black">Family</th>
-                <th className="py-2.5 px-3 font-black">Role / Engine Name</th>
-                <th className="py-2.5 px-3 font-black">Sell Signals Chain</th>
-                <th className="py-2.5 px-3 font-black">Exit Branches</th>
+                <th className="py-2.5 px-3 font-black">{isZh ? '策略家族' : 'Family'}</th>
+                <th className="py-2.5 px-3 font-black">{isZh ? '引擎职责 / 名称' : 'Role / Engine Name'}</th>
+                <th className="py-2.5 px-3 font-black">{isZh ? '卖出信号链' : 'Sell Signals Chain'}</th>
+                <th className="py-2.5 px-3 font-black">{isZh ? '退出分支数' : 'Exit Branches'}</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
@@ -523,7 +530,7 @@ export function ExitEnginesTable({ isDark = true, isZh = false }: SubViewProps) 
                           : 'bg-rose-100 text-rose-950 border border-rose-400'
                       }`}
                     >
-                      {eng.family}
+                      {isZh ? (eng.family.includes('Long') ? '做多家族' : '做空家族') : eng.family}
                     </span>
                   </td>
                   <td className={`py-2.5 px-3 font-semibold ${isDark ? 'text-white' : 'text-black font-bold'}`}>
@@ -531,11 +538,11 @@ export function ExitEnginesTable({ isDark = true, isZh = false }: SubViewProps) 
                   </td>
                   <td className="py-2.5 px-3 font-mono text-[11px]">
                     <span className={isDark ? 'text-slate-300' : 'text-black font-medium'}>
-                      {eng.sellSignals} sell signals · {eng.lines} lines
+                      {eng.sellSignals} {isZh ? '个卖出信号' : 'sell signals'} · {eng.lines} {isZh ? '行代码' : 'lines'}
                     </span>
                   </td>
                   <td className={`py-2.5 px-3 font-mono font-bold ${isDark ? 'text-cyan-400' : 'text-indigo-900'}`}>
-                    {eng.exitBranches} branches
+                    {eng.exitBranches} {isZh ? '条分支' : 'branches'}
                   </td>
                 </tr>
               ))}
@@ -576,9 +583,9 @@ export function ExitEnginesTable({ isDark = true, isZh = false }: SubViewProps) 
               }`}
             >
               <tr>
-                <th className="py-2.5 px-3 font-black">Ladder Tier</th>
-                <th className="py-2.5 px-3 font-black">Steps</th>
-                <th className="py-2.5 px-3 font-black">Trigger / Action Behavior</th>
+                <th className="py-2.5 px-3 font-black">{isZh ? '阶梯层级' : 'Ladder Tier'}</th>
+                <th className="py-2.5 px-3 font-black">{isZh ? '步数' : 'Steps'}</th>
+                <th className="py-2.5 px-3 font-black">{isZh ? '触发与调仓动作说明' : 'Trigger / Action Behavior'}</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
@@ -636,32 +643,32 @@ export function ArchitectureOverview({ isDark = true, isZh = false }: SubViewPro
               isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-300'
             }`}
           >
-            <div className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Primary Timeframe</div>
-            <div className={`text-base font-black font-mono mt-1 ${isDark ? 'text-white' : 'text-black'}`}>5m (Informative: 15m, 1h, 4h, 1d)</div>
+            <div className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>{isZh ? '主执行周期' : 'Primary Timeframe'}</div>
+            <div className={`text-base font-black font-mono mt-1 ${isDark ? 'text-white' : 'text-black'}`}>{isZh ? '5分钟 (参考周期: 15m, 1h, 4h, 1d)' : '5m (Informative: 15m, 1h, 4h, 1d)'}</div>
           </div>
           <div
             className={`p-3 rounded-lg border ${
               isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-300'
             }`}
           >
-            <div className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Hard Stoploss</div>
-            <div className={`text-base font-black font-mono mt-1 ${isDark ? 'text-rose-400' : 'text-rose-700'}`}>-0.99 (99% Emergency Fallback)</div>
+            <div className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>{isZh ? '硬件级硬止损' : 'Hard Stoploss'}</div>
+            <div className={`text-base font-black font-mono mt-1 ${isDark ? 'text-rose-400' : 'text-rose-700'}`}>{isZh ? '-0.99 (99% 极端情况防御底线)' : '-0.99 (99% Emergency Fallback)'}</div>
           </div>
           <div
             className={`p-3 rounded-lg border ${
               isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-300'
             }`}
           >
-            <div className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Futures Shorting</div>
-            <div className={`text-base font-black font-mono mt-1 ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>Enabled (can_short = True)</div>
+            <div className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>{isZh ? '合约做空支持' : 'Futures Shorting'}</div>
+            <div className={`text-base font-black font-mono mt-1 ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>{isZh ? '已开启 (can_short = True)' : 'Enabled (can_short = True)'}</div>
           </div>
           <div
             className={`p-3 rounded-lg border ${
               isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-300'
             }`}
           >
-            <div className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Trailing Stop</div>
-            <div className={`text-base font-black font-mono mt-1 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>Disabled (Handled via Ladders)</div>
+            <div className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>{isZh ? '移动追踪止损' : 'Trailing Stop'}</div>
+            <div className={`text-base font-black font-mono mt-1 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>{isZh ? '未启用 (完全由动态阶梯管理)' : 'Disabled (Handled via Ladders)'}</div>
           </div>
         </div>
       </div>

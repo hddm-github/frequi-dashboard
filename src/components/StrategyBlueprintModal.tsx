@@ -13,8 +13,6 @@ import {
   Search,
   Layers,
   FileText,
-  Maximize2,
-  Minimize2,
 } from 'lucide-react';
 import { useBot } from '../context/BotContext';
 import { useLocale } from '../i18n/LocaleContext';
@@ -54,7 +52,6 @@ export function StrategyBlueprintModal({
   const [activeTab, setActiveTab] = useState<
     'flow' | 'routing' | 'gates' | 'signals' | 'ladders' | 'overview'
   >('flow');
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
@@ -90,7 +87,7 @@ export function StrategyBlueprintModal({
   const dryRun = effectiveBotState.dry_run ?? false;
 
   const tabs = [
-    { id: 'flow', label: isZh ? '执行流 (Sankey)' : 'Pipeline Flow', icon: Workflow },
+    { id: 'flow', label: isZh ? '执行流 (链路图)' : 'Pipeline Flow', icon: Workflow },
     { id: 'routing', label: isZh ? '模式路由' : 'Mode Routing', icon: Network },
     { id: 'gates', label: isZh ? '保护门禁' : 'Protection Gates', icon: ShieldAlert },
     { id: 'signals', label: isZh ? '84 信号清单' : 'Entry Signals', icon: Search },
@@ -104,11 +101,7 @@ export function StrategyBlueprintModal({
       onClick={onClose}
     >
       <div
-        className={`w-full flex flex-col rounded-2xl shadow-2xl border transition-all duration-200 overflow-hidden ${
-          isFullscreen
-            ? 'w-[99vw] h-[98dvh] max-w-none max-h-none rounded-none sm:rounded-2xl'
-            : 'max-w-6xl max-h-[92dvh] h-[890px]'
-        } ${
+        className={`w-full max-w-6xl max-h-[92dvh] h-[890px] flex flex-col rounded-2xl shadow-2xl border transition-all duration-200 overflow-hidden ${
           isDark
             ? 'bg-[#0f172a] border-slate-800 text-slate-100 shadow-cyan-950/20'
             : 'bg-white border-slate-300 text-black shadow-xl'
@@ -148,7 +141,7 @@ export function StrategyBlueprintModal({
                     : 'bg-slate-200 text-black border-slate-400'
                 }`}>
                   <Clock className={`w-3 h-3 ${isDark ? 'text-cyan-400' : 'text-cyan-800'}`} />
-                  {timeframe} · Multi-TF
+                  {timeframe} · {isZh ? '多周期协同' : 'Multi-TF'}
                 </span>
                 <span
                   className={`px-2 py-0.5 rounded-md text-[11px] font-mono border font-bold flex items-center gap-1 ${
@@ -162,7 +155,7 @@ export function StrategyBlueprintModal({
                   }`}
                 >
                   <Activity className="w-3 h-3" />
-                  {dryRun ? (isZh ? '模拟' : 'Paper') : isZh ? '实盘' : 'Live'} · {tradingMode}
+                  {dryRun ? (isZh ? '模拟' : 'Paper') : isZh ? '实盘' : 'Live'} · {tradingMode === 'futures' ? (isZh ? '合约' : 'futures') : (isZh ? '现货' : 'spot')}
                 </span>
               </div>
               <p className={`text-[11px] font-medium hidden sm:block truncate mt-0.5 ${
@@ -175,7 +168,7 @@ export function StrategyBlueprintModal({
             </div>
           </div>
 
-          {/* Action buttons */}
+          {/* Action buttons (modal level: sync, i18n, close; flowchart has its own full screen) */}
           <div className="flex items-center gap-1.5 shrink-0">
             {lastFetched && !isReadOnly && (
               <button
@@ -193,7 +186,7 @@ export function StrategyBlueprintModal({
                 }`}
               >
                 <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-                <span>sync</span>
+                <span>{isZh ? '同步' : 'sync'}</span>
               </button>
             )}
 
@@ -207,16 +200,6 @@ export function StrategyBlueprintModal({
               }`}
             >
               {isZh ? '中文' : 'EN'}
-            </button>
-
-            <button
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-black hover:bg-slate-200'
-              }`}
-              title={isFullscreen ? 'Exit full screen' : 'Full screen'}
-            >
-              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
 
             <button
@@ -241,13 +224,13 @@ export function StrategyBlueprintModal({
             isDark ? 'border-slate-800/80 bg-slate-900/60' : 'border-slate-300 bg-white shadow-xs'
           }`}>
             <div className={`text-[10px] uppercase font-black ${isDark ? 'text-slate-400' : 'text-black'}`}>
-              Entry tags
+              {isZh ? '入场信号标签' : 'Entry tags'}
             </div>
             <div className={`text-base sm:text-lg font-mono font-black ${isDark ? 'text-cyan-400' : 'text-cyan-800'}`}>
               {BLUEPRINT_SUMMARY.entryTagsLive} / {BLUEPRINT_SUMMARY.entryTagsTotal}
             </div>
             <div className={`text-[10px] font-bold ${isDark ? 'text-slate-500' : 'text-black'}`}>
-              enabled by upstream default
+              {isZh ? '策略默认启用' : 'enabled by upstream default'}
             </div>
           </div>
 
@@ -255,13 +238,13 @@ export function StrategyBlueprintModal({
             isDark ? 'border-slate-800/80 bg-slate-900/60' : 'border-slate-300 bg-white shadow-xs'
           }`}>
             <div className={`text-[10px] uppercase font-black ${isDark ? 'text-slate-400' : 'text-black'}`}>
-              Mode families live
+              {isZh ? '活跃策略家族' : 'Mode families live'}
             </div>
             <div className={`text-base sm:text-lg font-mono font-black ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>
               {BLUEPRINT_SUMMARY.modeFamiliesLive} / {BLUEPRINT_SUMMARY.modeFamiliesTotal}
             </div>
             <div className={`text-[10px] font-bold ${isDark ? 'text-slate-500' : 'text-black'}`}>
-              enter_tag routes, any/all
+              {isZh ? '标签模式路由 (any / all)' : 'enter_tag routes, any/all'}
             </div>
           </div>
 
@@ -269,13 +252,13 @@ export function StrategyBlueprintModal({
             isDark ? 'border-slate-800/80 bg-slate-900/60' : 'border-slate-300 bg-white shadow-xs'
           }`}>
             <div className={`text-[10px] uppercase font-black ${isDark ? 'text-slate-400' : 'text-black'}`}>
-              Decision operators
+              {isZh ? '决策算子分支' : 'Decision operators'}
             </div>
             <div className={`text-base sm:text-lg font-mono font-black ${isDark ? 'text-purple-400' : 'text-purple-900'}`}>
               {BLUEPRINT_SUMMARY.decisionOperators.toLocaleString()}
             </div>
             <div className={`text-[10px] font-bold ${isDark ? 'text-slate-500' : 'text-black'}`}>
-              &amp; / | branches, all conditions
+              {isZh ? '& / | 逻辑条件与全量分支' : '& / | branches, all conditions'}
             </div>
           </div>
 
@@ -283,13 +266,13 @@ export function StrategyBlueprintModal({
             isDark ? 'border-slate-800/80 bg-slate-900/60' : 'border-slate-300 bg-white shadow-xs'
           }`}>
             <div className={`text-[10px] uppercase font-black ${isDark ? 'text-slate-400' : 'text-black'}`}>
-              Ladder rungs
+              {isZh ? '动态阶梯层级' : 'Ladder rungs'}
             </div>
             <div className={`text-base sm:text-lg font-mono font-black ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
               {BLUEPRINT_SUMMARY.ladderRungs}
             </div>
             <div className={`text-[10px] font-bold ${isDark ? 'text-slate-500' : 'text-black'}`}>
-              system_v4 · new trades
+              {isZh ? 'system_v4 · 动态加减仓网格' : 'system_v4 · new trades'}
             </div>
           </div>
         </div>
