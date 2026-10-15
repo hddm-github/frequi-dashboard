@@ -347,7 +347,7 @@ export const zh: Record<string, string> = {
   'closed.export_excel_option': 'Excel 表格 (.xlsx)',
   'closed.export_pdf_option': 'PDF 报表 (.pdf)',
   'closed.export_excel_desc': '格式化电子表格，含详细交易流水与指标统计',
-  'closed.export_pdf_desc': '高清矢量打印报表，适配打印与另存为 PDF 文件',
+  'closed.export_pdf_desc': '直接下载 PDF 结算单，与 Excel 同款机构级排版',
   'closed.exporting': '导出中……',
   'closed.export_tooltip': '导出平仓交易为 Excel 或 PDF 报表',
 

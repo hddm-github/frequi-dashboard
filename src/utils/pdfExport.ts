@@ -3,16 +3,6 @@ import { formatUtc8, parseToUtcDate } from './dateUtils';
 import { parseNfiSignal } from './nfiSignals';
 import type { ExportTradeOptions } from './excelExport';
 
-function escapeHtml(str: string | undefined | null): string {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 function formatDuration(openMs: number, closeMs: number, isZh: boolean): string {
   const diffMs = closeMs - openMs;
   if (!diffMs || diffMs <= 0 || isNaN(diffMs)) return '-';
@@ -24,8 +14,8 @@ function formatDuration(openMs: number, closeMs: number, isZh: boolean): string 
   const s = totalSecs % 60;
 
   if (isZh) {
-    if (d > 0) return `${d}天${h}时`;
-    if (h > 0) return `${h}时${m}分`;
+    if (d > 0) return `${d}天${h}小时`;
+    if (h > 0) return `${h}小时${m}分`;
     if (m > 0) return `${m}分${s}秒`;
     return `${s}秒`;
   } else {
@@ -47,13 +37,130 @@ function formatPrice(val: number | undefined | null): string {
   return String(val);
 }
 
+const EXIT_REASONS_ZH: Record<string, string> = {
+  roi: '止盈 (ROI)',
+  stop_loss: '止损 (Stop Loss)',
+  trailing_stop_loss: '追踪止损',
+  stoploss_on_exchange: '交易所止损',
+  force_exit: '市价平仓',
+  emergencysell: '紧急平仓',
+  custom_exit: '策略退出',
+  exit_signal: '退出信号',
+  sell_signal: '卖出信号',
+};
+
+const EXIT_REASONS_EN: Record<string, string> = {
+  roi: 'Take Profit',
+  stop_loss: 'Stop Loss',
+  trailing_stop_loss: 'Trailing SL',
+  stoploss_on_exchange: 'Exchange SL',
+  force_exit: 'Force Exit',
+  emergencysell: 'Emergency',
+  custom_exit: 'Custom Exit',
+  exit_signal: 'Exit Signal',
+  sell_signal: 'Sell Signal',
+};
+
+function formatExitReason(reason: string | undefined, tag: string | undefined, isZh: boolean): string {
+  const dict = isZh ? EXIT_REASONS_ZH : EXIT_REASONS_EN;
+  let text = '';
+  if (reason) {
+    text = dict[reason] || reason;
+  }
+  if (tag && tag !== reason) {
+    text = text ? `${text} (${tag})` : tag;
+  }
+  return text || '-';
+}
+
 /**
- * Exports closed trades to an institutional-grade, publication-ready PDF report
- * using the browser's native vector rendering engine (100% CJK & English font support, zero blurry canvas).
+ * Pure client-side PDF Builder for ISO 32000-1 / PDF 1.4 specification
+ */
+class PdfBuilder {
+  private chunks: Uint8Array[] = [];
+  private offsets: number[] = [];
+  private currentOffset = 0;
+  private enc = new TextEncoder();
+
+  addText(str: string) {
+    const bytes = this.enc.encode(str);
+    this.chunks.push(bytes);
+    this.currentOffset += bytes.length;
+  }
+
+  addBytes(bytes: Uint8Array) {
+    this.chunks.push(bytes);
+    this.currentOffset += bytes.length;
+  }
+
+  startObject(id: number) {
+    this.offsets[id] = this.currentOffset;
+    this.addText(`${id} 0 obj\n`);
+  }
+
+  endObject() {
+    this.addText('endobj\n');
+  }
+
+  build(totalObjects: number): Uint8Array {
+    const xrefOffset = this.currentOffset;
+    this.addText(`xref\n0 ${totalObjects + 1}\n`);
+    this.addText('0000000000 65535 f \n');
+    for (let i = 1; i <= totalObjects; i++) {
+      const off = this.offsets[i] || 0;
+      const offStr = String(off).padStart(10, '0');
+      this.addText(`${offStr} 00000 n \n`);
+    }
+    this.addText(`trailer\n<< /Size ${totalObjects + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`);
+
+    const totalLen = this.chunks.reduce((sum, c) => sum + c.length, 0);
+    const result = new Uint8Array(totalLen);
+    let pos = 0;
+    for (const chunk of this.chunks) {
+      result.set(chunk, pos);
+      pos += chunk.length;
+    }
+    return result;
+  }
+}
+
+function drawPill(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+  fillColor: string,
+  strokeColor?: string
+) {
+  ctx.save();
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, w, h, r);
+  } else {
+    ctx.rect(x, y, w, h);
+  }
+  ctx.fillStyle = fillColor;
+  ctx.fill();
+  if (strokeColor) {
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 0.6;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/**
+ * Exports closed trades directly to a publication-ready, downloadable PDF file
+ * aligned with Excel styling, featuring 1-click immediate download without popup tabs.
  */
 export function exportClosedTradesToPdf(trades: Trade[], options: ExportTradeOptions): void {
   const { locale, botName = 'Freqtrade Bot', currencyUnit = 'USD', exchangeRate = 1 } = options;
   const isZh = locale === 'zh';
+  const rate = exchangeRate && exchangeRate > 0 ? exchangeRate : 1;
+  const isIdr = currencyUnit === 'IDR';
+  const decimals = isIdr ? 0 : 2;
 
   // Sort trades newest first (latest close timestamp)
   const sortedTrades = [...trades].sort((a, b) => {
@@ -62,726 +169,462 @@ export function exportClosedTradesToPdf(trades: Trade[], options: ExportTradeOpt
     return timeB - timeA;
   });
 
-  // Calculate earliest trade open time for the period range
-  let earliestOpenTimestamp: number | null = null;
-  let totalDurationMs = 0;
-  for (const t of sortedTrades) {
-    const tOpen = t.open_timestamp || (t.open_date ? parseToUtcDate(t.open_date)?.getTime() : null);
-    const tClose = t.close_timestamp || (t.close_date ? parseToUtcDate(t.close_date)?.getTime() : null);
-    if (tOpen) {
-      if (earliestOpenTimestamp === null || tOpen < earliestOpenTimestamp) {
-        earliestOpenTimestamp = tOpen;
-      }
-    }
-    if (tOpen && tClose && tClose > tOpen) {
-      totalDurationMs += (tClose - tOpen);
-    }
-  }
-
-  const exportTimeStr = formatUtc8(Date.now(), 'YYYY-MM-DD HH:mm:ss');
-  const periodStartStr = earliestOpenTimestamp ? formatUtc8(earliestOpenTimestamp, 'YYYY-MM-DD HH:mm') : '-';
-  const periodEndStr = exportTimeStr;
-  const periodStr = `${periodStartStr} ~ ${periodEndStr}`;
-
   // Comprehensive Metrics
   const totalTrades = sortedTrades.length;
-  const winningTrades = sortedTrades.filter((t) => (t.profit_abs || 0) > 0).length;
-  const losingTrades = sortedTrades.filter((t) => (t.profit_abs || 0) < 0).length;
-  const breakEvenTrades = totalTrades - winningTrades - losingTrades;
+  const winningTrades = sortedTrades.filter((t) => t.profit_pct > 0).length;
+  const losingTrades = sortedTrades.filter((t) => t.profit_pct < 0).length;
   const winRate = totalTrades > 0 ? ((winningTrades / totalTrades) * 100).toFixed(1) : '0.0';
 
-  const totalGainUsdt = sortedTrades.filter((t) => (t.profit_abs || 0) > 0).reduce((sum, t) => sum + (t.profit_abs || 0), 0);
-  const totalLossUsdt = Math.abs(sortedTrades.filter((t) => (t.profit_abs || 0) < 0).reduce((sum, t) => sum + (t.profit_abs || 0), 0));
-  const profitFactor = totalLossUsdt > 0 ? (totalGainUsdt / totalLossUsdt).toFixed(2) : totalGainUsdt > 0 ? 'MAX' : '0.00';
+  const totalProfitAbsUsdt = sortedTrades.reduce((sum, t) => {
+    const p = t.profit_abs !== undefined ? t.profit_abs : (t.stake_amount || 0) * (t.profit_ratio || 0);
+    return sum + (p || 0);
+  }, 0);
+  const totalProfitAbs = totalProfitAbsUsdt * rate;
 
-  const avgProfitPct = totalTrades > 0 ? (sortedTrades.reduce((sum, t) => sum + (t.profit_pct || 0), 0) / totalTrades).toFixed(2) : '0.00';
+  const totalStake = sortedTrades.reduce((sum, t) => sum + ((t.stake_amount || 0) * rate), 0);
+  const avgProfitPct = totalTrades > 0
+    ? (sortedTrades.reduce((sum, t) => sum + (t.profit_pct || 0), 0) / totalTrades).toFixed(2)
+    : '0.00';
 
-  const totalProfitAbsUsdt = sortedTrades.reduce((sum, t) => sum + (t.profit_abs || 0), 0);
-  const totalProfitAbsConverted = totalProfitAbsUsdt * (exchangeRate || 1);
-  const totalStakeConverted = sortedTrades.reduce((sum, t) => sum + ((t.stake_amount || 0) * (exchangeRate || 1)), 0);
+  const exportTimeStr = formatUtc8(new Date(), 'YYYY-MM-DD HH:mm:ss');
 
-  const avgDurationStr = totalTrades > 0 ? formatDuration(0, Math.floor(totalDurationMs / totalTrades), isZh) : '-';
-
-  const getCurrencySymbol = (unit: string) => {
-    if (unit === 'CNY') return '¥';
-    if (unit === 'USD') return '$';
-    if (unit === 'EUR') return '€';
-    if (unit === 'IDR') return 'Rp';
-    return '';
-  };
-  const currSym = getCurrencySymbol(currencyUnit);
-
-  const formatMoney = (val: number) => {
-    const absVal = Math.abs(val);
-    const sign = val > 0 ? '+' : val < 0 ? '-' : '';
-    const decimals = currencyUnit === 'IDR' ? 0 : 2;
-    const formattedNum = absVal.toLocaleString(undefined, {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    });
-    return `${sign}${currSym}${formattedNum}`;
-  };
-
-  // Build Table Rows with Institutional Layout
-  const tableRowsHtml = sortedTrades
-    .map((t, idx) => {
-      const isProfit = (t.profit_abs || 0) >= 0;
-      const profitAbsConverted = (t.profit_abs || 0) * (exchangeRate || 1);
-      const stakeConverted = (t.stake_amount || 0) * (exchangeRate || 1);
-      const profitPctStr = `${isProfit ? '+' : ''}${(t.profit_pct || 0).toFixed(2)}%`;
-      const isShort = Boolean(t.is_short);
-      const sideText = isZh ? (isShort ? '做空' : '做多') : isShort ? 'SHORT' : 'LONG';
-      const sideClass = isShort ? 'pill-short' : 'pill-long';
-
-      const signalInfo = parseNfiSignal(t.enter_tag, isZh);
-      const openMs = t.open_timestamp || (t.open_date ? parseToUtcDate(t.open_date)?.getTime() : 0);
-      const closeMs = t.close_timestamp || (t.close_date ? parseToUtcDate(t.close_date)?.getTime() : 0);
-      const durationStr = openMs && closeMs ? formatDuration(openMs, closeMs, isZh) : '-';
-
-      const openTime = formatUtc8(openMs || t.open_date, 'YYYY-MM-DD HH:mm');
-      const closeTime = formatUtc8(closeMs || t.close_date, 'YYYY-MM-DD HH:mm');
-
-      const profitClass = isProfit ? 'pnl-profit' : 'pnl-loss';
-      const cleanPair = (t.pair || '-').replace(/:USDT$/, '');
-
-      return `
-        <tr>
-          <td class="col-idx">${idx + 1}</td>
-          <td class="col-pair">
-            <span class="pair-symbol">${escapeHtml(cleanPair)}</span>
-          </td>
-          <td class="col-side">
-            <span class="${sideClass}">${sideText}</span>
-          </td>
-          <td class="col-signal">
-            <span class="signal-badge" title="${escapeHtml(signalInfo.description || '')}">
-              ${escapeHtml(signalInfo.code || t.enter_tag || '-')}
-            </span>
-          </td>
-          <td class="col-duration">${durationStr}</td>
-          <td class="col-time">${openTime}</td>
-          <td class="col-time">${closeTime}</td>
-          <td class="col-num">${currSym}${stakeConverted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-          <td class="col-num">${formatPrice(t.open_rate)}</td>
-          <td class="col-num">${formatPrice(t.close_rate)}</td>
-          <td class="col-num ${profitClass}">${formatMoney(profitAbsConverted)}</td>
-          <td class="col-num ${profitClass}">${profitPctStr}</td>
-          <td class="col-exit">
-            <span class="exit-badge">${escapeHtml(t.exit_reason || t.exit_tag || '-')}</span>
-          </td>
-        </tr>
-      `;
-    })
-    .join('');
-
-  // Complete High-End Institutional HTML template
-  const reportHtml = `
-<!DOCTYPE html>
-<html lang="${isZh ? 'zh-CN' : 'en'}">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${isZh ? '量化交易历史结算报表' : 'Quantitative Trade History Report'} - ${escapeHtml(botName)}</title>
-  <style>
-    @page {
-      size: A4 landscape;
-      margin: 8mm 10mm 10mm 10mm;
-    }
-    * {
-      box-sizing: border-box;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-      margin: 0;
-      padding: 20px;
-      background: #0f172a;
-      color: #0f172a;
-      font-size: 11px;
-      line-height: 1.4;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    /* Print Controls Floating Header */
-    .print-toolbar {
-      width: 100%;
-      max-width: 1180px;
-      background: #1e293b;
-      color: #f8fafc;
-      padding: 12px 20px;
-      border-radius: 12px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-      border: 1px solid #334155;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-    }
-    .print-toolbar-info {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .print-toolbar h2 {
-      margin: 0;
-      font-size: 14px;
-      font-weight: 700;
-      color: #ffffff;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .print-toolbar-hint {
-      font-size: 11px;
-      color: #94a3b8;
-    }
-    .btn {
-      padding: 8px 18px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      transition: all 0.15s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .btn-primary {
-      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-      color: #ffffff;
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
-    }
-    .btn-primary:hover {
-      opacity: 0.95;
-      transform: translateY(-1px);
-    }
-    .btn-secondary {
-      background: #334155;
-      color: #f1f5f9;
-      border: 1px solid #475569;
-    }
-    .btn-secondary:hover {
-      background: #475569;
-    }
-
-    /* Outer Printable Report Card */
-    .report-card {
-      width: 100%;
-      max-width: 1180px;
-      background: #ffffff;
-      border-radius: 14px;
-      border: 1px solid #e2e8f0;
-      padding: 28px 32px;
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
-    }
-
-    /* Executive Corporate Header Banner */
-    .report-header {
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      color: #ffffff;
-      padding: 20px 24px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-      position: relative;
-      overflow: hidden;
-      border-bottom: 3px solid #10b981;
-    }
-    .report-header::after {
-      content: "";
-      position: absolute;
-      top: -40px;
-      right: -40px;
-      width: 160px;
-      height: 160px;
-      background: radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%);
-      pointer-events: none;
-    }
-    .header-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 14px;
-    }
-    .brand-eyebrow {
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 1.2px;
-      text-transform: uppercase;
-      color: #10b981;
-      margin-bottom: 4px;
-    }
-    .report-title {
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      color: #ffffff;
-      margin: 0;
-    }
-    .header-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      font-size: 10px;
-      color: #cbd5e1;
-    }
-    .header-badge strong {
-      color: #ffffff;
-    }
-
-    .report-meta-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      padding-top: 12px;
-      border-top: 1px solid rgba(255, 255, 255, 0.12);
-    }
-    .meta-item {
-      font-size: 10.5px;
-    }
-    .meta-label {
-      color: #94a3b8;
-      font-size: 9.5px;
-      margin-bottom: 2px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .meta-value {
-      font-weight: 600;
-      color: #f1f5f9;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* 6-Card Executive Financial KPI Dashboard */
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 10px;
-      margin-bottom: 22px;
-    }
-    .kpi-card {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 10px 12px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-      position: relative;
-    }
-    .kpi-card.c-profit { border-top: 3px solid #10b981; }
-    .kpi-card.c-winrate { border-top: 3px solid #3b82f6; }
-    .kpi-card.c-factor { border-top: 3px solid #f59e0b; }
-    .kpi-card.c-return { border-top: 3px solid #8b5cf6; }
-    .kpi-card.c-stake { border-top: 3px solid #06b6d4; }
-    .kpi-card.c-trades { border-top: 3px solid #64748b; }
-
-    .kpi-label {
-      font-size: 9.5px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      color: #64748b;
-      margin-bottom: 4px;
-    }
-    .kpi-value {
-      font-size: 17px;
-      font-weight: 800;
-      font-family: ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, Consolas, monospace;
-      font-variant-numeric: tabular-nums;
-      letter-spacing: -0.5px;
-      line-height: 1.2;
-    }
-    .kpi-sub {
-      font-size: 9.5px;
-      color: #94a3b8;
-      margin-top: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* Institutional Financial Table */
-    .table-container {
-      width: 100%;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 9.5px;
-      table-layout: auto;
-    }
-    thead {
-      display: table-header-group;
-    }
-    th {
-      background: #0f172a;
-      color: #f8fafc;
-      font-weight: 700;
-      text-align: left;
-      padding: 7px 6px;
-      white-space: nowrap;
-      border-bottom: 2px solid #1e293b;
-      letter-spacing: 0.2px;
-      font-size: 9px;
-      text-transform: uppercase;
-    }
-    th.th-right { text-align: right; }
-    th.th-center { text-align: center; }
-
-    td {
-      padding: 6px 6px;
-      border-bottom: 1px solid #e2e8f0;
-      white-space: nowrap;
-      vertical-align: middle;
-      font-variant-numeric: tabular-nums;
-    }
-    tr:nth-child(even) td {
-      background: #f8fafc;
-    }
-    tr:hover td {
-      background: #f1f5f9;
-    }
-    tr {
-      break-inside: avoid;
-      page-break-inside: avoid;
-    }
-
-    /* Columns format */
-    .col-idx {
-      text-align: center;
-      color: #94a3b8;
-      font-weight: 600;
-      font-size: 9px;
-      width: 30px;
-    }
-    .col-pair {
-      font-weight: 700;
-      color: #0f172a;
-    }
-    .pair-symbol {
-      background: #f1f5f9;
-      padding: 2px 6px;
-      border-radius: 4px;
-      border: 1px solid #e2e8f0;
-    }
-    .col-side {
-      text-align: center;
-      width: 55px;
-    }
-    .pill-long {
-      display: inline-block;
-      padding: 1.5px 6px;
-      border-radius: 4px;
-      font-size: 8.5px;
-      font-weight: 700;
-      background: #ecfdf5;
-      color: #065f46;
-      border: 1px solid #a7f3d0;
-    }
-    .pill-short {
-      display: inline-block;
-      padding: 1.5px 6px;
-      border-radius: 4px;
-      font-size: 8.5px;
-      font-weight: 700;
-      background: #fff1f2;
-      color: #9f1239;
-      border: 1px solid #fecdd3;
-    }
-    .col-signal {
-      max-width: 110px;
-    }
-    .signal-badge {
-      display: inline-block;
-      padding: 1.5px 5px;
-      border-radius: 4px;
-      font-size: 8.5px;
-      font-weight: 600;
-      background: #f0fdf4;
-      color: #166534;
-      border: 1px solid #bbf7d0;
-      font-family: ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, monospace;
-      max-width: 100px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .col-duration {
-      text-align: center;
-      color: #475569;
-      font-family: ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, monospace;
-      font-size: 9px;
-    }
-    .col-time {
-      font-family: ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, monospace;
-      color: #475569;
-      font-size: 9px;
-    }
-    .col-num {
-      text-align: right;
-      font-family: ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, monospace;
-      font-weight: 600;
-    }
-    .pnl-profit {
-      color: #059669;
-      font-weight: 700;
-    }
-    .pnl-loss {
-      color: #dc2626;
-      font-weight: 700;
-    }
-    .col-exit {
-      max-width: 100px;
-    }
-    .exit-badge {
-      display: inline-block;
-      padding: 1px 5px;
-      border-radius: 4px;
-      font-size: 8.5px;
-      color: #475569;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      max-width: 95px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    /* Executive Footer */
-    .report-footer {
-      margin-top: 24px;
-      padding-top: 14px;
-      border-top: 1px solid #e2e8f0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      color: #94a3b8;
-      font-size: 9px;
-    }
-    .report-footer strong {
-      color: #475569;
-    }
-
-    @media print {
-      body {
-        background: #ffffff;
-        padding: 0;
+  // Find earliest trade open time
+  let earliestOpenTime = 0;
+  for (const t of sortedTrades) {
+    const d = parseToUtcDate(t.open_timestamp || t.open_date);
+    if (d) {
+      const ms = d.getTime();
+      if (!earliestOpenTime || ms < earliestOpenTime) {
+        earliestOpenTime = ms;
       }
-      .print-toolbar {
-        display: none !important;
-      }
-      .report-card {
-        max-width: 100%;
-        border: none;
-        box-shadow: none;
-        padding: 0;
-      }
-      th {
-        background: #0f172a !important;
-        color: #ffffff !important;
-      }
-      .report-header {
-        background: #0f172a !important;
-        color: #ffffff !important;
-      }
-    }
-  </style>
-</head>
-<body>
-  <!-- Print Controls -->
-  <div class="print-toolbar no-print">
-    <div class="print-toolbar-info">
-      <span style="font-size: 20px;">📊</span>
-      <div>
-        <h2>${isZh ? '量化交易历史结算报表' : 'Trade History Audit Report'} · ${escapeHtml(botName)}</h2>
-        <div class="print-toolbar-hint">
-          ${isZh ? 'A4 横向高清版' : 'A4 Landscape Format'} · ${totalTrades} ${isZh ? '笔交易明细' : 'trades'} · ${isZh ? '建议勾选【背景图形】' : 'Ensure "Background Graphics" is enabled'}
-        </div>
-      </div>
-    </div>
-    <div style="display: flex; gap: 10px;">
-      <button onclick="window.close()" class="btn btn-secondary">
-        ✕ ${isZh ? '关闭' : 'Close'}
-      </button>
-      <button onclick="window.print()" class="btn btn-primary">
-        🖨️ ${isZh ? '打印 / 导出为 PDF' : 'Print / Save as PDF'}
-      </button>
-    </div>
-  </div>
-
-  <div class="report-card">
-    <!-- Executive Header -->
-    <div class="report-header">
-      <div class="header-top">
-        <div>
-          <div class="brand-eyebrow">FreqUI Quantitative Analytics · Official Financial Record</div>
-          <h1 class="report-title">${isZh ? '量化交易历史结算与执行报表' : 'Quantitative Trade History & Audit Report'}</h1>
-        </div>
-        <div class="header-badge">
-          <span>${isZh ? '报表单号' : 'Report ID'}:</span>
-          <strong>FRQ-${Date.now().toString(36).toUpperCase()}</strong>
-        </div>
-      </div>
-
-      <div class="report-meta-grid">
-        <div class="meta-item">
-          <div class="meta-label">${isZh ? '策略机器人' : 'Bot Profile'}</div>
-          <div class="meta-value">${escapeHtml(botName)}</div>
-        </div>
-        <div class="meta-item">
-          <div class="meta-label">${isZh ? '统计区间' : 'Period Range'}</div>
-          <div class="meta-value">${periodStr}</div>
-        </div>
-        <div class="meta-item">
-          <div class="meta-label">${isZh ? '结算计价' : 'Currency'}</div>
-          <div class="meta-value">${currencyUnit} ${exchangeRate !== 1 ? `(1 USDT ≈ ${exchangeRate} ${currencyUnit})` : ''}</div>
-        </div>
-        <div class="meta-item">
-          <div class="meta-label">${isZh ? '生成时间' : 'Export Timestamp'}</div>
-          <div class="meta-value">${exportTimeStr} (UTC+8)</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 6-Card Executive Financial KPI Dashboard -->
-    <div class="kpi-grid">
-      <div class="kpi-card c-profit">
-        <div class="kpi-label">${isZh ? '累计已实现净收益' : 'Net Realized P&L'}</div>
-        <div class="kpi-value" style="color: ${totalProfitAbsConverted >= 0 ? '#059669' : '#dc2626'};">
-          ${formatMoney(totalProfitAbsConverted)}
-        </div>
-        <div class="kpi-sub">${totalProfitAbsUsdt >= 0 ? '+' : ''}${totalProfitAbsUsdt.toFixed(2)} USDT (${isZh ? '原币' : 'Raw'})</div>
-      </div>
-
-      <div class="kpi-card c-winrate">
-        <div class="kpi-label">${isZh ? '综合交易胜率' : 'Win Rate'}</div>
-        <div class="kpi-value" style="color: #2563eb;">
-          ${winRate}%
-        </div>
-        <div class="kpi-sub">${winningTrades} ${isZh ? '胜' : 'W'} / ${losingTrades} ${isZh ? '负' : 'L'}${breakEvenTrades > 0 ? ` / ${breakEvenTrades}平` : ''}</div>
-      </div>
-
-      <div class="kpi-card c-factor">
-        <div class="kpi-label">${isZh ? '盈亏因子 (Profit Factor)' : 'Profit Factor'}</div>
-        <div class="kpi-value" style="color: #d97706;">
-          ${profitFactor}
-        </div>
-        <div class="kpi-sub">${isZh ? '总毛利 / 总毛亏' : 'Total Gain / Loss'}</div>
-      </div>
-
-      <div class="kpi-card c-return">
-        <div class="kpi-label">${isZh ? '平均单笔收益率' : 'Avg Return / Trade'}</div>
-        <div class="kpi-value" style="color: #7c3aed;">
-          ${Number(avgProfitPct) >= 0 ? '+' : ''}${avgProfitPct}%
-        </div>
-        <div class="kpi-sub">${isZh ? '全样本单笔均值' : 'Overall Mean Return'}</div>
-      </div>
-
-      <div class="kpi-card c-stake">
-        <div class="kpi-label">${isZh ? '累计交易本金流转' : 'Total Turnover Volume'}</div>
-        <div class="kpi-value" style="color: #0891b2;">
-          ${currSym}${totalStakeConverted.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-        </div>
-        <div class="kpi-sub">${currencyUnit} (${isZh ? '名义成交总额' : 'Total Volume'})</div>
-      </div>
-
-      <div class="kpi-card c-trades">
-        <div class="kpi-label">${isZh ? '总平仓笔数 / 均持' : 'Trades & Avg Duration'}</div>
-        <div class="kpi-value" style="color: #475569;">
-          ${totalTrades} <span style="font-size: 11px; font-weight: normal; color: #94a3b8;">${isZh ? '笔' : 'orders'}</span>
-        </div>
-        <div class="kpi-sub">${isZh ? '均持时长' : 'Avg Holding'}: ${avgDurationStr}</div>
-      </div>
-    </div>
-
-    <!-- Detailed Financial Table -->
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th class="th-center">#</th>
-            <th>${isZh ? '交易对' : 'Pair'}</th>
-            <th class="th-center">${isZh ? '方向' : 'Side'}</th>
-            <th>${isZh ? '入场信号' : 'Signal'}</th>
-            <th class="th-center">${isZh ? '持仓时长' : 'Duration'}</th>
-            <th>${isZh ? '开仓时间' : 'Open Time'}</th>
-            <th>${isZh ? '平仓时间' : 'Close Time'}</th>
-            <th class="th-right">${isZh ? '投入金额' : 'Stake'} (${currencyUnit})</th>
-            <th class="th-right">${isZh ? '开仓价格' : 'Open Price'}</th>
-            <th class="th-right">${isZh ? '平仓价格' : 'Close Price'}</th>
-            <th class="th-right">${isZh ? '已实现盈亏' : 'P&L'} (${currencyUnit})</th>
-            <th class="th-right">${isZh ? '收益率' : 'Return %'}</th>
-            <th>${isZh ? '平仓原因' : 'Exit Reason'}</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tableRowsHtml || `<tr><td colspan="13" style="text-align: center; padding: 32px; color: #94a3b8;">${isZh ? '暂无交易明细记录' : 'No closed trades recorded'}</td></tr>`}
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Institutional Footer -->
-    <div class="report-footer">
-      <div>
-        <strong>FreqUI Financial Analytics Platform</strong> · ${escapeHtml(botName)} · ${isZh ? '官方量化对账报表' : 'Official Quantitative Audit'}
-      </div>
-      <div>
-        <span>${isZh ? '保密文件 · 仅供内部统计与量化复盘' : 'Confidential Financial Record · Authorized Export'}</span>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // Delay print trigger slightly so styles and fonts settle
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        window.print();
-      }, 400);
-    });
-  </script>
-</body>
-</html>
-  `;
-
-  // Open in new tab or popup window
-  const printWindow = window.open('', '_blank');
-  if (printWindow) {
-    printWindow.document.open();
-    printWindow.document.write(reportHtml);
-    printWindow.document.close();
-  } else {
-    // Fallback if popups are completely blocked: render into invisible iframe and trigger print
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(reportHtml);
-      doc.close();
-      iframe.contentWindow?.focus();
-      setTimeout(() => {
-        iframe.contentWindow?.print();
-        setTimeout(() => document.body.removeChild(iframe), 60000);
-      }, 500);
     }
   }
+  const startTimeStr = earliestOpenTime ? formatUtc8(earliestOpenTime, 'YYYY-MM-DD HH:mm:ss') : '-';
+  const periodStr = earliestOpenTime ? `${startTimeStr} ~ ${exportTimeStr}` : '-';
+
+  // Layout Constants (A4 Landscape at 72dpi: 842 x 595 pt)
+  const pageWidth = 842;
+  const pageHeight = 595;
+  const dpr = 2; // Crisp Retina scale
+  const marginX = 24;
+  const tableWidth = pageWidth - marginX * 2; // 794 pt
+
+  // Column widths definition (Total 794 pt)
+  const columns = [
+    { key: 'id', title: isZh ? '序号' : 'ID', width: 38, align: 'center' },
+    { key: 'pair', title: isZh ? '交易对' : 'PAIR', width: 88, align: 'left' },
+    { key: 'side', title: isZh ? '方向' : 'SIDE', width: 50, align: 'center' },
+    { key: 'open_time', title: isZh ? '开仓时间' : 'OPEN TIME', width: 88, align: 'center' },
+    { key: 'close_time', title: isZh ? '平仓时间' : 'CLOSE TIME', width: 88, align: 'center' },
+    { key: 'duration', title: isZh ? '持仓时长' : 'DURATION', width: 54, align: 'center' },
+    { key: 'open_rate', title: isZh ? '开仓价格' : 'OPEN RATE', width: 58, align: 'right' },
+    { key: 'close_rate', title: isZh ? '平仓价格' : 'CLOSE RATE', width: 58, align: 'right' },
+    { key: 'stake', title: `${isZh ? '投入金额' : 'STAKE'} (${currencyUnit})`, width: 58, align: 'right' },
+    { key: 'profit_abs', title: `${isZh ? '净盈亏' : 'NET PNL'} (${currencyUnit})`, width: 60, align: 'right' },
+    { key: 'profit_pct', title: isZh ? '收益率' : 'RETURN %', width: 44, align: 'right' },
+    { key: 'exit_reason', title: isZh ? '退出原因' : 'EXIT REASON', width: 58, align: 'left' },
+    { key: 'enter_tag', title: isZh ? '入场信号' : 'SIGNAL', width: 52, align: 'center' },
+  ];
+
+  // Pagination calculation
+  const rowsPage1 = 18;
+  const rowsPageNext = 23;
+
+  let totalPages = 1;
+  if (sortedTrades.length > rowsPage1) {
+    totalPages = 1 + Math.ceil((sortedTrades.length - rowsPage1) / rowsPageNext);
+  }
+
+  const canvasList: HTMLCanvasElement[] = [];
+
+  for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+    const isFirstPage = pageIdx === 0;
+    const canvas = document.createElement('canvas');
+    canvas.width = pageWidth * dpr;
+    canvas.height = pageHeight * dpr;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) continue;
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+
+    // 1. Page Background (Crisp White)
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, pageWidth, pageHeight);
+
+    // 2. Header Title Banner (Navy #0F172A matching Excel)
+    const headerHeight = isFirstPage ? 34 : 28;
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(marginX, 18, tableWidth, headerHeight);
+
+    // Header Logo Pill & Title
+    ctx.save();
+    ctx.font = '700 13px -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.fillStyle = '#ffffff';
+    const reportTitleText = isZh ? 'Freqtrade 机器人平仓交易历史结算报表' : 'Freqtrade Bot Closed Trades Settlement Report';
+    ctx.fillText(reportTitleText, marginX + 12, 18 + headerHeight / 2 + 5);
+
+    // Header Tag Pill
+    ctx.font = '700 9px "JetBrains Mono", Menlo, monospace';
+    const tagText = 'TELEMETRY REPORT';
+    const tagW = ctx.measureText(tagText).width + 12;
+    drawPill(ctx, marginX + tableWidth - tagW - 12, 18 + (headerHeight - 18) / 2, tagW, 18, 4, 'rgba(6, 182, 212, 0.2)', '#06b6d4');
+    ctx.fillStyle = '#22d3ee';
+    ctx.fillText(tagText, marginX + tableWidth - tagW - 6, 18 + (headerHeight - 18) / 2 + 12);
+    ctx.restore();
+
+    // 3. Metadata Subtitle Bar (Slate Navy #1E293B matching Excel)
+    const metaY = 18 + headerHeight;
+    const metaH = 20;
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(marginX, metaY, tableWidth, metaH);
+
+    ctx.save();
+    ctx.font = '500 8.5px "JetBrains Mono", Menlo, "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.fillStyle = '#cbd5e1';
+    const leftMeta = isZh
+      ? `机器人: ${botName}    |    统计范围: 全部已平仓 (${totalTrades} 笔)    |    时间区间: ${periodStr}    |    计价币种: ${currencyUnit} (汇率: ${rate})`
+      : `Bot: ${botName}    |    Scope: All Closed (${totalTrades} trades)    |    Range: ${periodStr}    |    Currency: ${currencyUnit} (Rate: ${rate})`;
+    ctx.fillText(leftMeta, marginX + 12, metaY + 13);
+
+    ctx.textAlign = 'right';
+    const rightMeta = isZh ? `导出时间: ${exportTimeStr} (UTC+8)` : `Exported: ${exportTimeStr} (UTC+8)`;
+    ctx.fillText(rightMeta, marginX + tableWidth - 12, metaY + 13);
+    ctx.restore();
+
+    let tableStartY = metaY + metaH + 8;
+
+    // 4. KPI Summary Cards (Only on Page 1)
+    if (isFirstPage) {
+      const kpiY = metaY + metaH + 8;
+      const kpiH = 46;
+      const kpiCount = 6;
+      const kpiGap = 8;
+      const kpiW = (tableWidth - (kpiCount - 1) * kpiGap) / kpiCount;
+
+      const profitSign = totalProfitAbs > 0 ? '+' : '';
+      const avgSign = Number(avgProfitPct) > 0 ? '+' : '';
+      const totalProfitFormatted = totalProfitAbs.toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      });
+      const totalStakeFormatted = totalStake.toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      });
+
+      const kpis = [
+        { label: isZh ? '总交易笔数' : 'TOTAL TRADES', value: `${totalTrades}`, color: '#1e293b' },
+        { label: isZh ? '胜率 (WIN RATE)' : 'WIN RATE', value: `${winRate}%`, color: Number(winRate) >= 50 ? '#059669' : '#b91c1c' },
+        { label: isZh ? '胜负统计' : 'WINS / LOSSES', value: `${winningTrades}胜 / ${losingTrades}负`, color: '#1e293b' },
+        { label: isZh ? `已实现净收益 (${currencyUnit})` : `TOTAL PROFIT (${currencyUnit})`, value: `${profitSign}${totalProfitFormatted}`, color: totalProfitAbs >= 0 ? '#15803d' : '#b91c1c' },
+        { label: isZh ? '平均单笔收益' : 'AVG RETURN', value: `${avgSign}${avgProfitPct}%`, color: Number(avgProfitPct) >= 0 ? '#15803d' : '#b91c1c' },
+        { label: isZh ? `累计投入本金 (${currencyUnit})` : `TOTAL STAKE (${currencyUnit})`, value: `${totalStakeFormatted}`, color: '#1e293b' },
+      ];
+
+      kpis.forEach((kpi, idx) => {
+        const kX = marginX + idx * (kpiW + kpiGap);
+        // Header band
+        ctx.fillStyle = '#f1f5f9';
+        ctx.fillRect(kX, kpiY, kpiW, 18);
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(kX, kpiY, kpiW, kpiH);
+
+        // Header label
+        ctx.font = '600 7.5px -apple-system, "Segoe UI", sans-serif';
+        ctx.fillStyle = '#475569';
+        ctx.textAlign = 'center';
+        ctx.fillText(kpi.label, kX + kpiW / 2, kpiY + 12);
+
+        // Value box
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(kX, kpiY + 18, kpiW, kpiH - 18);
+        ctx.strokeRect(kX, kpiY + 18, kpiW, kpiH - 18);
+
+        ctx.font = '700 11.5px "JetBrains Mono", Menlo, monospace';
+        ctx.fillStyle = kpi.color;
+        ctx.fillText(kpi.value, kX + kpiW / 2, kpiY + 36);
+      });
+
+      tableStartY = kpiY + kpiH + 10;
+    }
+
+    // 5. Table Header Row (Slate Navy #1E293B)
+    const thHeight = 22;
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(marginX, tableStartY, tableWidth, thHeight);
+
+    let curX = marginX;
+    ctx.font = '700 8.5px "JetBrains Mono", Menlo, "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.fillStyle = '#ffffff';
+
+    columns.forEach((col) => {
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(curX, tableStartY, col.width, thHeight);
+
+      if (col.align === 'center') {
+        ctx.textAlign = 'center';
+        ctx.fillText(col.title, curX + col.width / 2, tableStartY + 14);
+      } else if (col.align === 'right') {
+        ctx.textAlign = 'right';
+        ctx.fillText(col.title, curX + col.width - 6, tableStartY + 14);
+      } else {
+        ctx.textAlign = 'left';
+        ctx.fillText(col.title, curX + 6, tableStartY + 14);
+      }
+      curX += col.width;
+    });
+
+    // 6. Data Rows
+    const rowHeight = 19;
+    const startIndex = isFirstPage ? 0 : rowsPage1 + (pageIdx - 1) * rowsPageNext;
+    const pageRowsCount = isFirstPage ? rowsPage1 : rowsPageNext;
+    const pageTrades = sortedTrades.slice(startIndex, startIndex + pageRowsCount);
+
+    let rowY = tableStartY + thHeight;
+
+    if (sortedTrades.length === 0) {
+      // Empty row
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(marginX, rowY, tableWidth, 32);
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.strokeRect(marginX, rowY, tableWidth, 32);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '500 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(isZh ? '暂无已平仓交易记录' : 'No closed trade records found', marginX + tableWidth / 2, rowY + 20);
+    } else {
+      pageTrades.forEach((item, rIdx) => {
+        const isZebra = rIdx % 2 === 1;
+        const rowBg = isZebra ? '#f8fafc' : '#ffffff';
+
+        ctx.fillStyle = rowBg;
+        ctx.fillRect(marginX, rowY, tableWidth, rowHeight);
+
+        const isProfit = item.profit_pct >= 0;
+        const rawProfitAbs = item.profit_abs !== undefined
+          ? item.profit_abs
+          : (item.stake_amount || 0) * (item.profit_ratio || 0);
+        const pAbs = rawProfitAbs * rate;
+        const pStake = (item.stake_amount || 0) * rate;
+
+        const openDateObj = parseToUtcDate(item.open_timestamp || item.open_date);
+        const closeDateObj = parseToUtcDate(item.close_timestamp || item.close_date);
+        const openTimeStr = openDateObj ? formatUtc8(openDateObj, 'MM-DD HH:mm') : '-';
+        const closeTimeStr = closeDateObj ? formatUtc8(closeDateObj, 'MM-DD HH:mm') : '-';
+        const durationStr = openDateObj && closeDateObj
+          ? formatDuration(openDateObj.getTime(), closeDateObj.getTime(), isZh)
+          : '-';
+
+        const pAbsSign = pAbs > 0 ? '+' : '';
+        const pAbsFormatted = `${pAbsSign}${pAbs.toLocaleString('en-US', {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals,
+        })}`;
+        const pStakeFormatted = pStake.toLocaleString('en-US', {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals,
+        });
+        const pPctSign = item.profit_pct > 0 ? '+' : '';
+        const pPctFormatted = `${pPctSign}${item.profit_pct.toFixed(2)}%`;
+
+        const exitReasonStr = formatExitReason(item.exit_reason, item.exit_tag, isZh);
+        const sigInfo = parseNfiSignal(item.enter_tag, isZh);
+        const cleanPair = (item.pair || '-').replace(/:USDT$/, '');
+
+        let cellX = marginX;
+        columns.forEach((col) => {
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.lineWidth = 0.5;
+          ctx.strokeRect(cellX, rowY, col.width, rowHeight);
+
+          if (col.key === 'id') {
+            ctx.font = '500 8.5px "JetBrains Mono", Menlo, monospace';
+            ctx.fillStyle = '#64748b';
+            ctx.textAlign = 'center';
+            ctx.fillText(`#${item.trade_id}`, cellX + col.width / 2, rowY + 12.5);
+          } else if (col.key === 'pair') {
+            ctx.font = '700 8.5px "JetBrains Mono", Menlo, monospace';
+            ctx.fillStyle = '#0f172a';
+            ctx.textAlign = 'left';
+            ctx.fillText(cleanPair, cellX + 6, rowY + 12.5);
+          } else if (col.key === 'side') {
+            const isShort = Boolean(item.is_short);
+            const sideText = isZh ? (isShort ? '做空' : '做多') : isShort ? 'SHORT' : 'LONG';
+            const pillBg = isShort ? '#fef2f2' : '#ecfdf5';
+            const pillBorder = isShort ? '#fecaca' : '#a7f3d0';
+            const pillColor = isShort ? '#b91c1c' : '#047857';
+            drawPill(ctx, cellX + 5, rowY + 3, col.width - 10, 13, 3, pillBg, pillBorder);
+            ctx.font = '700 7.5px -apple-system, sans-serif';
+            ctx.fillStyle = pillColor;
+            ctx.textAlign = 'center';
+            ctx.fillText(sideText, cellX + col.width / 2, rowY + 12);
+          } else if (col.key === 'open_time') {
+            ctx.font = '500 8px "JetBrains Mono", Menlo, monospace';
+            ctx.fillStyle = '#475569';
+            ctx.textAlign = 'center';
+            ctx.fillText(openTimeStr, cellX + col.width / 2, rowY + 12.5);
+          } else if (col.key === 'close_time') {
+            ctx.font = '500 8px "JetBrains Mono", Menlo, monospace';
+            ctx.fillStyle = '#475569';
+            ctx.textAlign = 'center';
+            ctx.fillText(closeTimeStr, cellX + col.width / 2, rowY + 12.5);
+          } else if (col.key === 'duration') {
+            ctx.font = '500 8px -apple-system, sans-serif';
+            ctx.fillStyle = '#334155';
+            ctx.textAlign = 'center';
+            ctx.fillText(durationStr, cellX + col.width / 2, rowY + 12.5);
+          } else if (col.key === 'open_rate') {
+            ctx.font = '500 8.5px "JetBrains Mono", Menlo, monospace';
+            ctx.fillStyle = '#0f172a';
+            ctx.textAlign = 'right';
+            ctx.fillText(formatPrice(item.open_rate), cellX + col.width - 6, rowY + 12.5);
+          } else if (col.key === 'close_rate') {
+            ctx.font = '500 8.5px "JetBrains Mono", Menlo, monospace';
+            ctx.fillStyle = '#0f172a';
+            ctx.textAlign = 'right';
+            ctx.fillText(formatPrice(item.close_rate), cellX + col.width - 6, rowY + 12.5);
+          } else if (col.key === 'stake') {
+            ctx.font = '500 8.5px "JetBrains Mono", Menlo, monospace';
+            ctx.fillStyle = '#0f172a';
+            ctx.textAlign = 'right';
+            ctx.fillText(pStakeFormatted, cellX + col.width - 6, rowY + 12.5);
+          } else if (col.key === 'profit_abs') {
+            ctx.font = '700 8.5px "JetBrains Mono", Menlo, monospace';
+            ctx.fillStyle = isProfit ? '#15803d' : '#b91c1c';
+            ctx.textAlign = 'right';
+            ctx.fillText(pAbsFormatted, cellX + col.width - 6, rowY + 12.5);
+          } else if (col.key === 'profit_pct') {
+            ctx.font = '700 8.5px "JetBrains Mono", Menlo, monospace';
+            ctx.fillStyle = isProfit ? '#15803d' : '#b91c1c';
+            ctx.textAlign = 'right';
+            ctx.fillText(pPctFormatted, cellX + col.width - 6, rowY + 12.5);
+          } else if (col.key === 'exit_reason') {
+            ctx.font = '500 7.5px -apple-system, sans-serif';
+            ctx.fillStyle = '#334155';
+            ctx.textAlign = 'left';
+            ctx.fillText(exitReasonStr, cellX + 5, rowY + 12);
+          } else if (col.key === 'enter_tag') {
+            ctx.font = '600 7.5px "JetBrains Mono", Menlo, monospace';
+            ctx.fillStyle = '#475569';
+            ctx.textAlign = 'center';
+            ctx.fillText(sigInfo.code, cellX + col.width / 2, rowY + 12);
+          }
+
+          cellX += col.width;
+        });
+
+        rowY += rowHeight;
+      });
+    }
+
+    // 7. Page Footer
+    const footerY = pageHeight - 24;
+    ctx.beginPath();
+    ctx.moveTo(marginX, footerY - 8);
+    ctx.lineTo(marginX + tableWidth, footerY - 8);
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+
+    ctx.font = '500 8px -apple-system, "Segoe UI", sans-serif';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'left';
+    const leftFooter = isZh
+      ? 'FreqUI · 量化交易系统结算报表 · 商业机密 · 仅供内部复盘'
+      : 'FreqUI · Quantitative Trading Settlement Report · Confidential Internal Records';
+    ctx.fillText(leftFooter, marginX, footerY + 3);
+
+    ctx.textAlign = 'center';
+    ctx.font = '700 8px -apple-system, sans-serif';
+    ctx.fillStyle = '#334155';
+    const pageStr = isZh ? `第 ${pageIdx + 1} 页 / 共 ${totalPages} 页` : `Page ${pageIdx + 1} of ${totalPages}`;
+    ctx.fillText(pageStr, pageWidth / 2, footerY + 3);
+
+    ctx.textAlign = 'right';
+    ctx.font = '700 8px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#059669';
+    ctx.fillText('UTC+8 Telemetry Verified ✓', marginX + tableWidth, footerY + 3);
+
+    ctx.restore();
+    canvasList.push(canvas);
+  }
+
+  // 8. Assemble multi-page canvases into PDF byte stream
+  const builder = new PdfBuilder();
+  builder.addText('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+
+  // Object 1: Catalog
+  builder.startObject(1);
+  builder.addText('<< /Type /Catalog /Pages 2 0 R >>\n');
+  builder.endObject();
+
+  // Object 2: Pages
+  const totalCanvases = canvasList.length;
+  const kidsStr = Array.from({ length: totalCanvases }, (_, i) => `${3 + i * 3} 0 R`).join(' ');
+  builder.startObject(2);
+  builder.addText(`<< /Type /Pages /Kids [ ${kidsStr} ] /Count ${totalCanvases} >>\n`);
+  builder.endObject();
+
+  // For each page, add Page obj (3 + i*3), Content stream (4 + i*3), and Image XObject (5 + i*3)
+  for (let i = 0; i < totalCanvases; i++) {
+    const canvas = canvasList[i];
+    const pageObjId = 3 + i * 3;
+    const contentObjId = 4 + i * 3;
+    const imageObjId = 5 + i * 3;
+
+    // Convert canvas to JPEG bytes
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.94);
+    const b64 = dataUrl.split(',')[1];
+    const binStr = atob(b64);
+    const jpegBytes = new Uint8Array(binStr.length);
+    for (let k = 0; k < binStr.length; k++) {
+      jpegBytes[k] = binStr.charCodeAt(k);
+    }
+
+    // 1) Page Object
+    builder.startObject(pageObjId);
+    builder.addText(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Im${i + 1} ${imageObjId} 0 R >> >> /Contents ${contentObjId} 0 R >>\n`
+    );
+    builder.endObject();
+
+    // 2) Content Stream
+    const contentStr = `q ${pageWidth} 0 0 ${pageHeight} 0 0 cm /Im${i + 1} Do Q\n`;
+    const enc = new TextEncoder();
+    const contentBytes = enc.encode(contentStr);
+
+    builder.startObject(contentObjId);
+    builder.addText(`<< /Length ${contentBytes.length} >>\nstream\n${contentStr}endstream\n`);
+    builder.endObject();
+
+    // 3) Image XObject
+    builder.startObject(imageObjId);
+    builder.addText(
+      `<< /Type /XObject /Subtype /Image /Width ${canvas.width} /Height ${canvas.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`
+    );
+    builder.addBytes(jpegBytes);
+    builder.addText('\nendstream\n');
+    builder.endObject();
+  }
+
+  const totalObjects = 2 + totalCanvases * 3;
+  const pdfBytes = builder.build(totalObjects);
+
+  // 9. Instant Direct Download (Matching Excel behavior, zero popup windows)
+  const safeBotName = botName.replace(/[^a-zA-Z0-9_\u4e00-\u9fa5-]/g, '_');
+  const fileDate = formatUtc8(new Date(), 'YYYY-MM-DD');
+  const fileName = `${isZh ? 'FreqUI_平仓交易结算单' : 'FreqUI_Closed_Trades'}_${safeBotName}_${fileDate}.pdf`;
+
+  const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }

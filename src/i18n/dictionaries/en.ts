@@ -355,7 +355,7 @@ export const en: Record<string, string> = {
   'closed.export_excel_option': 'Excel Spreadsheet (.xlsx)',
   'closed.export_pdf_option': 'PDF Document (.pdf)',
   'closed.export_excel_desc': 'Formatted spreadsheet with full trade log and metrics',
-  'closed.export_pdf_desc': 'Vector printable report suitable for printing or saving as PDF',
+  'closed.export_pdf_desc': 'Direct PDF download with matching institutional layout',
   'closed.exporting': 'Exporting...',
   'closed.export_tooltip': 'Export closed trades to Excel or PDF report',
 
