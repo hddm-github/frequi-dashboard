@@ -567,18 +567,30 @@ export function CandleChartView() {
     }
   };
 
+  // Zoom to recent candles with ~2x magnification so candles are wide and readable
+  const zoomToRecentCandles = (chartInstance: any, totalBars: number) => {
+    if (!chartInstance || totalBars <= 0) return;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const barsToShow = isMobile ? 50 : 80;
+    const fromIndex = Math.max(0, totalBars - barsToShow);
+    chartInstance.timeScale().setVisibleLogicalRange({
+      from: fromIndex,
+      to: totalBars + 4,
+    });
+  };
+
   // 3. Initialize lightweight-charts & setup scroll event listener
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: isDark ? '#131b2e' : '#ffffff' },
+        background: { type: ColorType.Solid, color: isDark ? '#141c2e' : '#ffffff' },
         textColor: isDark ? '#94a3b8' : '#475569',
       },
       grid: {
-        vertLines: { color: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)' },
-        horzLines: { color: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)' },
+        vertLines: { color: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' },
+        horzLines: { color: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' },
       },
       localization: {
         timeFormatter: (t: number) => formatUtc8(t, 'YYYY-MM-DD HH:mm'),
@@ -586,11 +598,14 @@ export function CandleChartView() {
       timeScale: {
         timeVisible: true,
         secondsVisible: false,
-        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#cbd5e1',
+        rightOffset: 5,
+        barSpacing: 8,
+        minBarSpacing: 0.5,
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1',
         tickMarkFormatter: (time: number) => formatUtc8(time, 'MM-DD HH:mm'),
       },
       rightPriceScale: {
-        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#cbd5e1',
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1',
       },
       crosshair: {
         vertLine: { color: isDark ? '#64748b' : '#94a3b8' },
@@ -647,7 +662,7 @@ export function CandleChartView() {
         }))
       );
 
-      chart.timeScale().fitContent();
+      zoomToRecentCandles(chart, candlesRef.current.length);
     }
 
     // Listen to user panning/scrolling into the past to trigger pagination
@@ -755,18 +770,18 @@ export function CandleChartView() {
     if (!chartRef.current) return;
     chartRef.current.applyOptions({
       layout: {
-        background: { type: ColorType.Solid, color: isDark ? '#131b2e' : '#ffffff' },
+        background: { type: ColorType.Solid, color: isDark ? '#141c2e' : '#ffffff' },
         textColor: isDark ? '#94a3b8' : '#475569',
       },
       grid: {
-        vertLines: { color: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)' },
-        horzLines: { color: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)' },
+        vertLines: { color: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' },
+        horzLines: { color: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' },
       },
       timeScale: {
-        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#cbd5e1',
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1',
       },
       rightPriceScale: {
-        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#cbd5e1',
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1',
       },
     });
   }, [isDark]);
@@ -823,7 +838,7 @@ export function CandleChartView() {
           }))
         );
 
-        chartRef.current?.timeScale().fitContent();
+        zoomToRecentCandles(chartRef.current, data.length);
       }
     } catch (err: any) {
       console.error('Failed to load candles', err);
@@ -841,13 +856,13 @@ export function CandleChartView() {
   return (
     <div
       className={`flex flex-col h-full overflow-hidden transition-colors relative ${
-        isDark ? 'bg-[#131b2e] text-slate-100' : 'bg-white text-slate-800'
+        isDark ? 'bg-[#141c2e] text-slate-100' : 'bg-white text-slate-800'
       }`}
     >
       {/* Chart Toolbar */}
       <div
         className={`flex flex-col gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 border-b text-xs transition-colors shrink-0 ${
-          isDark ? 'border-slate-800 bg-[#0f1626]' : 'border-slate-200 bg-slate-50'
+          isDark ? 'border-slate-700/80 bg-[#141d2f]' : 'border-slate-200 bg-slate-50'
         }`}
       >
         {/* Main Row: Pair Selector & Action Controls */}
@@ -1206,7 +1221,7 @@ export function CandleChartView() {
           ) : (
             <History className="w-3 h-3" />
           )}
-          <span>+历史 ({candles.length})</span>
+          <span>+{t('candle.load_older_short')} ({candles.length})</span>
         </button>
       </div>
 
@@ -1214,7 +1229,7 @@ export function CandleChartView() {
       {activeTrade && (
         <div
           className={`w-full flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg border font-mono text-[11px] whitespace-nowrap overflow-x-auto no-scrollbar ${
-            isDark ? 'bg-[#1a233a] border-slate-700 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'
+            isDark ? 'bg-[#182236] border-slate-700 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'
           }`}
         >
           <div className="flex items-center gap-3 shrink-0">

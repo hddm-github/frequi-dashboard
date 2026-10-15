@@ -459,6 +459,7 @@ export const en: Record<string, string> = {
   'candle.market_timeframe': 'Market timeframe',
   'candle.load_older_title': 'Load earlier historical candles',
   'candle.load_older_btn': 'Load earlier history',
+  'candle.load_older_short': 'Older',
   'candle.markers_title': 'Show entry and exit markers on the chart',
   'candle.markers_label': 'Trade markers',
   'candle.add_marker': 'Add',

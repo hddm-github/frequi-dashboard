@@ -451,6 +451,7 @@ export const zh: Record<string, string> = {
   'candle.market_timeframe': '市场周期',
   'candle.load_older_title': '加载更早的历史K线',
   'candle.load_older_btn': '加载更早历史',
+  'candle.load_older_short': '历史',
   'candle.markers_title': '在图表上显示入场和退出标记',
   'candle.markers_label': '交易标记',
   'candle.add_marker': '加仓',
