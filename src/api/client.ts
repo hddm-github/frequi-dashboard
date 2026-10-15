@@ -515,14 +515,43 @@ export class FreqtradeClient {
     }
   }
 
-  async getClosedTrades(limit: number = 100, orderById: boolean = false): Promise<Trade[]> {
+  async getClosedTrades(
+    limit: number = 500,
+    orderById: boolean = false,
+    options?: { fetchAll?: boolean; maxLimit?: number }
+  ): Promise<Trade[]> {
     try {
-      const data = await this.request<{ trades: any[] }>('trades', {
-        limit,
+      const pageSize = Math.min(limit, 500);
+      const data = await this.request<{ trades: any[]; total_trades?: number }>('trades', {
+        limit: pageSize,
+        offset: 0,
         order_by_id: orderById,
       });
 
-      const list: Trade[] = (data.trades || [])
+      let rawTrades = data.trades || [];
+      const totalTrades = data.total_trades ?? rawTrades.length;
+
+      // If fetchAll is requested (or limit > 500) and there are more trades available in Freqtrade
+      if ((options?.fetchAll || limit > 500) && totalTrades > rawTrades.length) {
+        const targetCount = options?.fetchAll ? (options.maxLimit || 10000) : limit;
+        let currentOffset = rawTrades.length;
+
+        while (currentOffset < totalTrades && rawTrades.length < targetCount) {
+          const nextBatch = await this.request<{ trades: any[] }>('trades', {
+            limit: pageSize,
+            offset: currentOffset,
+            order_by_id: orderById,
+          }).catch(() => null);
+
+          if (!nextBatch || !nextBatch.trades || nextBatch.trades.length === 0) {
+            break;
+          }
+          rawTrades = rawTrades.concat(nextBatch.trades);
+          currentOffset += nextBatch.trades.length;
+        }
+      }
+
+      const list: Trade[] = rawTrades
         .filter((t) => !t.is_open)
         .map((t) => ({
           trade_id: t.trade_id,
@@ -565,6 +594,10 @@ export class FreqtradeClient {
     }
   }
 
+  async getAllClosedTrades(maxLimit: number = 10000): Promise<Trade[]> {
+    return this.getClosedTrades(500, false, { fetchAll: true, maxLimit });
+  }
+
   async getDailyPerformance(timescale: number = 30): Promise<DailyRecord[]> {
     try {
       const res = await this.request<any>('daily', { timescale });
@@ -589,7 +622,7 @@ export class FreqtradeClient {
 
   async getSignalStats(closedTrades?: Trade[]): Promise<SignalStat[]> {
     try {
-      const closed = closedTrades || (await this.getClosedTrades(200, false));
+      const closed = closedTrades || (await this.getClosedTrades(500, false));
       if (closed.length === 0) return [];
 
       const map = new Map<string, { total: number; wins: number; loss: number; profits: number[] }>();

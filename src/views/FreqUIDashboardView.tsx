@@ -43,6 +43,7 @@ export function FreqUIDashboardView() {
     setMobileTab,
     activeProfile,
     exchangeRates,
+    loadAllClosedTrades,
   } = useBot();
 
   const ws = useOptionalWorkspace();
@@ -729,13 +730,21 @@ export function FreqUIDashboardView() {
             </span>
             <div className="flex items-center gap-1.5">
               <button
-                onClick={() => {
+                onClick={async () => {
+                  let tradesToExport = closedTrades;
+                  if (profitSummary?.closed_trade_count && profitSummary.closed_trade_count > closedTrades.length) {
+                    const all = await loadAllClosedTrades();
+                    if (all && all.length > 0) {
+                      tradesToExport = all;
+                    }
+                  }
+
                   let rate = 1;
                   if (currencyUnit === 'USD') rate = exchangeRates.USD || 1;
                   else if (currencyUnit === 'CNY') rate = exchangeRates.CNY || 6.7025;
                   else if (currencyUnit === 'IDR') rate = exchangeRates.IDR || 16000;
 
-                  exportClosedTradesToExcel(closedTrades, {
+                  exportClosedTradesToExcel(tradesToExport, {
                     locale,
                     botName: activeProfile?.name || 'Freqtrade Bot',
                     currencyUnit: currencyUnit || 'USDT',

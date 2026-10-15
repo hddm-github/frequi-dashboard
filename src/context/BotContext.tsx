@@ -72,6 +72,8 @@ interface BotContextValue {
   refreshCountdown: number;
   refreshInterval: number;
   setRefreshInterval: (seconds: number) => void;
+  loadAllClosedTrades: () => Promise<Trade[]>;
+  isLoadingAllTrades: boolean;
 }
 
 const BotContext = createContext<BotContextValue | null>(null);
@@ -366,6 +368,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
   const [botState, setBotState] = useState<BotState>(() => snapshot?.botState || EMPTY_BOT_STATE);
   const [activeTrades, setActiveTrades] = useState<Trade[]>(() => snapshot?.activeTrades || []);
   const [closedTrades, setClosedTrades] = useState<Trade[]>(() => snapshot?.closedTrades || []);
+  const [isLoadingAllTrades, setIsLoadingAllTrades] = useState<boolean>(false);
   const [profitSummary, setProfitSummary] = useState<ProfitSummary | null>(() => snapshot?.profitSummary || null);
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
   const [signals, setSignals] = useState<SignalStat[]>([]);
@@ -548,11 +551,24 @@ export function BotProvider({ children }: { children: ReactNode }) {
         if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
         if (summary) setProfitSummary(summary);
 
-        const closed = await targetClient.getClosedTrades(100, false).catch(() => null);
+        const closed = await targetClient.getClosedTrades(500, false).catch(() => null);
         if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
         if (closed) {
-          setClosedTrades(closed);
-          closedTradesRef.current = closed;
+          setClosedTrades((prev) => {
+            let next = closed;
+            if (prev.length > closed.length) {
+              const tradeMap = new Map<number, Trade>();
+              prev.forEach((t) => tradeMap.set(t.trade_id, t));
+              closed.forEach((t) => tradeMap.set(t.trade_id, t));
+              next = Array.from(tradeMap.values()).sort((a, b) => {
+                const timeA = a.close_timestamp || (a.close_date ? new Date(a.close_date).getTime() : 0);
+                const timeB = b.close_timestamp || (b.close_date ? new Date(b.close_date).getTime() : 0);
+                return timeB - timeA;
+              });
+            }
+            closedTradesRef.current = next;
+            return next;
+          });
         }
 
         const daily = await targetClient.getDailyPerformance(30).catch(() => null);
@@ -777,6 +793,35 @@ export function BotProvider({ children }: { children: ReactNode }) {
     return success;
   }, [client, isReadOnly, refreshData]);
 
+  const loadAllClosedTrades = useCallback(async (): Promise<Trade[]> => {
+    if (!client) return closedTradesRef.current;
+    setIsLoadingAllTrades(true);
+    try {
+      const all = await client.getAllClosedTrades();
+      if (all && all.length > 0) {
+        setClosedTrades((prev) => {
+          const tradeMap = new Map<number, Trade>();
+          prev.forEach((t) => tradeMap.set(t.trade_id, t));
+          all.forEach((t) => tradeMap.set(t.trade_id, t));
+          const merged = Array.from(tradeMap.values());
+          merged.sort((a, b) => {
+            const timeA = a.close_timestamp || (a.close_date ? new Date(a.close_date).getTime() : 0);
+            const timeB = b.close_timestamp || (b.close_date ? new Date(b.close_date).getTime() : 0);
+            return timeB - timeA;
+          });
+          closedTradesRef.current = merged;
+          return merged;
+        });
+      }
+      return closedTradesRef.current;
+    } catch (err) {
+      console.warn('Failed to load all closed trades:', err);
+      return closedTradesRef.current;
+    } finally {
+      setIsLoadingAllTrades(false);
+    }
+  }, [client]);
+
   // Initial load: 进来后直接强制全量拉取一次手动同步接口(包含平仓历史与收益)
   useEffect(() => {
     if (activeProfile && lastLoadedBotIdRef.current !== activeProfile.id) {
@@ -874,6 +919,8 @@ export function BotProvider({ children }: { children: ReactNode }) {
         refreshCountdown,
         refreshInterval,
         setRefreshInterval,
+        loadAllClosedTrades,
+        isLoadingAllTrades,
       }}
     >
       {children}

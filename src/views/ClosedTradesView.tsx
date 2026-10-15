@@ -25,7 +25,21 @@ function useIsMobile() {
 }
 
 export function ClosedTradesView() {
-  const { closedTrades, setSelectedPair, theme, formatCurrency, refreshData, setMobileTab, isReadOnly, activeProfile, currencyUnit, exchangeRates } = useBot();
+  const {
+    closedTrades,
+    setSelectedPair,
+    theme,
+    formatCurrency,
+    refreshData,
+    setMobileTab,
+    isReadOnly,
+    activeProfile,
+    currencyUnit,
+    exchangeRates,
+    profitSummary,
+    loadAllClosedTrades,
+    isLoadingAllTrades,
+  } = useBot();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,16 +85,24 @@ export function ClosedTradesView() {
     });
   }, [closedTrades]);
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (isExporting || sortedTrades.length === 0) return;
     setIsExporting(true);
     try {
+      let tradesToExport = sortedTrades;
+      if (profitSummary?.closed_trade_count && profitSummary.closed_trade_count > sortedTrades.length) {
+        const all = await loadAllClosedTrades();
+        if (all && all.length > 0) {
+          tradesToExport = all;
+        }
+      }
+
       let rate = 1;
       if (currencyUnit === 'USD') rate = exchangeRates.USD || 1;
       else if (currencyUnit === 'CNY') rate = exchangeRates.CNY || 6.7025;
       else if (currencyUnit === 'IDR') rate = exchangeRates.IDR || 16000;
 
-      exportClosedTradesToExcel(sortedTrades, {
+      exportClosedTradesToExcel(tradesToExport, {
         locale,
         botName: activeProfile?.name || 'Freqtrade Bot',
         currencyUnit: currencyUnit || 'USDT',
@@ -168,14 +190,37 @@ export function ClosedTradesView() {
           isDark ? 'border-slate-800 bg-[#0f1626]' : 'border-slate-200 bg-slate-50'
         }`}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <History className="w-4 h-4 text-emerald-500 shrink-0" />
           <span className="text-xs font-bold uppercase tracking-wide">
-            {translate('closed.sync_btn')} ( {sortedTrades.length} {translate('ui.trades')})
+            {translate('closed.sync_btn')} ( {sortedTrades.length}
+            {profitSummary?.closed_trade_count && profitSummary.closed_trade_count > sortedTrades.length
+              ? ` / ${profitSummary.closed_trade_count}`
+              : ''}{' '}
+            {translate('ui.trades')})
           </span>
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-mono shrink-0">
             {translate('closed.newest_first')}
           </span>
+          {profitSummary?.closed_trade_count && profitSummary.closed_trade_count > sortedTrades.length && (
+            <button
+              onClick={() => loadAllClosedTrades()}
+              disabled={isLoadingAllTrades}
+              className={`text-[10px] px-2 py-0.5 rounded border font-mono transition-colors cursor-pointer flex items-center gap-1 ${
+                isDark
+                  ? 'border-cyan-800 bg-cyan-950/60 text-cyan-300 hover:bg-cyan-900/60'
+                  : 'border-cyan-300 bg-cyan-50 text-cyan-700 hover:bg-cyan-100'
+              }`}
+              title={locale === 'zh' ? '从机器人拉取所有历史平仓数据' : 'Fetch all closed trades from bot'}
+            >
+              {isLoadingAllTrades && <RefreshCw className="w-2.5 h-2.5 animate-spin" />}
+              <span>
+                {isLoadingAllTrades
+                  ? (locale === 'zh' ? '正在加载全量…' : 'Loading all…')
+                  : (locale === 'zh' ? `点击拉取全部 (${profitSummary.closed_trade_count}条)` : `Load All (${profitSummary.closed_trade_count})`)}
+              </span>
+            </button>
+          )}
         </div>
 
         <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2 sm:gap-3 flex-wrap">
