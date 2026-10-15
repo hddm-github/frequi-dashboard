@@ -355,27 +355,12 @@ export function FreqUIDashboardView() {
           <div className="text-lg sm:text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight whitespace-nowrap truncate my-0.5">
             {isReadOnly ? t('ui.hidden') : formatCurrency(botState.balance)}
           </div>
-          <div className="h-5 flex items-center justify-between gap-1 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap overflow-hidden">
+          <div className="h-5 flex items-center text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap overflow-hidden truncate">
             <span
               className="truncate"
-              title={`${t('dashboard.available')}: ${isReadOnly ? t('ui.hidden') : formatCurrency(botState.free_balance ?? botState.balance)}`}
-            >
-              <span className="hidden sm:inline">{t('dashboard.available')}</span>
-              <span className="sm:hidden">{t('dashboard.available_short')}</span>:{' '}
-              <span className="text-slate-700 dark:text-slate-200 font-semibold">
-                {isReadOnly
-                  ? t('ui.hidden')
-                  : formatCurrency(botState.free_balance ?? botState.balance, {
-                      decimals: (botState.free_balance ?? botState.balance ?? 0) >= 1000 ? 0 : 2,
-                    })}
-              </span>
-            </span>
-            <span
-              className="truncate text-right shrink-0"
               title={`${t('dashboard.per_trade')}: ${nextStakeInfo.label}`}
             >
-              <span className="hidden sm:inline">{t('dashboard.per_trade')}</span>
-              <span className="sm:hidden">{t('dashboard.per_trade_short')}</span>:{' '}
+              <span>{t('dashboard.per_trade')}</span>:{' '}
               <span
                 className={`font-semibold ${
                   nextStakeInfo.isFull
