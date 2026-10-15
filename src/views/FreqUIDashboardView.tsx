@@ -84,6 +84,9 @@ export function FreqUIDashboardView() {
     return 1;
   };
 
+  // Share button display toggle (hidden as requested)
+  const SHOW_SHARE_BUTTON = false;
+
   const handleOpenDashboardShare = () => {
     const rate = getExchangeRate();
     const data: DashboardShareData = {
@@ -364,15 +367,17 @@ export function FreqUIDashboardView() {
           <div className="h-6 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 gap-1">
             <span className="font-medium truncate">{t('dashboard.realized_profit')}</span>
             <div className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={handleOpenDashboardShare}
-                className="p-0.5 rounded text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors cursor-pointer"
-                title={t('share.share_dashboard')}
-                aria-label={t('share.share_dashboard')}
-              >
-                <Share2 className="w-3.5 h-3.5" />
-              </button>
+              {SHOW_SHARE_BUTTON && (
+                <button
+                  type="button"
+                  onClick={handleOpenDashboardShare}
+                  className="p-0.5 rounded text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                  title={t('share.share_dashboard')}
+                  aria-label={t('share.share_dashboard')}
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                </button>
+              )}
               <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
             </div>
           </div>
@@ -456,15 +461,17 @@ export function FreqUIDashboardView() {
           <div className="h-6 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 gap-1">
             <span className="font-medium truncate">{t('dashboard.balance')}</span>
             <div className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={handleOpenDashboardShare}
-                className="p-0.5 rounded text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors cursor-pointer"
-                title={t('share.share_dashboard')}
-                aria-label={t('share.share_dashboard')}
-              >
-                <Share2 className="w-3.5 h-3.5" />
-              </button>
+              {SHOW_SHARE_BUTTON && (
+                <button
+                  type="button"
+                  onClick={handleOpenDashboardShare}
+                  className="p-0.5 rounded text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                  title={t('share.share_dashboard')}
+                  aria-label={t('share.share_dashboard')}
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={toggleHideBalances}
@@ -639,14 +646,16 @@ export function FreqUIDashboardView() {
 
                       <td className="py-2 px-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleOpenActiveTradeShare(trade)}
-                            className="px-2 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0"
-                            title={t('trade.share')}
-                          >
-                            <Share2 className="w-3 h-3" />
-                            <span>{t('trade.share')}</span>
-                          </button>
+                          {SHOW_SHARE_BUTTON && (
+                            <button
+                              onClick={() => handleOpenActiveTradeShare(trade)}
+                              className="px-2 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                              title={t('trade.share')}
+                            >
+                              <Share2 className="w-3 h-3" />
+                              <span>{t('trade.share')}</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => handleViewChart(trade.pair)}
                             className="px-2 py-0.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-500 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0"
@@ -1036,13 +1045,15 @@ export function FreqUIDashboardView() {
                             { showSign: true }
                           )}
                         </span>
-                        <button
-                          onClick={() => handleOpenClosedTradeShare(item)}
-                          className="p-0.5 rounded text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors cursor-pointer shrink-0"
-                          title={t('trade.share')}
-                        >
-                          <Share2 className="w-3 h-3" />
-                        </button>
+                        {SHOW_SHARE_BUTTON && (
+                          <button
+                            onClick={() => handleOpenClosedTradeShare(item)}
+                            className="p-0.5 rounded text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors cursor-pointer shrink-0"
+                            title={t('trade.share')}
+                          >
+                            <Share2 className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -1061,12 +1072,14 @@ export function FreqUIDashboardView() {
         </div>
       </div>
 
-      {/* Share Card Modal */}
-      <ShareCardModal
-        isOpen={shareModalOpen}
-        onClose={() => setShareModalOpen(false)}
-        data={shareModalData}
-      />
+      {/* Share Card Modal (hidden) */}
+      {SHOW_SHARE_BUTTON && (
+        <ShareCardModal
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+          data={shareModalData}
+        />
+      )}
     </div>
   );
 }

@@ -49,6 +49,7 @@ export function ClosedTradesView() {
   const [isExporting, setIsExporting] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [shareTrade, setShareTrade] = useState<Trade | null>(null);
+  const SHOW_SHARE_BUTTON = false;
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -473,14 +474,16 @@ export function ClosedTradesView() {
 
                     <td className="py-2.5 px-3 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => setShareTrade(t)}
-                          className="px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-[11px] font-medium inline-flex items-center gap-1 transition-colors cursor-pointer shrink-0"
-                          title={translate('trade.share')}
-                        >
-                          <Share2 className="w-3.5 h-3.5" />
-                          <span>{translate('trade.share')}</span>
-                        </button>
+                        {SHOW_SHARE_BUTTON && (
+                          <button
+                            onClick={() => setShareTrade(t)}
+                            className="px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-[11px] font-medium inline-flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                            title={translate('trade.share')}
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                            <span>{translate('trade.share')}</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => handleViewChart(t.pair)}
                           className="px-2 py-1 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-500 text-[11px] font-medium inline-flex items-center gap-1 transition-colors cursor-pointer shrink-0"
@@ -584,12 +587,14 @@ export function ClosedTradesView() {
         )}
       </div>
 
-      {/* Share Card Modal */}
-      <ShareCardModal
-        isOpen={Boolean(shareTrade)}
-        onClose={() => setShareTrade(null)}
-        data={shareData}
-      />
+      {/* Share Card Modal (hidden) */}
+      {SHOW_SHARE_BUTTON && (
+        <ShareCardModal
+          isOpen={Boolean(shareTrade)}
+          onClose={() => setShareTrade(null)}
+          data={shareData}
+        />
+      )}
     </div>
   );
 }
