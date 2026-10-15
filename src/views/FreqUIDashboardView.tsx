@@ -18,11 +18,15 @@ import {
   FileSpreadsheet,
   FileText,
   ChevronDown,
+  Share2,
 } from 'lucide-react';
 import { SignalBadge } from '../components/SignalBadge';
 import { formatUtc8 } from '../utils/dateUtils';
 import { exportClosedTradesToExcel } from '../utils/excelExport';
 import { exportClosedTradesToPdf } from '../utils/pdfExport';
+import { ShareCardModal } from '../components/share/ShareCardModal';
+import type { ShareCardData, DashboardShareData, ActiveTradeShareData, ClosedTradeShareData } from '../components/share/shareTypes';
+import type { Trade } from '../types';
 
 import { useOptionalWorkspace } from '@danfessler/trellis-react';
 import { useLocale } from '../i18n/LocaleContext';
@@ -63,11 +67,112 @@ export function FreqUIDashboardView() {
     setMobileTab('chart');
   };
 
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareModalData, setShareModalData] = useState<ShareCardData | null>(null);
+
   const totalUnrealized = activeTrades.reduce((sum, trade) => sum + (trade.profit_abs || 0), 0);
   const totalStake = activeTrades.reduce((sum, trade) => sum + (trade.stake_amount || 0), 0);
   const winRate = profitSummary?.winrate ? Math.round(profitSummary.winrate * 1000) / 10 : 0;
   const closedCount = profitSummary?.closed_trade_count || 0;
   const isDark = theme === 'dark';
+
+  const getExchangeRate = () => {
+    if (currencyUnit === 'USD') return exchangeRates.USD || 1;
+    if (currencyUnit === 'CNY') return exchangeRates.CNY || 6.7025;
+    if (currencyUnit === 'EUR') return exchangeRates.EUR || 0.8929;
+    if (currencyUnit === 'IDR') return exchangeRates.IDR || 16000;
+    return 1;
+  };
+
+  const handleOpenDashboardShare = () => {
+    const rate = getExchangeRate();
+    const data: DashboardShareData = {
+      type: 'dashboard',
+      botName: activeProfile?.name || 'Freqtrade Bot',
+      strategyName: botState.strategy || 'NFI',
+      timeframe: botState.timeframe || '5m',
+      balance: botState.balance,
+      freeBalance: botState.free_balance,
+      realizedProfit: profitSummary?.profit_closed_coin || 0,
+      realizedRatio: profitSummary?.profit_closed_ratio || 0,
+      unrealizedProfit: totalUnrealized,
+      winRate,
+      totalTrades: closedCount,
+      winningTrades: profitSummary?.winning_trades || 0,
+      losingTrades: profitSummary?.losing_trades || 0,
+      activeTradesCount: activeTrades.length,
+      maxOpenTrades: botState.max_open_trades || 6,
+      totalStake,
+      avgDailyProfit: dailyStats.avgDailyProfit,
+      dailyWinrate: dailyStats.dailyWinrate,
+      currencyUnit: currencyUnit || 'USD',
+      exchangeRate: rate,
+    };
+    setShareModalData(data);
+    setShareModalOpen(true);
+  };
+
+  const handleOpenActiveTradeShare = (trade: Trade) => {
+    const rate = getExchangeRate();
+    const profitAbs =
+      trade.profit_abs !== undefined
+        ? trade.profit_abs
+        : (trade.stake_amount || 0) * (trade.profit_ratio || 0);
+
+    const data: ActiveTradeShareData = {
+      type: 'active_trade',
+      botName: activeProfile?.name || 'Freqtrade Bot',
+      strategyName: botState.strategy || 'NFI',
+      tradeId: trade.trade_id,
+      pair: trade.pair,
+      isShort: Boolean(trade.is_short),
+      openRate: trade.open_rate,
+      currentRate: trade.current_rate,
+      profitPct: trade.profit_pct,
+      profitAbs,
+      stakeAmount: trade.stake_amount || 0,
+      amount: trade.amount,
+      enterTag: trade.enter_tag,
+      stopLossAbs: trade.stop_loss_abs,
+      stopLossPct: trade.stop_loss_pct,
+      openTimestamp: trade.open_timestamp || trade.open_date,
+      currencyUnit: currencyUnit || 'USD',
+      exchangeRate: rate,
+    };
+    setShareModalData(data);
+    setShareModalOpen(true);
+  };
+
+  const handleOpenClosedTradeShare = (trade: Trade) => {
+    const rate = getExchangeRate();
+    const profitAbs =
+      trade.profit_abs !== undefined
+        ? trade.profit_abs
+        : (trade.stake_amount || 0) * (trade.profit_ratio || 0);
+
+    const data: ClosedTradeShareData = {
+      type: 'closed_trade',
+      botName: activeProfile?.name || 'Freqtrade Bot',
+      strategyName: botState.strategy || 'NFI',
+      tradeId: trade.trade_id,
+      pair: trade.pair,
+      isShort: Boolean(trade.is_short),
+      openRate: trade.open_rate,
+      closeRate: trade.close_rate || 0,
+      profitPct: trade.profit_pct,
+      profitAbs,
+      stakeAmount: trade.stake_amount || 0,
+      amount: trade.amount,
+      enterTag: trade.enter_tag,
+      exitReason: trade.exit_reason || trade.exit_tag,
+      openTimestamp: trade.open_timestamp || trade.open_date,
+      closeTimestamp: trade.close_timestamp || trade.close_date,
+      currencyUnit: currencyUnit || 'USD',
+      exchangeRate: rate,
+    };
+    setShareModalData(data);
+    setShareModalOpen(true);
+  };
 
   // Dynamic next stake calculation based on NFI/Freqtrade unlimited stake logic
   const nextStakeInfo = useMemo(() => {
@@ -258,7 +363,18 @@ export function FreqUIDashboardView() {
         >
           <div className="h-6 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 gap-1">
             <span className="font-medium truncate">{t('dashboard.realized_profit')}</span>
-            <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={handleOpenDashboardShare}
+                className="p-0.5 rounded text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                title={t('share.share_dashboard')}
+                aria-label={t('share.share_dashboard')}
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </button>
+              <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+            </div>
           </div>
           <div className="text-lg sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight whitespace-nowrap truncate my-0.5">
             {isReadOnly ? t('ui.hidden') : formatCurrency(profitSummary?.profit_closed_coin || 0, { showSign: true })}
@@ -340,6 +456,15 @@ export function FreqUIDashboardView() {
           <div className="h-6 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 gap-1">
             <span className="font-medium truncate">{t('dashboard.balance')}</span>
             <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={handleOpenDashboardShare}
+                className="p-0.5 rounded text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                title={t('share.share_dashboard')}
+                aria-label={t('share.share_dashboard')}
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </button>
               <button
                 type="button"
                 onClick={toggleHideBalances}
@@ -514,6 +639,14 @@ export function FreqUIDashboardView() {
 
                       <td className="py-2 px-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleOpenActiveTradeShare(trade)}
+                            className="px-2 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                            title={t('trade.share')}
+                          >
+                            <Share2 className="w-3 h-3" />
+                            <span>{t('trade.share')}</span>
+                          </button>
                           <button
                             onClick={() => handleViewChart(trade.pair)}
                             className="px-2 py-0.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-500 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0"
@@ -890,18 +1023,27 @@ export function FreqUIDashboardView() {
                         <SignalBadge tag={item.enter_tag} showIcon={false} className="shrink-0 scale-90 origin-left" />
                       </div>
 
-                      <span
-                        className={`font-bold font-mono text-xs shrink-0 whitespace-nowrap ${
-                          isProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
-                        }`}
-                      >
-                        {formatCurrency(
-                          item.profit_abs !== undefined
-                            ? item.profit_abs
-                            : (item.stake_amount || 0) * (item.profit_ratio || 0),
-                          { showSign: true }
-                        )}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span
+                          className={`font-bold font-mono text-xs whitespace-nowrap ${
+                            isProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                          }`}
+                        >
+                          {formatCurrency(
+                            item.profit_abs !== undefined
+                              ? item.profit_abs
+                              : (item.stake_amount || 0) * (item.profit_ratio || 0),
+                            { showSign: true }
+                          )}
+                        </span>
+                        <button
+                          onClick={() => handleOpenClosedTradeShare(item)}
+                          className="p-0.5 rounded text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors cursor-pointer shrink-0"
+                          title={t('trade.share')}
+                        >
+                          <Share2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Bottom row: close time | return percentage */}
@@ -918,6 +1060,13 @@ export function FreqUIDashboardView() {
           </div>
         </div>
       </div>
+
+      {/* Share Card Modal */}
+      <ShareCardModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        data={shareModalData}
+      />
     </div>
   );
 }

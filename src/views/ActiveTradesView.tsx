@@ -1,14 +1,30 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useBot } from '../context/BotContext';
 import { useOptionalWorkspace } from '@danfessler/trellis-react';
-import { CandlestickChart, XCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { CandlestickChart, XCircle, ArrowUpRight, ArrowDownRight, Share2 } from 'lucide-react';
 import { SignalBadge } from '../components/SignalBadge';
 import { formatUtc8 } from '../utils/dateUtils';
 import { useT } from '../i18n/LocaleContext';
+import { ShareCardModal } from '../components/share/ShareCardModal';
+import type { ActiveTradeShareData } from '../components/share/shareTypes';
+import type { Trade } from '../types';
 
 export function ActiveTradesView() {
-  const { activeTrades, forceExitTrade, setSelectedPair, botState, theme, isReadOnly, formatCurrency, setMobileTab } = useBot();
+  const {
+    activeTrades,
+    forceExitTrade,
+    setSelectedPair,
+    botState,
+    theme,
+    isReadOnly,
+    formatCurrency,
+    setMobileTab,
+    activeProfile,
+    currencyUnit,
+    exchangeRates,
+  } = useBot();
   const [exitingId, setExitingId] = useState<number | null>(null);
+  const [shareTrade, setShareTrade] = useState<Trade | null>(null);
   const ws = useOptionalWorkspace();
 
   const handleViewChart = (pair: string) => {
@@ -31,6 +47,41 @@ export function ActiveTradesView() {
 
   const isDark = theme === 'dark';
   const t = useT();
+
+  const shareData = useMemo<ActiveTradeShareData | null>(() => {
+    if (!shareTrade) return null;
+    let rate = 1;
+    if (currencyUnit === 'USD') rate = exchangeRates.USD || 1;
+    else if (currencyUnit === 'CNY') rate = exchangeRates.CNY || 6.7025;
+    else if (currencyUnit === 'EUR') rate = exchangeRates.EUR || 0.8929;
+    else if (currencyUnit === 'IDR') rate = exchangeRates.IDR || 16000;
+
+    const profitAbs =
+      shareTrade.profit_abs !== undefined
+        ? shareTrade.profit_abs
+        : (shareTrade.stake_amount || 0) * (shareTrade.profit_ratio || 0);
+
+    return {
+      type: 'active_trade',
+      botName: activeProfile?.name || 'Freqtrade Bot',
+      strategyName: botState.strategy || 'NFI',
+      tradeId: shareTrade.trade_id,
+      pair: shareTrade.pair,
+      isShort: Boolean(shareTrade.is_short),
+      openRate: shareTrade.open_rate,
+      currentRate: shareTrade.current_rate,
+      profitPct: shareTrade.profit_pct,
+      profitAbs,
+      stakeAmount: shareTrade.stake_amount || 0,
+      amount: shareTrade.amount,
+      enterTag: shareTrade.enter_tag,
+      stopLossAbs: shareTrade.stop_loss_abs,
+      stopLossPct: shareTrade.stop_loss_pct,
+      openTimestamp: shareTrade.open_timestamp || shareTrade.open_date,
+      currencyUnit: currencyUnit || 'USD',
+      exchangeRate: rate,
+    };
+  }, [shareTrade, activeProfile, botState, currencyUnit, exchangeRates]);
 
   if (activeTrades.length === 0) {
     return (
@@ -128,6 +179,14 @@ export function ActiveTradesView() {
                   <td className="py-2.5 px-2.5 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-1.5">
                       <button
+                        onClick={() => setShareTrade(trade)}
+                        className="px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                        title={t('trade.share')}
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>{t('trade.share')}</span>
+                      </button>
+                      <button
                         onClick={() => handleViewChart(trade.pair)}
                         className="px-2 py-1 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-500 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0"
                         title={t('ui.open_candle_chart')}
@@ -154,6 +213,13 @@ export function ActiveTradesView() {
           </tbody>
         </table>
       </div>
+
+      {/* Share Card Modal */}
+      <ShareCardModal
+        isOpen={Boolean(shareTrade)}
+        onClose={() => setShareTrade(null)}
+        data={shareData}
+      />
     </div>
   );
 }

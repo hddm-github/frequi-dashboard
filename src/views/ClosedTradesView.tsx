@@ -1,12 +1,15 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useBot } from '../context/BotContext';
 import { useOptionalWorkspace } from '@danfessler/trellis-react';
-import { CheckCircle2, XCircle, CandlestickChart, RefreshCw, History, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, FileSpreadsheet, FileText, ChevronDown } from 'lucide-react';
+import { CheckCircle2, XCircle, CandlestickChart, RefreshCw, History, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, FileSpreadsheet, FileText, ChevronDown, Share2 } from 'lucide-react';
 import { SignalBadge } from '../components/SignalBadge';
 import { formatUtc8 } from '../utils/dateUtils';
 import { useLocale } from '../i18n/LocaleContext';
 import { exportClosedTradesToExcel } from '../utils/excelExport';
 import { exportClosedTradesToPdf } from '../utils/pdfExport';
+import { ShareCardModal } from '../components/share/ShareCardModal';
+import type { ClosedTradeShareData } from '../components/share/shareTypes';
+import type { Trade } from '../types';
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => {
@@ -40,10 +43,12 @@ export function ClosedTradesView() {
     profitSummary,
     loadAllClosedTrades,
     isLoadingAllTrades,
+    botState,
   } = useBot();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [shareTrade, setShareTrade] = useState<Trade | null>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -142,6 +147,41 @@ export function ClosedTradesView() {
   const totalClosedProfit = useMemo(() => {
     return sortedTrades.reduce((sum, t) => sum + (t.profit_abs || 0), 0);
   }, [sortedTrades]);
+
+  const shareData = useMemo<ClosedTradeShareData | null>(() => {
+    if (!shareTrade) return null;
+    let rate = 1;
+    if (currencyUnit === 'USD') rate = exchangeRates.USD || 1;
+    else if (currencyUnit === 'CNY') rate = exchangeRates.CNY || 6.7025;
+    else if (currencyUnit === 'EUR') rate = exchangeRates.EUR || 0.8929;
+    else if (currencyUnit === 'IDR') rate = exchangeRates.IDR || 16000;
+
+    const profitAbs =
+      shareTrade.profit_abs !== undefined
+        ? shareTrade.profit_abs
+        : (shareTrade.stake_amount || 0) * (shareTrade.profit_ratio || 0);
+
+    return {
+      type: 'closed_trade',
+      botName: activeProfile?.name || 'Freqtrade Bot',
+      strategyName: botState?.strategy || 'NFI',
+      tradeId: shareTrade.trade_id,
+      pair: shareTrade.pair,
+      isShort: Boolean(shareTrade.is_short),
+      openRate: shareTrade.open_rate,
+      closeRate: shareTrade.close_rate || 0,
+      profitPct: shareTrade.profit_pct,
+      profitAbs,
+      stakeAmount: shareTrade.stake_amount || 0,
+      amount: shareTrade.amount,
+      enterTag: shareTrade.enter_tag,
+      exitReason: shareTrade.exit_reason || shareTrade.exit_tag,
+      openTimestamp: shareTrade.open_timestamp || shareTrade.open_date,
+      closeTimestamp: shareTrade.close_timestamp || shareTrade.close_date,
+      currencyUnit: currencyUnit || 'USD',
+      exchangeRate: rate,
+    };
+  }, [shareTrade, activeProfile, botState, currencyUnit, exchangeRates]);
 
   const totalPages = Math.max(1, Math.ceil(sortedTrades.length / pageSize));
 
@@ -432,14 +472,24 @@ export function ClosedTradesView() {
                     </td>
 
                     <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => handleViewChart(t.pair)}
-                        className="px-2 py-1 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-500 text-[11px] font-medium inline-flex items-center gap-1 transition-colors cursor-pointer"
-                        title={translate('ui.open_candle_chart')}
-                      >
-                        <CandlestickChart className="w-3.5 h-3.5" />
-                        <span>{translate('trade.view_chart')}</span>
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => setShareTrade(t)}
+                          className="px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-[11px] font-medium inline-flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                          title={translate('trade.share')}
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>{translate('trade.share')}</span>
+                        </button>
+                        <button
+                          onClick={() => handleViewChart(t.pair)}
+                          className="px-2 py-1 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-500 text-[11px] font-medium inline-flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                          title={translate('ui.open_candle_chart')}
+                        >
+                          <CandlestickChart className="w-3.5 h-3.5" />
+                          <span>{translate('trade.view_chart')}</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -533,6 +583,13 @@ export function ClosedTradesView() {
           </div>
         )}
       </div>
+
+      {/* Share Card Modal */}
+      <ShareCardModal
+        isOpen={Boolean(shareTrade)}
+        onClose={() => setShareTrade(null)}
+        data={shareData}
+      />
     </div>
   );
 }
