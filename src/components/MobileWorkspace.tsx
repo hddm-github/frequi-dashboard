@@ -91,7 +91,7 @@ export function MobileWorkspace() {
   return (
     <div
       className={`flex flex-col w-full h-full max-h-[100dvh] h-[100dvh] overflow-hidden font-sans transition-colors ${
-        isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-100 text-slate-900'
+        isDark ? 'bg-[#101726] text-slate-100' : 'bg-slate-100 text-slate-900'
       }`}
     >
       {/* Top Header */}
@@ -99,7 +99,7 @@ export function MobileWorkspace() {
 
       {isConnecting && (
         <div className={`shrink-0 flex items-center justify-center gap-2 px-3 py-1 text-[11px] border-b ${
-          isDark ? 'bg-[#10192b] border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-600'
+          isDark ? 'bg-[#10192b] border-slate-700/80 text-slate-300' : 'bg-white border-slate-200 text-slate-600'
         }`} role="status" aria-live="polite">
           <span className="w-2.5 h-2.5 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin" />
           <span>{t('login.connecting')}</span>
@@ -110,7 +110,7 @@ export function MobileWorkspace() {
       {isSecondaryView && (
         <div
           className={`shrink-0 px-3 py-1.5 flex items-center justify-between border-b text-xs font-semibold ${
-            isDark ? 'bg-[#0f1626] border-slate-800' : 'bg-white border-slate-200'
+            isDark ? 'bg-[#121a2b] border-slate-700/80' : 'bg-white border-slate-200'
           }`}
         >
           <button
@@ -286,7 +286,7 @@ export function MobileWorkspace() {
       <nav
         className={`sticky bottom-0 inset-x-0 shrink-0 border-t z-30 pt-1.5 pb-[max(env(safe-area-inset-bottom),8px)] px-1 flex items-center justify-around transition-colors ${
           isDark
-            ? 'bg-[#0f1626]/95 border-slate-800/90 text-slate-400 backdrop-blur-md'
+            ? 'bg-[#121a2b]/95 border-slate-700/80 text-slate-300 backdrop-blur-md'
             : 'bg-white/95 border-slate-200 text-slate-500 backdrop-blur-md shadow-lg'
         }`}
       >

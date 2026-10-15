@@ -61,24 +61,24 @@ html:not(.dark) .trellis {
   --trellis-font-size: 12px;
 }
 
-/* Dark Theme - Elegant, comfortable TradingView-style slate-navy (NOT pitch black) */
+/* Dark Theme - Comfortable, soft dark slate-navy (NOT pitch black) */
 html.dark {
   color-scheme: dark;
-  background-color: #0b0f19;
+  background-color: #101726;
   color: #f1f5f9;
 }
 
 html.dark .trellis {
-  --trellis-bg: #0b0f19;
-  --trellis-panel: #131b2e;
-  --trellis-tabbar: #0f1626;
-  --trellis-tab-active: #131b2e;
-  --trellis-tab-hover: rgba(255, 255, 255, 0.06);
+  --trellis-bg: #101726;
+  --trellis-panel: #162033;
+  --trellis-tabbar: #121a2b;
+  --trellis-tab-active: #162033;
+  --trellis-tab-hover: rgba(255, 255, 255, 0.08);
   --trellis-text: #f1f5f9;
   --trellis-text-muted: #94a3b8;
-  --trellis-border: rgba(255, 255, 255, 0.08);
+  --trellis-border: rgba(255, 255, 255, 0.12);
   --trellis-accent: #10b981;
-  --trellis-stage: #0b0f19;
+  --trellis-stage: #101726;
   --trellis-gap: 5px;
   --trellis-radius: 8px;
   --trellis-tab-radius: 6px;

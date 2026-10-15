@@ -74,7 +74,7 @@ function DashboardWorkspace() {
   return (
     <div
       className={`flex flex-col w-full max-w-full h-[100dvh] overflow-hidden font-sans transition-colors ${
-        theme === 'dark' ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-100 text-slate-900'
+        theme === 'dark' ? 'bg-[#101726] text-slate-100' : 'bg-slate-100 text-slate-900'
       }`}
     >
       <HeaderBar />
