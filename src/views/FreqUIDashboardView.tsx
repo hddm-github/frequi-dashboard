@@ -207,9 +207,12 @@ export function FreqUIDashboardView() {
       };
     }
 
-    const freeBalance = botState.free_balance ?? botState.balance ?? 0;
+    // Open positions already consume part of total balance. Do not add them
+    // back into the next-stake budget.
+    const totalBalance = botState.balance ?? 0;
+    const remainingBalance = Math.max(0, totalBalance - totalStake);
     const tradableRatio = botState.tradable_balance_ratio ?? 0.99;
-    const estStake = (freeBalance * tradableRatio) / availableSlots;
+    const estStake = (remainingBalance * tradableRatio) / availableSlots;
 
     return {
       label: `~${formatCurrency(estStake, {
@@ -225,6 +228,7 @@ export function FreqUIDashboardView() {
     botState.balance,
     botState.tradable_balance_ratio,
     activeTrades.length,
+    totalStake,
     t,
     formatCurrency,
   ]);
@@ -561,9 +565,9 @@ export function FreqUIDashboardView() {
                   }`}
                 >
                   <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.pair_open_time')}</th>
-                  <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.open_current_price')}</th>
                   <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.unrealized')}</th>
                   <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.stake_amount')}</th>
+                  <th className="py-2 px-3 text-center whitespace-nowrap">{t('dashboard.open_current_price')}</th>
                   <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.stop_loss')}</th>
                   <th className="py-2 px-3 whitespace-nowrap">{t('dashboard.entry_signal')}</th>
                   <th className="py-2 px-3 text-right whitespace-nowrap">{t('dashboard.actions')}</th>
@@ -590,13 +594,6 @@ export function FreqUIDashboardView() {
                         </div>
                         <div className="text-[10px] text-slate-500 font-normal">
                           #{trade.trade_id} · {formatUtc8(trade.open_timestamp || trade.open_date, 'HH:mm:ss')}
-                        </div>
-                      </td>
-
-                      <td className="py-2 px-3 whitespace-nowrap">
-                        <div className="font-medium text-slate-700 dark:text-slate-300">{trade.open_rate}</div>
-                        <div className="text-[11px] text-slate-500 font-normal">
-                          {trade.current_rate || '-'}
                         </div>
                       </td>
 
@@ -628,7 +625,16 @@ export function FreqUIDashboardView() {
                         <div className="font-medium text-slate-700 dark:text-slate-300 font-mono">
                           {isReadOnly ? t('ui.hidden') : formatCurrency(trade.stake_amount || 0)}
                         </div>
-                        <div className="text-[10px] text-slate-500 font-mono">{t('dashboard.amount')}: {trade.amount}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{t('dashboard.amount')}: {trade.amount || '-'}</div>
+                      </td>
+
+                      <td className="py-2 px-3 text-center whitespace-nowrap">
+                        <div className="inline-grid grid-cols-2 gap-x-3 text-center min-w-[112px]">
+                          <span className="text-[9px] uppercase tracking-wide text-slate-400">Open</span>
+                          <span className="text-[9px] uppercase tracking-wide text-slate-400">Now</span>
+                          <span className="font-medium text-slate-700 dark:text-slate-300">{trade.open_rate}</span>
+                          <span className="font-semibold text-cyan-600 dark:text-cyan-400">{trade.current_rate || '-'}</span>
+                        </div>
                       </td>
 
                       <td className="py-2 px-3 whitespace-nowrap">

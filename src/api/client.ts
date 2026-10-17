@@ -486,8 +486,9 @@ export class FreqtradeClient {
         winning_trades: raw.winning_trades ?? 0,
         losing_trades: raw.losing_trades ?? 0,
         winrate: raw.winrate ?? 0,
+        // Freqtrade returns max_drawdown as a 0..1 account-drawdown ratio.
         max_drawdown: raw.max_drawdown ?? 0,
-        max_drawdown_pct: raw.max_drawdown_pct ?? 0,
+        max_drawdown_pct: (raw.max_drawdown ?? 0) * 100,
       };
     } catch (err) {
       console.warn('Real API getProfitSummary failed:', err);
