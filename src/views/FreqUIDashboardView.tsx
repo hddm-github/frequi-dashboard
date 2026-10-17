@@ -207,9 +207,12 @@ export function FreqUIDashboardView() {
       };
     }
 
-    const freeBalance = botState.free_balance ?? botState.balance ?? 0;
+    // Open positions already consume part of total balance. Do not add them
+    // back into the next-stake budget.
+    const totalBalance = botState.balance ?? 0;
+    const remainingBalance = Math.max(0, totalBalance - totalStake);
     const tradableRatio = botState.tradable_balance_ratio ?? 0.99;
-    const estStake = (freeBalance * tradableRatio) / availableSlots;
+    const estStake = (remainingBalance * tradableRatio) / availableSlots;
 
     return {
       label: `~${formatCurrency(estStake, {
@@ -225,6 +228,7 @@ export function FreqUIDashboardView() {
     botState.balance,
     botState.tradable_balance_ratio,
     activeTrades.length,
+    totalStake,
     t,
     formatCurrency,
   ]);
