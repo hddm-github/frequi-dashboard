@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useBot } from '../context/BotContext';
 import { useOptionalWorkspace } from '@danfessler/trellis-react';
 import { CheckCircle2, XCircle, CandlestickChart, RefreshCw, History, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, FileSpreadsheet, FileText, ChevronDown, Share2 } from 'lucide-react';
@@ -314,48 +315,41 @@ export function ClosedTradesView() {
                 <ChevronDown className={`w-3 h-3 opacity-70 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
               </button>
 
-              {showExportMenu && (
-                <div
-                  className={`absolute right-0 mt-1.5 w-60 rounded-xl border shadow-xl z-50 p-1.5 transition-all ${
-                    isDark ? 'bg-[#131b2e] border-slate-700 text-slate-100 shadow-black/60' : 'bg-white border-slate-200 text-slate-800 shadow-slate-300/50'
-                  }`}
-                >
-                  <div className="text-[10px] font-semibold text-slate-400 px-2 py-1 uppercase tracking-wider">
-                    {translate('closed.export_btn')}
+              {showExportMenu && typeof document !== 'undefined' && createPortal(
+                <div className="fixed inset-0 z-[140] flex items-end sm:items-start justify-center sm:justify-end p-3 sm:p-4 bg-black/20 sm:bg-transparent" onClick={() => setShowExportMenu(false)}>
+                  <div
+                    className={`w-full max-w-sm sm:w-60 rounded-2xl sm:rounded-xl border shadow-2xl p-2 transition-all sm:mt-12 sm:mr-2 max-h-[70dvh] overflow-y-auto ${
+                      isDark ? 'bg-[#131b2e] border-slate-700 text-slate-100 shadow-black/60' : 'bg-white border-slate-200 text-slate-800 shadow-slate-300/50'
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between px-2 py-1.5">
+                      <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                        {translate('closed.export_btn')}
+                      </div>
+                      <button type="button" onClick={() => setShowExportMenu(false)} className="text-xs text-slate-400 hover:text-slate-700 dark:hover:text-white" aria-label={translate('common.close') || 'Close'}>×</button>
+                    </div>
+                    <button
+                      onClick={() => handleExport('excel')}
+                      className={`w-full text-left px-2.5 py-2.5 rounded-xl flex items-start gap-2.5 transition-colors cursor-pointer ${
+                        isDark ? 'hover:bg-slate-800/80' : 'hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-500 shrink-0 mt-0.5"><FileSpreadsheet className="w-4 h-4" /></div>
+                      <div className="min-w-0"><div className="text-xs font-semibold">{translate('closed.export_excel_option')}</div><div className="text-[10px] text-slate-400 leading-tight mt-0.5">{translate('closed.export_excel_desc')}</div></div>
+                    </button>
+                    <button
+                      onClick={() => handleExport('pdf')}
+                      className={`w-full text-left px-2.5 py-2.5 rounded-xl flex items-start gap-2.5 transition-colors cursor-pointer mt-0.5 ${
+                        isDark ? 'hover:bg-slate-800/80' : 'hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="p-1.5 rounded-md bg-rose-500/10 text-rose-500 shrink-0 mt-0.5"><FileText className="w-4 h-4" /></div>
+                      <div className="min-w-0"><div className="text-xs font-semibold">{translate('closed.export_pdf_option')}</div><div className="text-[10px] text-slate-400 leading-tight mt-0.5">{translate('closed.export_pdf_desc')}</div></div>
+                    </button>
                   </div>
-
-                  {/* Option 1: Excel (.xlsx) */}
-                  <button
-                    onClick={() => handleExport('excel')}
-                    className={`w-full text-left px-2.5 py-2 rounded-lg flex items-start gap-2.5 transition-colors cursor-pointer ${
-                      isDark ? 'hover:bg-slate-800/80' : 'hover:bg-slate-100'
-                    }`}
-                  >
-                    <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-500 shrink-0 mt-0.5">
-                      <FileSpreadsheet className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold">{translate('closed.export_excel_option')}</div>
-                      <div className="text-[10px] text-slate-400 leading-tight mt-0.5">{translate('closed.export_excel_desc')}</div>
-                    </div>
-                  </button>
-
-                  {/* Option 2: PDF (.pdf) */}
-                  <button
-                    onClick={() => handleExport('pdf')}
-                    className={`w-full text-left px-2.5 py-2 rounded-lg flex items-start gap-2.5 transition-colors cursor-pointer mt-0.5 ${
-                      isDark ? 'hover:bg-slate-800/80' : 'hover:bg-slate-100'
-                    }`}
-                  >
-                    <div className="p-1.5 rounded-md bg-rose-500/10 text-rose-500 shrink-0 mt-0.5">
-                      <FileText className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold">{translate('closed.export_pdf_option')}</div>
-                      <div className="text-[10px] text-slate-400 leading-tight mt-0.5">{translate('closed.export_pdf_desc')}</div>
-                    </div>
-                  </button>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
 
@@ -389,9 +383,9 @@ export function ClosedTradesView() {
                 }`}
               >
                 <th className="py-2.5 px-3 whitespace-nowrap">{translate('closed.pair_close_time')}</th>
-                <th className="py-2.5 px-3 whitespace-nowrap">{translate('closed.open_close_price')}</th>
                 <th className="py-2.5 px-3 whitespace-nowrap">{translate('closed.realized_pnl')}</th>
                 <th className="py-2.5 px-3 whitespace-nowrap">{translate('dashboard.stake_amount')}</th>
+                <th className="py-2.5 px-3 text-center whitespace-nowrap">{translate('closed.open_close_price')}</th>
                 <th className="py-2.5 px-3 whitespace-nowrap">{translate('closed.exit_reason')}</th>
                 <th className="py-2.5 px-3 whitespace-nowrap">{translate('dashboard.entry_signal')}</th>
                 <th className="py-2.5 px-3 text-right whitespace-nowrap">{translate('dashboard.actions')}</th>
@@ -427,11 +421,6 @@ export function ClosedTradesView() {
                     </td>
 
                     <td className="py-2.5 px-3 whitespace-nowrap">
-                      <div className="text-slate-700 dark:text-slate-300 font-medium">{t.open_rate || '-'}</div>
-                      <div className="text-[11px] text-slate-500">{t.close_rate || '-'}</div>
-                    </td>
-
-                    <td className="py-2.5 px-3 whitespace-nowrap">
                       <div
                         className={`font-bold text-sm flex items-center gap-1 ${
                           isProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
@@ -454,6 +443,15 @@ export function ClosedTradesView() {
                         {isReadOnly ? translate('ui.hidden') : formatCurrency(t.stake_amount || 0)}
                       </div>
                       <div className="text-[10px] text-slate-500">{translate('dashboard.amount')}: {t.amount || '-'}</div>
+                    </td>
+
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                      <div className="inline-grid grid-cols-2 gap-x-3 text-center min-w-[112px]">
+                        <span className="text-[9px] uppercase tracking-wide text-slate-400">Open</span>
+                        <span className="text-[9px] uppercase tracking-wide text-slate-400">Close</span>
+                        <span className="font-medium text-slate-700 dark:text-slate-300">{t.open_rate || '-'}</span>
+                        <span className="font-semibold text-cyan-600 dark:text-cyan-400">{t.close_rate || '-'}</span>
+                      </div>
                     </td>
 
                     <td className="py-2.5 px-3 whitespace-nowrap">
