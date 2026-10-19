@@ -1,6 +1,6 @@
 import type { ShareCardData, ShareCardOptions, ShareTheme } from './shareTypes';
 import { parseToUtcDate, formatUtc8 } from '../../utils/dateUtils';
-import { parseNfiSignal } from '../../utils/nfiSignals';
+import { parseNfiSignal, formatExitReason } from '../../utils/nfiSignals';
 
 // Universal currency symbol
 function getCurrencySymbol(unit: string): string {
@@ -607,7 +607,9 @@ function drawMetricsGrid(
     let exitText = '-';
     let exitSub = '';
     if (isClosed) {
-      exitText = (data as any).exitReason || (data as any).exitTag || 'roi';
+      const rawReason = (data as any).exitReason;
+      const rawTag = (data as any).exitTag;
+      exitText = formatExitReason(rawReason, rawTag, isZh);
       exitSub = isZh ? '退出条件达成' : 'Triggered Exit Criteria';
     } else {
       const slAbs = (data as any).stopLossAbs;

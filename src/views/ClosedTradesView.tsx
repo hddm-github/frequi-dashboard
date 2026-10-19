@@ -8,6 +8,7 @@ import { formatUtc8 } from '../utils/dateUtils';
 import { useLocale } from '../i18n/LocaleContext';
 import { exportClosedTradesToExcel } from '../utils/excelExport';
 import { exportClosedTradesToPdf } from '../utils/pdfExport';
+import { formatExitReason } from '../utils/nfiSignals';
 import { ShareCardModal } from '../components/share/ShareCardModal';
 import type { ClosedTradeShareData } from '../components/share/shareTypes';
 import type { Trade } from '../types';
@@ -461,8 +462,9 @@ export function ClosedTradesView() {
                             ? 'bg-slate-800/90 text-slate-300 border-slate-700'
                             : 'bg-slate-100 text-slate-700 border-slate-200'
                         }`}
+                        title={t.exit_reason || t.exit_tag}
                       >
-                        {t.exit_reason || t.exit_tag || (isReadOnly ? translate('ui.hidden') : '-')}
+                        {isReadOnly ? translate('ui.hidden') : formatExitReason(t.exit_reason, t.exit_tag, locale === 'zh')}
                       </span>
                     </td>
 

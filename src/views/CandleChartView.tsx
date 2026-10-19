@@ -455,7 +455,11 @@ export function CandleChartView() {
           const closeTime = findCandleTime(trade.close_timestamp, trade.close_date);
           if (closeTime) {
             const isProfit = (trade.profit_pct ?? 0) >= 0;
-            const exitText = locale === 'zh' ? '平仓' : 'Exit';
+            const exitText = locale === 'zh'
+              ? (isProfit ? '止盈' : '止损')
+              : (isProfit ? 'Profit' : 'Loss');
+            const cleanExit = formatExitReason(trade.exit_reason, trade.exit_tag, locale === 'zh');
+            const exitSnippet = cleanExit && cleanExit !== '-' ? ` · ${cleanExit}` : '';
             result.push({
               time: closeTime,
               position: trade.is_short ? 'belowBar' : 'aboveBar',
@@ -465,7 +469,7 @@ export function CandleChartView() {
                 : (isDark ? '#ef4444' : '#dc2626'),
               markerType: 'exit',
               tradeId: trade.trade_id,
-              text: `#${trade.trade_id} ${exitText} @${trade.close_rate} (${isProfit ? '+' : ''}${trade.profit_pct}% ${trade.exit_reason || ''})`,
+              text: `#${trade.trade_id} ${exitText} @${trade.close_rate} (${isProfit ? '+' : ''}${trade.profit_pct}%${exitSnippet})`,
               size: 2,
             });
           }
@@ -1196,8 +1200,8 @@ export function CandleChartView() {
                                     <span className="flex items-center justify-end gap-1 text-cyan-700 dark:text-cyan-400 font-semibold" title={tr.exit_reason || tr.enter_tag}>
                                       <span className="text-[10px] text-slate-400 font-normal shrink-0">{locale === 'zh' ? '离场:' : 'Exit:'}</span>
                                       <span className="truncate">
-                                        {tr.exit_reason
-                                          ? formatExitReason(tr.exit_reason, undefined, locale === 'zh')
+                                        {tr.exit_reason || tr.exit_tag
+                                          ? formatExitReason(tr.exit_reason, tr.exit_tag, locale === 'zh')
                                           : (tr.enter_tag ? `#${tr.enter_tag}` : (locale === 'zh' ? '已平仓' : 'Closed'))}
                                       </span>
                                     </span>
@@ -1597,7 +1601,9 @@ export function CandleChartView() {
             {selectedTrade.exit_reason && (
               <div className="flex justify-between items-center">
                 <span className="text-slate-500 dark:text-slate-400">{t('candle.exit_reason')}:</span>
-                <span className="text-amber-700 dark:text-amber-400 font-semibold">{selectedTrade.exit_reason}</span>
+                <span className="text-amber-700 dark:text-amber-400 font-semibold" title={selectedTrade.exit_reason}>
+                  {formatExitReason(selectedTrade.exit_reason, selectedTrade.exit_tag, locale === 'zh')}
+                </span>
               </div>
             )}
           </div>
@@ -1824,7 +1830,7 @@ export function CandleChartView() {
                       {/* Exit Reason */}
                       {type === 'close' && (trade.exit_reason || trade.exit_tag) && (
                         <span className="px-1.5 py-0.5 rounded bg-amber-100/80 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 font-mono text-[11px]">
-                          {t('candle.exit_reason')}: {trade.exit_reason || trade.exit_tag}
+                          {t('candle.exit_reason')}: {formatExitReason(trade.exit_reason, trade.exit_tag, locale === 'zh')}
                         </span>
                       )}
 
