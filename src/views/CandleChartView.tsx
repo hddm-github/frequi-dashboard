@@ -424,7 +424,7 @@ export function CandleChartView() {
               : (isDark ? '#10b981' : '#047857'),
             markerType: 'entry',
             tradeId: trade.trade_id,
-            text: `#${trade.trade_id} ${sideText} @${trade.open_rate} [${trade.enter_tag || sideText}]`,
+            text: `#${trade.trade_id} ${sideText} @${trade.open_rate}`,
             size: 2,
           });
         }
@@ -448,7 +448,7 @@ export function CandleChartView() {
                 : (isDark ? '#34d399' : '#047857'),
               markerType: 'entry',
               tradeId: trade.trade_id,
-              text: `#${trade.trade_id} ${sideText} @${trade.open_rate} [${trade.enter_tag || sideText}]`,
+              text: `#${trade.trade_id} ${sideText} @${trade.open_rate}`,
               size: 1.5,
             });
           }
@@ -461,8 +461,6 @@ export function CandleChartView() {
             const exitText = locale === 'zh'
               ? (isProfit ? '止盈' : '止损')
               : (isProfit ? 'Profit' : 'Loss');
-            const cleanExit = formatExitReason(trade.exit_reason, trade.exit_tag, locale === 'zh');
-            const exitSnippet = cleanExit && cleanExit !== '-' ? ` · ${cleanExit}` : '';
             result.push({
               time: closeTime,
               position: trade.is_short ? 'belowBar' : 'aboveBar',
@@ -472,7 +470,7 @@ export function CandleChartView() {
                 : (isDark ? '#ef4444' : '#dc2626'),
               markerType: 'exit',
               tradeId: trade.trade_id,
-              text: `#${trade.trade_id} ${exitText} @${trade.close_rate} (${isProfit ? '+' : ''}${trade.profit_pct}%${exitSnippet})`,
+              text: `#${trade.trade_id} ${exitText} @${trade.close_rate} (${isProfit ? '+' : ''}${trade.profit_pct}%)`,
               size: 2,
             });
           }
@@ -548,11 +546,7 @@ export function CandleChartView() {
 
       // A. 开仓线 (Entry Price Line)
       if (typeof trade.open_rate === 'number' && trade.open_rate > 0) {
-        const sideText = locale === 'zh'
-          ? (isShort ? '开空' : '开多')
-          : (isShort ? 'SHORT' : 'LONG');
-        const tagText = trade.enter_tag ? ` [${trade.enter_tag}]` : '';
-        const entryTitle = `#${trade.trade_id} ${sideText} @${formatPrice(trade.open_rate)}${tagText}`;
+        const entryTitle = locale === 'zh' ? '开仓' : 'ENTRY';
 
         try {
           const line = candleSeriesRef.current!.createPriceLine({
@@ -581,8 +575,8 @@ export function CandleChartView() {
             if (ordPrice > 0 && Math.abs(ordPrice - trade.open_rate) > 1e-6) {
               addIndex += 1;
               const addTitle = locale === 'zh'
-                ? `#${trade.trade_id} 加仓 #${addIndex} @${formatPrice(ordPrice)}`
-                : `#${trade.trade_id} ADD #${addIndex} @${formatPrice(ordPrice)}`;
+                ? (addIndex > 1 ? `加仓 #${addIndex}` : '加仓')
+                : (addIndex > 1 ? `ADD #${addIndex}` : 'ADD');
               const addColor = isDark ? '#38bdf8' : '#0284c7';
               try {
                 const line = candleSeriesRef.current!.createPriceLine({
@@ -610,12 +604,7 @@ export function CandleChartView() {
         const exitColor = isProfit
           ? (isDark ? '#10b981' : '#059669')
           : (isDark ? '#f43f5e' : '#e11d48');
-        const profitPctStr = trade.profit_pct != null
-          ? ` (${trade.profit_pct >= 0 ? '+' : ''}${trade.profit_pct.toFixed(2)}%)`
-          : '';
-        const exitTitle = locale === 'zh'
-          ? `#${trade.trade_id} ${isProfit ? '止盈平仓' : '止损平仓'} @${formatPrice(trade.close_rate)}${profitPctStr}`
-          : `#${trade.trade_id} EXIT @${formatPrice(trade.close_rate)}${profitPctStr}`;
+        const exitTitle = locale === 'zh' ? '平仓' : 'EXIT';
 
         try {
           const line = candleSeriesRef.current!.createPriceLine({
@@ -636,9 +625,7 @@ export function CandleChartView() {
 
       // D. 止损保护线 (Stop-Loss Line if trade is open & has stop_loss_abs)
       if (trade.is_open && typeof trade.stop_loss_abs === 'number' && trade.stop_loss_abs > 0) {
-        const slTitle = locale === 'zh'
-          ? `#${trade.trade_id} 止损保护 @${formatPrice(trade.stop_loss_abs)}`
-          : `#${trade.trade_id} STOPLOSS @${formatPrice(trade.stop_loss_abs)}`;
+        const slTitle = locale === 'zh' ? '止损' : 'STOPLOSS';
         const slColor = isDark ? '#f59e0b' : '#d97706';
         try {
           const line = candleSeriesRef.current!.createPriceLine({
