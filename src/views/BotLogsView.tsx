@@ -51,39 +51,25 @@ export function BotLogsView() {
           isDark ? 'border-slate-800/80 bg-slate-900/70' : 'border-slate-200 bg-white'
         }`}
       >
-        <div className="flex items-center gap-2 text-slate-500 min-w-0">
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Terminal className="w-3.5 h-3.5 text-cyan-500" />
-            <span className="font-semibold hidden sm:inline">
-              {t('logs.tail_logs').replace('{count}', String(logs.length))}
-            </span>
-            <span className="font-semibold sm:hidden">
-              Logs ({logs.length})
-            </span>
-          </div>
-
-          {/* Tail Depth Pills */}
-          <div className="flex items-center rounded-lg border border-slate-300 dark:border-slate-800 p-0.5 bg-slate-100/90 dark:bg-slate-950/80 text-[10px] shrink-0 font-sans">
-            <span className="px-1 text-[9px] font-semibold tracking-wider text-slate-400 uppercase hidden md:inline">
-              Tail:
-            </span>
-            {[50, 100, 500, 1000].map((limit) => (
-              <button
-                key={limit}
-                type="button"
-                onClick={() => fetchLogs(limit)}
-                disabled={isLoadingLogs}
-                className={`px-1.5 py-0.5 rounded transition-all cursor-pointer font-mono ${
-                  logLimit === limit
-                    ? 'bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30 shadow-2xs'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title={`Fetch last ${limit} log lines`}
-              >
-                {limit === 1000 ? '1k' : limit}
-              </button>
-            ))}
-          </div>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Terminal className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
+          <select
+            value={logLimit}
+            onChange={(e) => fetchLogs(Number(e.target.value))}
+            disabled={isLoadingLogs}
+            className={`border rounded px-2 py-0.5 text-[10px] font-sans font-medium focus:outline-none cursor-pointer transition-colors ${
+              isDark
+                ? 'bg-slate-800/90 border-slate-700 text-slate-200 hover:border-slate-600 focus:border-cyan-500'
+                : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400 focus:border-cyan-500'
+            }`}
+            title="Tail lines"
+            aria-label="Tail lines"
+          >
+            <option value="50">50 lines</option>
+            <option value="100">100 lines</option>
+            <option value="500">500 lines</option>
+            <option value="1000">1,000 lines</option>
+          </select>
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
