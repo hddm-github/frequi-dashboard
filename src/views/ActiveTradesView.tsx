@@ -6,13 +6,13 @@ import { SignalBadge } from '../components/SignalBadge';
 import { formatUtc8 } from '../utils/dateUtils';
 import { useT } from '../i18n/LocaleContext';
 import { ShareCardModal } from '../components/share/ShareCardModal';
+import { ForceExitModal } from '../components/ForceExitModal';
 import type { ActiveTradeShareData } from '../components/share/shareTypes';
 import type { Trade } from '../types';
 
 export function ActiveTradesView() {
   const {
     activeTrades,
-    forceExitTrade,
     setSelectedPair,
     botState,
     theme,
@@ -23,8 +23,8 @@ export function ActiveTradesView() {
     currencyUnit,
     exchangeRates,
   } = useBot();
-  const [exitingId, setExitingId] = useState<number | null>(null);
   const [shareTrade, setShareTrade] = useState<Trade | null>(null);
+  const [forceExitTarget, setForceExitTarget] = useState<Trade | null>(null);
   const SHOW_SHARE_BUTTON = false;
   const ws = useOptionalWorkspace();
 
@@ -34,16 +34,6 @@ export function ActiveTradesView() {
       ws.open('chart', { reuse: 'type', params: { pair } });
     }
     setMobileTab('chart');
-  };
-
-  const handleExit = async (tradeId: number, pair: string) => {
-    if (!confirm(`${t('trade.force_exit')} #${tradeId} (${pair})?`)) return;
-    setExitingId(tradeId);
-    try {
-      await forceExitTrade(tradeId);
-    } finally {
-      setExitingId(null);
-    }
   };
 
   const isDark = theme === 'dark';
@@ -209,8 +199,7 @@ export function ActiveTradesView() {
                       </button>
                       {!isReadOnly && (
                         <button
-                          onClick={() => handleExit(trade.trade_id, trade.pair)}
-                          disabled={exitingId === trade.trade_id}
+                          onClick={() => setForceExitTarget(trade)}
                           className="px-2.5 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
                           title={t('trade.force_exit')}
                         >
@@ -226,6 +215,13 @@ export function ActiveTradesView() {
           </tbody>
         </table>
       </div>
+
+      {/* Force Exit Confirmation Modal */}
+      <ForceExitModal
+        trade={forceExitTarget}
+        isOpen={Boolean(forceExitTarget)}
+        onClose={() => setForceExitTarget(null)}
+      />
 
       {/* Share Card Modal (hidden) */}
       {SHOW_SHARE_BUTTON && (
