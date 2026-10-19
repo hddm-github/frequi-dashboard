@@ -6,8 +6,10 @@ import {
   ColorType,
   CandlestickSeries,
   HistogramSeries,
+  LineStyle,
   type IChartApi,
   type ISeriesApi,
+  type IPriceLine,
 } from 'lightweight-charts';
 import { useBot } from '../context/BotContext';
 import { useLocale, useT } from '../i18n/LocaleContext';
@@ -238,6 +240,7 @@ export function CandleChartView() {
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const markersRef = useRef<any>(null);
+  const priceLinesRef = useRef<IPriceLine[]>([]);
 
   const [timeframe, setTimeframe] = useState<string>(() =>
     botState.timeframe && botState.timeframe !== '-' ? botState.timeframe : '5m'
@@ -248,6 +251,7 @@ export function CandleChartView() {
   const [empty, setEmpty] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showMarkers, setShowMarkers] = useState(true);
+  const [showPriceLines, setShowPriceLines] = useState(true);
   const [showCandleInfo, setShowCandleInfo] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [showTradeDropdown, setShowTradeDropdown] = useState(false);
@@ -493,6 +497,189 @@ export function CandleChartView() {
       markersRef.current.setMarkers(tradeMarkers);
     }
   }, [tradeMarkers]);
+
+  // Dynamic trade price lines (Entry, DCA Rebuy, Exit, and Stoploss Lines)
+  useEffect(() => {
+    if (!candleSeriesRef.current) return;
+
+    // Clean up previously created price lines
+    priceLinesRef.current.forEach((line) => {
+      try {
+        candleSeriesRef.current?.removePriceLine(line);
+      } catch {
+        // ignore
+      }
+    });
+    priceLinesRef.current = [];
+
+    if (!showPriceLines || candles.length === 0 || !selectedPair) {
+      return;
+    }
+
+    const tradesToDisplay: Trade[] = [];
+
+    // 1. Explicitly selected trade
+    if (selectedTrade && selectedTrade.pair === selectedPair) {
+      tradesToDisplay.push(selectedTrade);
+    }
+
+    // 2. Active trade(s) for the current pair
+    const currentPairActive = activeTrades.filter((t) => t.pair === selectedPair);
+    for (const t of currentPairActive) {
+      if (!tradesToDisplay.some((ex) => ex.trade_id === t.trade_id)) {
+        tradesToDisplay.push(t);
+      }
+    }
+
+    // 3. Fallback to latest closed trade if no trade spotlighted yet
+    if (tradesToDisplay.length === 0) {
+      const latestClosed = closedTrades.find((t) => t.pair === selectedPair);
+      if (latestClosed) {
+        tradesToDisplay.push(latestClosed);
+      }
+    }
+
+    // Display at most 2 trades to keep chart clean and readable
+    const finalTrades = tradesToDisplay.slice(0, 2);
+
+    finalTrades.forEach((trade) => {
+      const isShort = Boolean(trade.is_short);
+      const entryColor = isShort ? (isDark ? '#f43f5e' : '#e11d48') : (isDark ? '#10b981' : '#059669');
+
+      // A. 开仓线 (Entry Price Line)
+      if (typeof trade.open_rate === 'number' && trade.open_rate > 0) {
+        const sideText = locale === 'zh'
+          ? (isShort ? '开空' : '开多')
+          : (isShort ? 'SHORT' : 'LONG');
+        const tagText = trade.enter_tag ? ` [${trade.enter_tag}]` : '';
+        const entryTitle = `#${trade.trade_id} ${sideText} @${formatPrice(trade.open_rate)}${tagText}`;
+
+        try {
+          const line = candleSeriesRef.current!.createPriceLine({
+            price: trade.open_rate,
+            color: entryColor,
+            lineWidth: 2,
+            lineStyle: LineStyle.Dashed,
+            axisLabelVisible: true,
+            title: entryTitle,
+            axisLabelColor: entryColor,
+            axisLabelTextColor: '#ffffff',
+          });
+          priceLinesRef.current.push(line);
+        } catch (err) {
+          console.warn('Failed to create entry price line:', err);
+        }
+      }
+
+      // B. 加仓线 (DCA / Rebuy Lines)
+      if (Array.isArray(trade.orders) && trade.orders.length > 1) {
+        let addIndex = 0;
+        trade.orders.forEach((ord, idx) => {
+          const kind = getPositionMarkerKind(ord, trade, idx);
+          if (kind === 'rebuy' || kind === 'grind_entry') {
+            const ordPrice = Number(ord.average || ord.safe_price || ord.price || 0);
+            if (ordPrice > 0 && Math.abs(ordPrice - trade.open_rate) > 1e-6) {
+              addIndex += 1;
+              const addTitle = locale === 'zh'
+                ? `#${trade.trade_id} 加仓 #${addIndex} @${formatPrice(ordPrice)}`
+                : `#${trade.trade_id} ADD #${addIndex} @${formatPrice(ordPrice)}`;
+              const addColor = isDark ? '#38bdf8' : '#0284c7';
+              try {
+                const line = candleSeriesRef.current!.createPriceLine({
+                  price: ordPrice,
+                  color: addColor,
+                  lineWidth: 1,
+                  lineStyle: LineStyle.Dashed,
+                  axisLabelVisible: true,
+                  title: addTitle,
+                  axisLabelColor: addColor,
+                  axisLabelTextColor: '#ffffff',
+                });
+                priceLinesRef.current.push(line);
+              } catch (err) {
+                console.warn('Failed to create add price line:', err);
+              }
+            }
+          }
+        });
+      }
+
+      // C. 平仓线 (Exit Line if trade is closed)
+      if (typeof trade.close_rate === 'number' && trade.close_rate > 0) {
+        const isProfit = (trade.profit_ratio ?? 0) >= 0;
+        const exitColor = isProfit
+          ? (isDark ? '#10b981' : '#059669')
+          : (isDark ? '#f43f5e' : '#e11d48');
+        const profitPctStr = trade.profit_pct != null
+          ? ` (${trade.profit_pct >= 0 ? '+' : ''}${trade.profit_pct.toFixed(2)}%)`
+          : '';
+        const exitTitle = locale === 'zh'
+          ? `#${trade.trade_id} ${isProfit ? '止盈平仓' : '止损平仓'} @${formatPrice(trade.close_rate)}${profitPctStr}`
+          : `#${trade.trade_id} EXIT @${formatPrice(trade.close_rate)}${profitPctStr}`;
+
+        try {
+          const line = candleSeriesRef.current!.createPriceLine({
+            price: trade.close_rate,
+            color: exitColor,
+            lineWidth: 2,
+            lineStyle: LineStyle.Dashed,
+            axisLabelVisible: true,
+            title: exitTitle,
+            axisLabelColor: exitColor,
+            axisLabelTextColor: '#ffffff',
+          });
+          priceLinesRef.current.push(line);
+        } catch (err) {
+          console.warn('Failed to create exit price line:', err);
+        }
+      }
+
+      // D. 止损保护线 (Stop-Loss Line if trade is open & has stop_loss_abs)
+      if (trade.is_open && typeof trade.stop_loss_abs === 'number' && trade.stop_loss_abs > 0) {
+        const slTitle = locale === 'zh'
+          ? `#${trade.trade_id} 止损保护 @${formatPrice(trade.stop_loss_abs)}`
+          : `#${trade.trade_id} STOPLOSS @${formatPrice(trade.stop_loss_abs)}`;
+        const slColor = isDark ? '#f59e0b' : '#d97706';
+        try {
+          const line = candleSeriesRef.current!.createPriceLine({
+            price: trade.stop_loss_abs,
+            color: slColor,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dotted,
+            axisLabelVisible: true,
+            title: slTitle,
+            axisLabelColor: slColor,
+            axisLabelTextColor: '#ffffff',
+          });
+          priceLinesRef.current.push(line);
+        } catch (err) {
+          console.warn('Failed to create stop loss price line:', err);
+        }
+      }
+    });
+
+    return () => {
+      if (candleSeriesRef.current) {
+        priceLinesRef.current.forEach((line) => {
+          try {
+            candleSeriesRef.current?.removePriceLine(line);
+          } catch {
+            // ignore
+          }
+        });
+      }
+      priceLinesRef.current = [];
+    };
+  }, [
+    showPriceLines,
+    selectedPair,
+    activeTrades,
+    closedTrades,
+    selectedTrade,
+    candles,
+    isDark,
+    locale,
+  ]);
 
   // 2. Fetch older historical candles when scrolling/panning left (往前翻自动Loaddata)
   const handleLoadOlderCandles = useCallback(async () => {
@@ -791,6 +978,7 @@ export function CandleChartView() {
       candleSeriesRef.current = null;
       volumeSeriesRef.current = null;
       markersRef.current = null;
+      priceLinesRef.current = [];
     };
   }, []);
 
@@ -1260,6 +1448,24 @@ export function CandleChartView() {
               <span className={`w-1.5 h-1.5 rounded-full ${showCandleInfo ? 'bg-emerald-500' : 'bg-slate-400'}`} />
             </button>
 
+            {/* 开仓线/平仓线 开关 */}
+            <button
+              onClick={() => setShowPriceLines((visible) => !visible)}
+              className={`px-1.5 sm:px-2 py-1 rounded-lg text-[11px] font-medium border flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 max-sm:min-w-0 max-sm:flex-1 max-sm:justify-center ${
+                showPriceLines
+                  ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                  : isDark
+                  ? 'bg-[#1a233a] text-slate-300 border-slate-700 hover:bg-[#202b46]'
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100 shadow-2xs'
+              }`}
+              title={t('candle.price_lines_title')}
+              aria-pressed={showPriceLines}
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span className="hidden sm:inline">{t('candle.price_lines_label')}</span>
+              <span className={`w-1.5 h-1.5 rounded-full ${showPriceLines ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+            </button>
+
 
           </div>
         </div>
@@ -1325,6 +1531,22 @@ export function CandleChartView() {
             >
               <Activity className="w-3.5 h-3.5 text-emerald-500" />
             </button>
+            {/* 开仓线开关 (Mobile) */}
+            <button
+              onClick={() => setShowPriceLines(!showPriceLines)}
+              className={`px-2 py-1 rounded-lg text-[10px] font-medium border flex items-center gap-1 shrink-0 transition-colors ${
+                showPriceLines
+                  ? 'bg-emerald-500 text-white border-emerald-500'
+                  : isDark
+                  ? 'bg-slate-700 text-slate-300 border-slate-600'
+                  : 'bg-slate-200 text-slate-600 border-slate-300'
+              }`}
+              title={t('candle.price_lines_title')}
+              aria-pressed={showPriceLines}
+            >
+              <TrendingUp className="w-3 h-3" />
+              <span>{t('candle.price_lines_short')}</span>
+            </button>
             <button
               onClick={() => setShowMarkers(!showMarkers)}
               className={`px-2 py-1 rounded-lg text-[10px] font-medium border flex items-center gap-1.5 shrink-0 transition-colors ${
@@ -1371,6 +1593,17 @@ export function CandleChartView() {
               )}
             </div>
             <div className="hidden md:flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setShowPriceLines(!showPriceLines)}
+                className={`px-2 py-1 rounded-lg text-[11px] font-medium border flex items-center gap-1.5 shrink-0 ${
+                  showPriceLines ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' : isDark ? 'bg-[#1a233a] text-slate-400 border-slate-700' : 'bg-white text-slate-600 border-slate-300'
+                }`}
+                title={t('candle.price_lines_title')}
+                aria-pressed={showPriceLines}
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>{t('candle.price_lines_label')}: {showPriceLines ? t('candle.show') : t('candle.hide')}</span>
+              </button>
               <button
                 onClick={() => setShowMarkers(!showMarkers)}
                 className={`px-2 py-1 rounded-lg text-[11px] font-medium border flex items-center gap-1.5 shrink-0 ${
@@ -1902,6 +2135,19 @@ export function CandleChartView() {
                 </span>
                 <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
                   {t('candle.guide_cancelled_desc')}
+                </span>
+              </div>
+
+              <div className={`p-2.5 rounded-xl border flex items-start gap-2.5 ${
+                isDark ? 'bg-[#182236]/60 border-slate-700/60' : 'bg-slate-50 border-slate-200/80'
+              }`}>
+                <span className="px-2 py-0.5 rounded text-[11px] font-bold shrink-0 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  {locale === 'zh' ? '—— 开仓与平仓参考线' : '—— Price Lines'}
+                </span>
+                <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                  {locale === 'zh'
+                    ? '图表水平参考线：红/绿虚线为做空/做多入场成本，天蓝虚线为加仓位，绿/红虚线为止盈/止损平仓价，琥珀点线为活跃仓位止损保护价。'
+                    : 'Chart horizontal lines: Rose/Green dashed for Short/Long entry, Sky dashed for DCA additions, Green/Rose dashed for Take-Profit/Stop-Loss exit, and Amber dotted for active Stop-Loss.'}
                 </span>
               </div>
             </div>
