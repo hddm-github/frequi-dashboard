@@ -25,6 +25,7 @@ import { formatUtc8 } from '../utils/dateUtils';
 import { exportClosedTradesToExcel } from '../utils/excelExport';
 import { exportClosedTradesToPdf } from '../utils/pdfExport';
 import { ShareCardModal } from '../components/share/ShareCardModal';
+import { ForceExitModal } from '../components/ForceExitModal';
 import type { ShareCardData, DashboardShareData, ActiveTradeShareData, ClosedTradeShareData } from '../components/share/shareTypes';
 import type { Trade } from '../types';
 
@@ -39,7 +40,6 @@ export function FreqUIDashboardView() {
     dailyRecords,
     botState,
     setSelectedPair,
-    forceExitTrade,
     theme,
     currencyUnit,
     formatCurrency,
@@ -69,6 +69,7 @@ export function FreqUIDashboardView() {
 
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareModalData, setShareModalData] = useState<ShareCardData | null>(null);
+  const [forceExitTarget, setForceExitTarget] = useState<Trade | null>(null);
 
   const totalUnrealized = activeTrades.reduce((sum, trade) => sum + (trade.profit_abs || 0), 0);
   const totalStake = activeTrades.reduce((sum, trade) => sum + (trade.stake_amount || 0), 0);
@@ -672,11 +673,7 @@ export function FreqUIDashboardView() {
                           </button>
                           {!isReadOnly && (
                             <button
-                              onClick={() => {
-                                if (confirm(`${t('trade.force_exit')} #${trade.trade_id} (${trade.pair})?`)) {
-                                  forceExitTrade(trade.trade_id);
-                                }
-                              }}
+                              onClick={() => setForceExitTarget(trade)}
                               className="px-2 py-0.5 rounded bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0"
                               title={t('trade.force_exit')}
                             >
@@ -1085,6 +1082,13 @@ export function FreqUIDashboardView() {
           </div>
         </div>
       </div>
+
+      {/* Force Exit Confirmation Modal */}
+      <ForceExitModal
+        trade={forceExitTarget}
+        isOpen={Boolean(forceExitTarget)}
+        onClose={() => setForceExitTarget(null)}
+      />
 
       {/* Share Card Modal (hidden) */}
       {SHOW_SHARE_BUTTON && (

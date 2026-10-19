@@ -174,10 +174,10 @@ export class FreqtradeClient {
       headers['x-target-url'] = rawApiUrl;
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout limit
-
-    const fetchPromise = (async () => {
+    const maxRetries = 2;
+    const fetchWithRetry = async (attempt: number): Promise<T> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout limit
       try {
         const res = await fetch(url, { method: 'GET', headers, signal: controller.signal });
         if (!res.ok) {
@@ -190,6 +190,10 @@ export class FreqtradeClient {
             msg = `Gateway error (HTTP ${res.status}): Unable to reach target server`;
           }
           this.lastError = msg;
+          if ((res.status === 502 || res.status === 504) && attempt < maxRetries) {
+            await new Promise((r) => setTimeout(r, attempt * 1000));
+            return fetchWithRetry(attempt + 1);
+          }
           throw new Error(msg);
         }
 
@@ -210,6 +214,17 @@ export class FreqtradeClient {
           throw new Error(errMsg);
         }
       } catch (err: any) {
+        const isTransient =
+          err.name === 'AbortError' ||
+          err.message === 'Failed to fetch' ||
+          err.name === 'TypeError' ||
+          err.name === 'NetworkError';
+
+        if (isTransient && attempt < maxRetries) {
+          await new Promise((r) => setTimeout(r, attempt * 800));
+          return fetchWithRetry(attempt + 1);
+        }
+
         if (err.name === 'AbortError') {
           const timeoutMsg = `Request timeout (12s): API [${endpoint}] response took too long`;
           this.lastError = timeoutMsg;
@@ -224,6 +239,13 @@ export class FreqtradeClient {
         throw err;
       } finally {
         clearTimeout(timeoutId);
+      }
+    };
+
+    const fetchPromise = (async () => {
+      try {
+        return await fetchWithRetry(1);
+      } finally {
         this.inFlightRequests.delete(cacheKey);
       }
     })();

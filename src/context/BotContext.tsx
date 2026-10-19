@@ -36,6 +36,10 @@ interface BotContextValue {
   dailyRecords: DailyRecord[];
   signals: SignalStat[];
   logs: LogEntry[];
+  logLimit: number;
+  setLogLimit: (limit: number) => void;
+  fetchLogs: (limit?: number) => Promise<void>;
+  isLoadingLogs: boolean;
   selectedPair: string;
   setSelectedPair: (pair: string) => void;
   isConnected: boolean;
@@ -374,6 +378,12 @@ export function BotProvider({ children }: { children: ReactNode }) {
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
   const [signals, setSignals] = useState<SignalStat[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logLimit, setLogLimit] = useState<number>(50);
+  const [isLoadingLogs, setIsLoadingLogs] = useState<boolean>(false);
+  const logLimitRef = useRef<number>(50);
+  useEffect(() => {
+    logLimitRef.current = logLimit;
+  }, [logLimit]);
   const [selectedPair, setSelectedPair] = useState<string>('');
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
@@ -584,7 +594,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
           if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
           if (sigs) setSignals(sigs);
 
-          const logList = await targetClient.getLogs(60).catch(() => null);
+          const logList = await targetClient.getLogs(logLimitRef.current).catch(() => null);
           if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
           if (logList) setLogs(logList);
         }
@@ -823,6 +833,24 @@ export function BotProvider({ children }: { children: ReactNode }) {
     }
   }, [client]);
 
+  const fetchLogs = useCallback(async (customLimit?: number) => {
+    if (!clientRef.current) return;
+    const limit = customLimit !== undefined ? customLimit : logLimitRef.current;
+    if (customLimit !== undefined && customLimit !== logLimitRef.current) {
+      setLogLimit(customLimit);
+      logLimitRef.current = customLimit;
+    }
+    setIsLoadingLogs(true);
+    try {
+      const logList = await clientRef.current.getLogs(limit);
+      if (logList) setLogs(logList);
+    } catch (err) {
+      console.warn('fetchLogs failed:', err);
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  }, []);
+
   // Initial load: 进来后直接强制全量拉取一次手动同步接口(包含平仓历史与收益)
   useEffect(() => {
     if (activeProfile && lastLoadedBotIdRef.current !== activeProfile.id) {
@@ -867,6 +895,45 @@ export function BotProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [activeProfile, isSelectingBot, refreshData, refreshInterval]);
 
+  // Network recovery: automatic retry when browser reconnects to internet
+  useEffect(() => {
+    if (!activeProfile || isSelectingBot) return;
+
+    const handleOnline = () => {
+      console.info('[Network] Browser is back online. Auto-reconnecting bot...');
+      setIsConnected(true);
+      setLastError(null);
+      refreshData(undefined, true);
+    };
+
+    const handleOffline = () => {
+      console.warn('[Network] Browser went offline.');
+      setIsConnected(false);
+      setLastError('Network connection lost (offline)');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [activeProfile, isSelectingBot, refreshData]);
+
+  // Fast automatic reconnection retry loop when disconnected (every 5s)
+  useEffect(() => {
+    if (!activeProfile || isSelectingBot || isConnected) return;
+
+    const retryTimer = setInterval(() => {
+      if (document.visibilityState === 'visible' && (typeof navigator === 'undefined' || navigator.onLine)) {
+        refreshData(undefined, true);
+      }
+    }, 5000);
+
+    return () => clearInterval(retryTimer);
+  }, [activeProfile, isSelectingBot, isConnected, refreshData]);
+
   return (
     <BotContext.Provider
       value={{
@@ -884,6 +951,10 @@ export function BotProvider({ children }: { children: ReactNode }) {
         dailyRecords,
         signals,
         logs,
+        logLimit,
+        setLogLimit,
+        fetchLogs,
+        isLoadingLogs,
         selectedPair,
         setSelectedPair,
         isConnected,
