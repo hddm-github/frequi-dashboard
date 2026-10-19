@@ -14,13 +14,19 @@ function formatLogTimestamp(raw: string): string {
 }
 
 export function BotLogsView() {
-  const { logs, theme } = useBot();
+  const { logs, logLimit, fetchLogs, isLoadingLogs, theme } = useBot();
   const t = useT();
   const levelLabel = (level: string) => t(`logs.level_${level.toLowerCase()}`, level);
   const [filterLevel, setFilterLevel] = useState<string>('ALL');
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
   const isDark = theme === 'dark';
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (logs.length === 0) {
+      fetchLogs(logLimit);
+    }
+  }, [fetchLogs, logLimit, logs.length]);
 
   const filteredLogs = logs.filter((log) => {
     if (filterLevel === 'ALL') return true;
@@ -41,16 +47,46 @@ export function BotLogsView() {
     >
       {/* Log toolbar */}
       <div
-        className={`flex items-center justify-between px-3 py-1.5 border-b text-[11px] ${
+        className={`flex items-center justify-between gap-2 px-3 py-1.5 border-b text-[11px] shrink-0 ${
           isDark ? 'border-slate-800/80 bg-slate-900/70' : 'border-slate-200 bg-white'
         }`}
       >
-        <div className="flex items-center gap-1.5 text-slate-500">
-          <Terminal className="w-3.5 h-3.5 text-cyan-500" />
-          <span className="font-semibold">{t('logs.tail_logs').replace('{count}', String(logs.length))}</span>
+        <div className="flex items-center gap-2 text-slate-500 min-w-0">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Terminal className="w-3.5 h-3.5 text-cyan-500" />
+            <span className="font-semibold hidden sm:inline">
+              {t('logs.tail_logs').replace('{count}', String(logs.length))}
+            </span>
+            <span className="font-semibold sm:hidden">
+              Logs ({logs.length})
+            </span>
+          </div>
+
+          {/* Tail Depth Pills */}
+          <div className="flex items-center rounded-lg border border-slate-300 dark:border-slate-800 p-0.5 bg-slate-100/90 dark:bg-slate-950/80 text-[10px] shrink-0 font-sans">
+            <span className="px-1 text-[9px] font-semibold tracking-wider text-slate-400 uppercase hidden md:inline">
+              Tail:
+            </span>
+            {[50, 100, 500, 1000].map((limit) => (
+              <button
+                key={limit}
+                type="button"
+                onClick={() => fetchLogs(limit)}
+                disabled={isLoadingLogs}
+                className={`px-1.5 py-0.5 rounded transition-all cursor-pointer font-mono ${
+                  logLimit === limit
+                    ? 'bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30 shadow-2xs'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title={`Fetch last ${limit} log lines`}
+              >
+                {limit === 1000 ? '1k' : limit}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Auto-scroll toggle */}
           <button
             type="button"
@@ -74,11 +110,19 @@ export function BotLogsView() {
             aria-label={t('logs.autoscroll_title')}
             aria-pressed={autoScroll}
           >
-            <RefreshCw className={`w-3 h-3 ${autoScroll ? 'text-cyan-400' : 'text-slate-400 opacity-60'}`} />
-            <span>{t('logs.autoscroll')}</span>
+            <RefreshCw
+              className={`w-3 h-3 ${
+                isLoadingLogs
+                  ? 'animate-spin text-cyan-400'
+                  : autoScroll
+                  ? 'text-cyan-400'
+                  : 'text-slate-400 opacity-60'
+              }`}
+            />
+            <span className="hidden sm:inline">{t('logs.autoscroll')}</span>
           </button>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <Filter className="w-3 h-3 text-slate-500" />
             <select
               value={filterLevel}
