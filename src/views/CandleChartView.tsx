@@ -26,7 +26,7 @@ import {
   Info,
 } from 'lucide-react';
 import type { CandleData, Trade } from '../types';
-import { parseNfiSignal, isNfiStrategy } from '../utils/nfiSignals';
+import { parseNfiSignal, isNfiStrategy, formatExitReason, formatOrderAction } from '../utils/nfiSignals';
 import { formatUtc8 } from '../utils/dateUtils';
 
 const TIMEFRAMES = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
@@ -1168,21 +1168,41 @@ export function CandleChartView() {
                               <div className={`text-[11px] flex items-center justify-between font-mono mb-1.5 ${
                                 isDark ? 'text-slate-300' : 'text-slate-700'
                               }`}>
-                                <span className="flex items-center gap-1">
-                                  <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{t('candle.open_price')}:</span>
-                                  <span className="font-semibold text-slate-900 dark:text-slate-100">{tr.open_rate}</span>
-                                </span>
-                                {tr.close_rate && (
-                                  <span className="flex items-center gap-1">
-                                    <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{t('candle.avg_close')}:</span>
-                                    <span className="font-semibold text-slate-900 dark:text-slate-100">{tr.close_rate}</span>
+                                <div className="flex items-center gap-2 sm:gap-3 shrink min-w-0">
+                                  <span className="flex items-center gap-1 shrink-0">
+                                    <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{t('candle.open_price')}:</span>
+                                    <span className="font-semibold text-slate-900 dark:text-slate-100">{tr.open_rate}</span>
                                   </span>
-                                )}
-                                <span className={`font-semibold ${
-                                  isDark ? 'text-cyan-400' : 'text-cyan-700 font-bold'
-                                }`}>
-                                  {tr.enter_tag || tr.exit_reason || (locale === 'zh' ? '策略信号' : 'Signal')}
-                                </span>
+                                  {tr.close_rate && (
+                                    <span className="flex items-center gap-1 shrink-0">
+                                      <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>{t('candle.avg_close')}:</span>
+                                      <span className="font-semibold text-slate-900 dark:text-slate-100">{tr.close_rate}</span>
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-right truncate max-w-[190px] shrink min-w-0">
+                                  {tr.is_open ? (
+                                    <span className="flex items-center justify-end gap-1 text-cyan-700 dark:text-cyan-400 font-semibold" title={tr.enter_tag}>
+                                      <span className="text-[10px] text-slate-400 font-normal shrink-0">{locale === 'zh' ? '入场:' : 'Entry:'}</span>
+                                      <span className="truncate">
+                                        {tr.enter_tag
+                                          ? (/^\d+$/.test(tr.enter_tag)
+                                              ? `#${tr.enter_tag} (${parseNfiSignal(tr.enter_tag, locale === 'zh').category})`
+                                              : (parseNfiSignal(tr.enter_tag, locale === 'zh').category || tr.enter_tag))
+                                          : (locale === 'zh' ? '常规开仓' : 'Entry')}
+                                      </span>
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center justify-end gap-1 text-cyan-700 dark:text-cyan-400 font-semibold" title={tr.exit_reason || tr.enter_tag}>
+                                      <span className="text-[10px] text-slate-400 font-normal shrink-0">{locale === 'zh' ? '离场:' : 'Exit:'}</span>
+                                      <span className="truncate">
+                                        {tr.exit_reason
+                                          ? formatExitReason(tr.exit_reason, undefined, locale === 'zh')
+                                          : (tr.enter_tag ? `#${tr.enter_tag}` : (locale === 'zh' ? '已平仓' : 'Closed'))}
+                                      </span>
+                                    </span>
+                                  )}
+                                </div>
                               </div>
 
                               {/* Orders breakdown */}
@@ -1196,30 +1216,13 @@ export function CandleChartView() {
                                     <span>{t('candle.order_history')} ({tr.orders!.length})</span>
                                   </div>
                                   {tr.orders!.map((ord, idx) => {
-                                    const isShort = tr.is_short;
-                                    const isBuy = ord.ft_order_side === 'buy';
-                                    const isEntrySide = isShort ? !isBuy : isBuy;
-                                    const status = String(ord.status || '').toLowerCase();
-                                    const isCancelled = status === 'canceled' || status === 'cancelled';
-
-                                    let defaultTag = '';
-                                    if (idx === 0 && isEntrySide) {
-                                      defaultTag = isShort ? (locale === 'zh' ? '做空' : 'Short') : (locale === 'zh' ? '做多' : 'Long');
-                                    } else if (isEntrySide) {
-                                      defaultTag = 'Grind-Entry';
-                                    } else {
-                                      defaultTag = 'Grind-Exit';
-                                    }
-
-                                    let tag = ord.ft_order_tag || defaultTag;
-                                    if (idx === 0 && isEntrySide && (!ord.ft_order_tag || ord.ft_order_tag.toLowerCase().includes('entry'))) {
-                                      tag = isShort ? (locale === 'zh' ? '做空' : 'Short') : (locale === 'zh' ? '做多' : 'Long');
-                                    }
-
-                                    const tagLower = tag.toLowerCase();
-                                    const isGrind = tagLower.includes('grind');
-                                    const isRebuy = tagLower.includes('rebuy') || tagLower === 'r';
-                                    const isDerisk = tagLower.includes('derisk') || tagLower.includes('de-risk');
+                                    const { actionBadge, badgeCategory, displayTag } = formatOrderAction(
+                                      ord,
+                                      tr,
+                                      idx,
+                                      locale === 'zh'
+                                    );
+                                    const isCancelled = badgeCategory === 'cancelled';
 
                                     let badgeColor = isDark
                                       ? 'bg-slate-700/50 text-slate-300'
@@ -1228,26 +1231,31 @@ export function CandleChartView() {
                                       badgeColor = isDark
                                         ? 'bg-slate-800 text-slate-400 border border-slate-700 line-through'
                                         : 'bg-slate-200 text-slate-500 border border-slate-300 line-through';
-                                    } else if (isGrind) {
-                                      badgeColor = isDark
-                                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                                        : 'bg-purple-100 text-purple-800 border border-purple-200 font-semibold';
-                                    } else if (isRebuy) {
+                                    } else if (badgeCategory === 'entry') {
+                                      badgeColor = tr.is_short
+                                        ? (isDark ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-rose-100 text-rose-800 border border-rose-200 font-semibold')
+                                        : (isDark ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold');
+                                    } else if (badgeCategory === 'rebuy') {
                                       badgeColor = isDark
                                         ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
                                         : 'bg-sky-100 text-sky-800 border border-sky-200 font-semibold';
-                                    } else if (isDerisk) {
+                                    } else if (badgeCategory === 'grind_in') {
+                                      badgeColor = isDark
+                                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                        : 'bg-purple-100 text-purple-800 border border-purple-200 font-semibold';
+                                    } else if (badgeCategory === 'grind_out') {
                                       badgeColor = isDark
                                         ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                                         : 'bg-amber-100 text-amber-800 border border-amber-200 font-semibold';
-                                    } else if (isEntrySide) {
-                                      badgeColor = isShort
-                                        ? (isDark ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-rose-100 text-rose-800 border border-rose-200 font-semibold')
-                                        : (isDark ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold');
-                                    } else {
+                                    } else if (badgeCategory === 'derisk') {
                                       badgeColor = isDark
-                                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                                        : 'bg-rose-100 text-rose-800 border border-rose-200 font-semibold';
+                                        ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+                                        : 'bg-orange-100 text-orange-800 border border-orange-200 font-semibold';
+                                    } else if (badgeCategory === 'exit') {
+                                      const isWin = (tr.profit_pct ?? 0) >= 0;
+                                      badgeColor = isWin
+                                        ? (isDark ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold')
+                                        : (isDark ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-rose-100 text-rose-800 border border-rose-200 font-semibold');
                                     }
 
                                     return (
@@ -1261,11 +1269,7 @@ export function CandleChartView() {
                                       >
                                         <div className="flex items-center gap-1.5 truncate min-w-0">
                                           <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${badgeColor}`}>
-                                            {isCancelled
-                                              ? (locale === 'zh' ? '已撤单' : 'CANCELLED')
-                                              : isBuy
-                                              ? (locale === 'zh' ? '买入' : 'BUY')
-                                              : (locale === 'zh' ? '卖出' : 'SELL')}
+                                            {actionBadge}
                                           </span>
                                           <span
                                             className={`font-semibold truncate shrink min-w-0 ${
@@ -1275,9 +1279,9 @@ export function CandleChartView() {
                                                 ? 'text-slate-200'
                                                 : 'text-slate-800'
                                             }`}
-                                            title={tag}
+                                            title={ord.ft_order_tag || displayTag}
                                           >
-                                            {tag}
+                                            {displayTag}
                                           </span>
                                         </div>
                                         <div className={`shrink-0 text-right ${

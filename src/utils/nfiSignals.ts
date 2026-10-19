@@ -489,3 +489,149 @@ export function formatExitReason(
 
   return cleanReason;
 }
+
+export interface FormattedOrderAction {
+  actionBadge: string;
+  badgeCategory: 'entry' | 'rebuy' | 'grind_in' | 'grind_out' | 'derisk' | 'exit' | 'cancelled';
+  displayTag: string;
+}
+
+export function formatOrderAction(
+  order: { ft_order_side?: string; ft_order_tag?: string; status?: string },
+  trade: { is_short?: boolean; enter_tag?: string; exit_reason?: string },
+  orderIndex: number,
+  isZh = true
+): FormattedOrderAction {
+  const isShort = Boolean(trade.is_short);
+  const isBuy = String(order.ft_order_side || '').toLowerCase() === 'buy';
+  const isEntrySide = isShort ? !isBuy : isBuy;
+  const status = String(order.status || '').toLowerCase();
+  const isCancelled = status === 'canceled' || status === 'cancelled';
+  const rawTag = String(order.ft_order_tag || '').trim();
+  const tagLower = rawTag.toLowerCase();
+
+  // 1. Cancelled orders
+  if (isCancelled) {
+    let cleanTag = rawTag;
+    if (tagLower.includes('grind')) {
+      const gNum = tagLower.match(/grind_?(\d+)/)?.[1] || '';
+      const subId = tagLower.match(/\b(\d{2,4})\b/)?.[1] || '';
+      cleanTag = isZh
+        ? `研磨平仓 (网格${gNum || '1'}${subId ? ` #${subId}` : ''})`
+        : `Grind Exit (Grid ${gNum || '1'}${subId ? ` #${subId}` : ''})`;
+    } else if (tagLower.includes('derisk')) {
+      cleanTag = isZh ? '控险减仓 (已撤销)' : 'De-risk (Cancelled)';
+    } else if (tagLower) {
+      cleanTag = isZh ? `已撤单: ${rawTag}` : `Cancelled: ${rawTag}`;
+    } else {
+      cleanTag = isZh ? '已撤销委托' : 'Cancelled Order';
+    }
+    return {
+      actionBadge: isZh ? '已撤单' : 'CANCELLED',
+      badgeCategory: 'cancelled',
+      displayTag: cleanTag,
+    };
+  }
+
+  // 2. Initial position entry (orderIndex === 0 && isEntrySide)
+  if (orderIndex === 0 && isEntrySide) {
+    const badge = isZh ? (isShort ? '开空' : '开多') : (isShort ? 'SHORT' : 'BUY');
+    let displayTag = '';
+    const signalTag = rawTag && rawTag !== 'buy' && rawTag !== 'sell' ? rawTag : (trade.enter_tag || '');
+    if (signalTag) {
+      const signal = parseNfiSignal(signalTag, isZh);
+      if (/^\d+$/.test(signalTag)) {
+        displayTag = isZh
+          ? `信号 #${signalTag} (${signal.category})`
+          : `Signal #${signalTag} (${signal.category})`;
+      } else {
+        displayTag = signal.description || signal.category || signalTag;
+      }
+    } else {
+      displayTag = isZh ? (isShort ? '做空开仓' : '买入开仓') : (isShort ? 'Initial Short' : 'Initial Long');
+    }
+    return {
+      actionBadge: badge,
+      badgeCategory: 'entry',
+      displayTag,
+    };
+  }
+
+  // 3. De-risk reduction (e.g. derisk_level_1, derisk_level_2, derisk_global, d1, d2)
+  if (
+    tagLower.includes('derisk') ||
+    tagLower.includes('de-risk') ||
+    ['d', 'd1', 'd2', 'd3'].includes(tagLower)
+  ) {
+    const levelMatch = tagLower.match(/(?:level_?|d)(\d+)/) || tagLower.match(/derisk_(\d+)/);
+    const levelNum = levelMatch ? levelMatch[1] : '';
+    const level = levelNum ? ` L${levelNum}` : (tagLower.includes('global') ? (isZh ? ' (全局)' : ' (Global)') : '');
+    const badge = isZh ? (isShort ? '做空减仓' : '控险减仓') : 'DE-RISK';
+    const displayTag = isZh ? `控险减仓${level}` : `De-risk${level}`;
+    return {
+      actionBadge: badge,
+      badgeCategory: 'derisk',
+      displayTag,
+    };
+  }
+
+  // 4. Grind system (e.g. grind_4_entry, grind_4_exit 272)
+  if (tagLower.includes('grind')) {
+    const gNum = tagLower.match(/grind_?(\d+)/)?.[1] || '';
+    const isGrindEntry = isEntrySide || tagLower.includes('entry') || tagLower.includes('in');
+    if (isGrindEntry) {
+      const badge = isZh ? (isShort ? '研磨补仓' : '研磨加仓') : 'GRIND-IN';
+      const displayTag = isZh ? `研磨加仓 (网格${gNum || '1'})` : `Grind Entry (Grid ${gNum || '1'})`;
+      return {
+        actionBadge: badge,
+        badgeCategory: 'grind_in',
+        displayTag,
+      };
+    } else {
+      const subId = tagLower.match(/\b(\d{2,4})\b/)?.[1] || '';
+      const badge = isZh ? (isShort ? '做空研磨平仓' : '研磨平仓') : 'GRIND-OUT';
+      const displayTag = isZh
+        ? `研磨平仓 (网格${gNum || '1'}${subId ? ` #${subId}` : ''})`
+        : `Grind Exit (Grid ${gNum || '1'}${subId ? ` #${subId}` : ''})`;
+      return {
+        actionBadge: badge,
+        badgeCategory: 'grind_out',
+        displayTag,
+      };
+    }
+  }
+
+  // 5. Rebuy / DCA accumulation
+  if (tagLower.includes('rebuy') || tagLower === 'r' || tagLower.includes('dca')) {
+    const badge = isZh ? (isShort ? '做空加仓' : '加仓') : 'REBUY';
+    const displayTag = isZh ? (isShort ? '做空低吸加仓' : '回调低吸加仓') : 'DCA Rebuy';
+    return {
+      actionBadge: badge,
+      badgeCategory: 'rebuy',
+      displayTag,
+    };
+  }
+
+  // 6. Strategy exit / profit-take / stoploss
+  if (!isEntrySide) {
+    const cleanExit = formatExitReason(rawTag || trade.exit_reason, undefined, isZh);
+    let badge = isZh ? '平仓' : 'EXIT';
+    if (tagLower.includes('profit') || tagLower.includes('roi')) {
+      badge = isZh ? '止盈' : 'TAKE PROFIT';
+    } else if (tagLower.includes('stoploss') || tagLower.includes('loss')) {
+      badge = isZh ? '止损' : 'STOP LOSS';
+    }
+    return {
+      actionBadge: badge,
+      badgeCategory: 'exit',
+      displayTag: cleanExit && cleanExit !== '-' ? cleanExit : (isZh ? '策略平仓' : 'Strategy Exit'),
+    };
+  }
+
+  // 7. Fallback for entry-side additional orders
+  return {
+    actionBadge: isZh ? (isShort ? '做空加仓' : '加仓') : (isShort ? 'ADD SHORT' : 'BUY'),
+    badgeCategory: 'rebuy',
+    displayTag: rawTag ? (isZh ? `加仓单 [${rawTag}]` : `Layer [${rawTag}]`) : (isZh ? '分批入场' : 'Entry Layer'),
+  };
+}
