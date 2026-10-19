@@ -93,15 +93,15 @@ function getPositionMarkerKind(
 
 function markerLabel(kind: PositionMarkerKind, isZh: boolean, isShort?: boolean): string {
   if (isZh) {
-    if (kind === 'rebuy') return isShort ? '做空加仓' : '加仓 (Rebuy)';
-    if (kind === 'grind_entry') return '研磨入场 (Grind-Entry)';
-    if (kind === 'derisk') return '避险 (De-risk)';
-    return '研磨减仓 (Grind-Exit)';
+    if (kind === 'rebuy') return isShort ? '做空加仓' : '加仓';
+    if (kind === 'grind_entry') return isShort ? '研磨补仓' : '研磨加仓';
+    if (kind === 'derisk') return isShort ? '做空减仓' : '控险减仓';
+    return isShort ? '做空研磨减仓' : '研磨减仓';
   }
   if (kind === 'rebuy') return isShort ? 'Short Rebuy' : 'Rebuy';
-  if (kind === 'grind_entry') return 'Grind-Entry';
-  if (kind === 'derisk') return 'De-risk';
-  return 'Grind-Exit';
+  if (kind === 'grind_entry') return isShort ? 'Short Grind-In' : 'Grind-Entry';
+  if (kind === 'derisk') return isShort ? 'Short De-risk' : 'De-risk';
+  return isShort ? 'Short Grind-Out' : 'Grind-Exit';
 }
 
 function markerColor(kind: PositionMarkerKind, isDark: boolean): string {
@@ -917,39 +917,57 @@ export function CandleChartView() {
         >
           <div className="flex items-center justify-between pb-1.5 mb-1 border-b border-slate-200/60 dark:border-slate-700/60 font-semibold text-[11px] text-slate-400">
             <span>{t('candle.legend_guide')}</span>
-            <span className="text-[10px] opacity-75 font-normal">NFI Grinding Terms</span>
+            <span className="text-[10px] opacity-75 font-normal">
+              {locale === 'zh' ? 'NFI 仓位与研磨术语' : 'NFI Grinding Terms'}
+            </span>
           </div>
           <div className="space-y-1.5">
             <div className="flex items-start gap-2">
-              <span className="font-bold text-emerald-500 shrink-0 text-[11px] mt-0.5">↑ Long</span>
+              <span className="font-bold text-emerald-500 shrink-0 text-[11px] mt-0.5">
+                {locale === 'zh' ? '↑ 做多 (Long)' : '↑ Long'}
+              </span>
               <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_long_desc')}</span>
             </div>
             <div className="flex items-start gap-2">
-              <span className="font-bold text-rose-500 shrink-0 text-[11px] mt-0.5">↓ Short</span>
+              <span className="font-bold text-rose-500 shrink-0 text-[11px] mt-0.5">
+                {locale === 'zh' ? '↓ 做空 (Short)' : '↓ Short'}
+              </span>
               <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_short_desc')}</span>
             </div>
             <div className="flex items-start gap-2">
-              <span className="font-bold text-sky-500 shrink-0 text-[11px] mt-0.5">↕ Rebuy</span>
+              <span className="font-bold text-sky-500 shrink-0 text-[11px] mt-0.5">
+                {locale === 'zh' ? '↕ 加仓 (Rebuy)' : '↕ Rebuy'}
+              </span>
               <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_rebuy_desc')}</span>
             </div>
             <div className="flex items-start gap-2">
-              <span className="font-bold text-purple-400 shrink-0 text-[11px] mt-0.5">↕ Grind-Entry</span>
+              <span className="font-bold text-purple-400 shrink-0 text-[11px] mt-0.5">
+                {locale === 'zh' ? '↕ 研磨加仓 (Grind-In)' : '↕ Grind-Entry'}
+              </span>
               <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_grind_entry_desc')}</span>
             </div>
             <div className="flex items-start gap-2">
-              <span className="font-bold text-amber-500 shrink-0 text-[11px] mt-0.5">↕ Grind-Exit</span>
+              <span className="font-bold text-amber-500 shrink-0 text-[11px] mt-0.5">
+                {locale === 'zh' ? '↕ 研磨减仓 (Grind-Out)' : '↕ Grind-Exit'}
+              </span>
               <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_grind_exit_desc')}</span>
             </div>
             <div className="flex items-start gap-2">
-              <span className="font-bold text-orange-500 shrink-0 text-[11px] mt-0.5">↕ De-risk</span>
+              <span className="font-bold text-orange-500 shrink-0 text-[11px] mt-0.5">
+                {locale === 'zh' ? '↕ 控险减仓 (De-risk)' : '↕ De-risk'}
+              </span>
               <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_derisk_desc')}</span>
             </div>
             <div className="flex items-start gap-2">
-              <span className="font-bold text-rose-500 dark:text-rose-400 shrink-0 text-[11px] mt-0.5">↓ Exit</span>
+              <span className="font-bold text-rose-500 dark:text-rose-400 shrink-0 text-[11px] mt-0.5">
+                {locale === 'zh' ? '↓ 平仓 (Exit)' : '↓ Exit'}
+              </span>
               <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_exit_desc')}</span>
             </div>
             <div className="flex items-start gap-2">
-              <span className="font-bold text-slate-400 shrink-0 text-[11px] mt-0.5">✕ Cancelled</span>
+              <span className="font-bold text-slate-400 shrink-0 text-[11px] mt-0.5">
+                {locale === 'zh' ? '✕ 已撤单 (Cancelled)' : '✕ Cancelled'}
+              </span>
               <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_cancelled_desc')}</span>
             </div>
           </div>
