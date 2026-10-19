@@ -23,6 +23,7 @@ import {
   Crosshair,
   ChevronDown,
   Activity,
+  Info,
 } from 'lucide-react';
 import type { CandleData, Trade } from '../types';
 import { parseNfiSignal, isNfiStrategy } from '../utils/nfiSignals';
@@ -250,6 +251,19 @@ export function CandleChartView() {
   const [showCandleInfo, setShowCandleInfo] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [showTradeDropdown, setShowTradeDropdown] = useState(false);
+  const [showLegendDropdown, setShowLegendDropdown] = useState(false);
+
+  useEffect(() => {
+    if (!showLegendDropdown) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-legend-dropdown]')) {
+        setShowLegendDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showLegendDropdown]);
 
   // Real-time hovered candle and trade operations
   const [hoveredBar, setHoveredBar] = useState<HoveredBarData | null>(null);
@@ -865,6 +879,85 @@ export function CandleChartView() {
     loadCandles();
   }, [selectedPair, timeframe, client]);
 
+  const renderGuideDropdown = (isMobile: boolean) => (
+    <div className="relative shrink-0" data-legend-dropdown>
+      <button
+        type="button"
+        onClick={() => setShowLegendDropdown(!showLegendDropdown)}
+        className={`rounded-lg font-medium border flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer ${
+          isMobile ? 'px-2 py-1 text-[10px]' : 'px-2 py-1 text-[11px]'
+        } ${
+          showLegendDropdown
+            ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 shadow-xs'
+            : isDark
+            ? 'bg-[#1a233a] text-slate-300 border-slate-700 hover:border-slate-600'
+            : 'bg-white text-slate-700 border-slate-300 hover:border-slate-400'
+        }`}
+        title={t('candle.legend_guide')}
+        aria-expanded={showLegendDropdown}
+      >
+        <Info className={isMobile ? 'w-3 h-3 text-cyan-500' : 'w-3.5 h-3.5 text-cyan-500'} />
+        <span>{t('candle.legend_guide')}</span>
+        <ChevronDown
+          className={`text-slate-400 transition-transform duration-150 ${
+            isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'
+          } ${showLegendDropdown ? 'rotate-180 text-cyan-400' : ''}`}
+        />
+      </button>
+
+      {showLegendDropdown && (
+        <div
+          className={`absolute z-50 mt-1.5 w-72 sm:w-80 rounded-xl shadow-2xl border p-2.5 space-y-1.5 text-xs backdrop-blur-md animate-in fade-in zoom-in-95 duration-150 ${
+            isMobile ? 'left-0' : 'right-0'
+          } ${
+            isDark
+              ? 'bg-[#131b2e]/95 border-slate-700/80 text-slate-200 shadow-black/60'
+              : 'bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/60'
+          }`}
+        >
+          <div className="flex items-center justify-between pb-1.5 mb-1 border-b border-slate-200/60 dark:border-slate-700/60 font-semibold text-[11px] text-slate-400">
+            <span>{t('candle.legend_guide')}</span>
+            <span className="text-[10px] opacity-75 font-normal">NFI Grinding Terms</span>
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-start gap-2">
+              <span className="font-bold text-emerald-500 shrink-0 text-[11px] mt-0.5">↑ Long</span>
+              <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_long_desc')}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold text-rose-500 shrink-0 text-[11px] mt-0.5">↓ Short</span>
+              <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_short_desc')}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold text-sky-500 shrink-0 text-[11px] mt-0.5">↕ Rebuy</span>
+              <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_rebuy_desc')}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold text-purple-400 shrink-0 text-[11px] mt-0.5">↕ Grind-Entry</span>
+              <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_grind_entry_desc')}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold text-amber-500 shrink-0 text-[11px] mt-0.5">↕ Grind-Exit</span>
+              <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_grind_exit_desc')}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold text-orange-500 shrink-0 text-[11px] mt-0.5">↕ De-risk</span>
+              <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_derisk_desc')}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold text-rose-500 dark:text-rose-400 shrink-0 text-[11px] mt-0.5">↓ Exit</span>
+              <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_exit_desc')}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold text-slate-400 shrink-0 text-[11px] mt-0.5">✕ Cancelled</span>
+              <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300">{t('candle.guide_cancelled_desc')}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div
       className={`flex flex-col h-full overflow-hidden transition-colors relative ${
@@ -1245,17 +1338,10 @@ export function CandleChartView() {
 
         </div>
 
-        {/* Tier 3: marker control and legend */}
-        <div className="flex items-center justify-between gap-1.5 w-full min-w-0 overflow-x-auto no-scrollbar pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80 max-md:gap-1">
-          <div className="md:hidden flex items-center gap-x-2 px-1 py-0.5 text-[10px] font-medium whitespace-nowrap shrink-0 min-w-0">
-              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><span className="font-bold">↑</span> {t('candle.long')}</span>
-              <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400"><span className="font-bold">↓</span> {t('candle.short')}</span>
-              <span className="flex items-center gap-1 text-sky-700 dark:text-sky-300"><span className="font-bold">↕</span> {t('candle.add_marker')}</span>
-              <span className="flex items-center gap-1 text-violet-700 dark:text-violet-300"><span className="font-bold">↕</span> {t('candle.build_marker')}</span>
-              <span className="flex items-center gap-1 text-amber-700 dark:text-amber-300"><span className="font-bold">↕</span> {t('candle.reduce_marker')}</span>
-              <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400"><span className="font-bold">↓</span> {t('candle.closed')}</span>
-          </div>
-          <div className="md:hidden ml-auto flex items-center gap-1 shrink-0">
+        {/* Tier 3: marker & inspection controls (mobile) */}
+        <div className="flex md:hidden items-center justify-between gap-1.5 w-full min-w-0 pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80">
+          {renderGuideDropdown(true)}
+          <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => setShowTradeDropdown(!showTradeDropdown)}
               className={`p-1.5 rounded-lg border flex items-center justify-center shrink-0 ${
@@ -1294,17 +1380,14 @@ export function CandleChartView() {
                   ? 'bg-slate-700 text-slate-300 border-slate-600'
                   : 'bg-slate-200 text-slate-600 border-slate-300'
               }`}
-            title={t('candle.markers_title')}
-            aria-pressed={showMarkers}
-          >
-            <Bookmark className="w-3 h-3" />
-            <span>{t('candle.show')}</span>
-            <span className="font-mono">({tradeMarkers.length})</span>
-          </button>
-
-          {/* desktop legend is rendered in position row */}
-          <div className="hidden md:block" />
-        </div>
+              title={t('candle.markers_title')}
+              aria-pressed={showMarkers}
+            >
+              <Bookmark className="w-3 h-3" />
+              <span>{t('candle.show')}</span>
+              <span className="font-mono">({tradeMarkers.length})</span>
+            </button>
+          </div>
         </div>
 
         {/* Tier 4: current position information */}
@@ -1346,16 +1429,7 @@ export function CandleChartView() {
                 <span>{t('candle.markers_label')}: {t('candle.show')}</span>
                 <span className="font-mono text-[10px]">({tradeMarkers.length})</span>
               </button>
-              {showMarkers && (
-                <div className="flex items-center gap-x-2 text-[10px] font-medium whitespace-nowrap">
-                  <span className="text-emerald-600 dark:text-emerald-400">↑ {t('candle.long')}</span>
-                  <span className="text-rose-600 dark:text-rose-400">↓ {t('candle.short')}</span>
-                  <span className="text-sky-700 dark:text-sky-300">↕ {t('candle.add_marker')}</span>
-                  <span className="text-violet-700 dark:text-violet-300">↕ {t('candle.build_marker')}</span>
-                  <span className="text-amber-700 dark:text-amber-300">↕ {t('candle.reduce_marker')}</span>
-                  <span className="text-rose-600 dark:text-rose-400">↓ {t('candle.closed')}</span>
-                </div>
-              )}
+              {renderGuideDropdown(false)}
             </div>
           </div>
         )}
