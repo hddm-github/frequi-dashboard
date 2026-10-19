@@ -486,8 +486,9 @@ export class FreqtradeClient {
         winning_trades: raw.winning_trades ?? 0,
         losing_trades: raw.losing_trades ?? 0,
         winrate: raw.winrate ?? 0,
+        // Freqtrade returns max_drawdown as a 0..1 account-drawdown ratio.
         max_drawdown: raw.max_drawdown ?? 0,
-        max_drawdown_pct: raw.max_drawdown_pct ?? 0,
+        max_drawdown_pct: (raw.max_drawdown ?? 0) * 100,
       };
     } catch (err) {
       console.warn('Real API getProfitSummary failed:', err);
@@ -610,6 +611,7 @@ export class FreqtradeClient {
       return records.map((d) => ({
         date: String(d.date || ''),
         abs_profit: Number(d.abs_profit ?? 0),
+        rel_profit: d.rel_profit !== undefined ? Number(d.rel_profit) : undefined,
         fiat_value: Number(d.fiat_value ?? 0),
         trade_count: Number(d.trade_count ?? 0),
         starting_balance: d.starting_balance !== undefined ? Number(d.starting_balance) : undefined,

@@ -172,8 +172,20 @@ export function EquityCurveView() {
       });
     });
 
+    // Append Live point representing real-time balance + floating unrealized PnL
+    points.push({
+      date: 'Live',
+      fullDate: t('equity.current'),
+      value: currentEquity,
+      pnl: totalNetProfit,
+      pct: totalReturnPct,
+      dailyPnl: totalUnrealized,
+      tradeCount: (profitSummary?.closed_trade_count || 0) + activeTrades.length,
+      isStart: false,
+    });
+
     return points;
-  }, [allSortedRecords, filteredRecords, initialCapital, currentEquity, totalNetProfit, totalReturnPct, profitSummary, t]);
+  }, [allSortedRecords, filteredRecords, initialCapital, currentEquity, totalNetProfit, totalReturnPct, totalUnrealized, activeTrades, profitSummary, t]);
 
   // Win/Loss days count in the filtered range
   const periodWinDays = useMemo(() => {
@@ -439,7 +451,7 @@ export function EquityCurveView() {
           <div className="px-1">
             <div className="text-[10px] text-slate-400 truncate">{t('equity.drawdown')}</div>
             <div className="text-xs font-bold font-mono text-rose-500 dark:text-rose-400 mt-0.5 truncate">
-              {profitSummary?.max_drawdown_pct ? `${profitSummary.max_drawdown_pct.toFixed(2)}%` : '< 2.5%'}
+              {profitSummary?.max_drawdown_pct !== undefined ? `${profitSummary.max_drawdown_pct.toFixed(2)}%` : '0.00%'}
             </div>
             <div className="text-[9px] text-slate-400 mt-0.5 truncate">
               {profitSummary?.closed_trade_count || 0} {t('ui.trades')}
@@ -560,7 +572,7 @@ export function EquityCurveView() {
           <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
             <span>{t('equity.wins')}: {profitSummary?.winning_trades || 0} / {t('equity.losses')}: {profitSummary?.losing_trades || 0}</span>
             <span className="text-rose-500 font-mono">
-              {t('equity.drawdown')}: {profitSummary?.max_drawdown_pct ? `${profitSummary.max_drawdown_pct.toFixed(2)}%` : '< 2.5%'}
+              {t('equity.drawdown')}: {profitSummary?.max_drawdown_pct !== undefined ? `${profitSummary.max_drawdown_pct.toFixed(2)}%` : '0.00%'}
             </span>
           </div>
         </div>

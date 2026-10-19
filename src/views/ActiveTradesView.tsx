@@ -112,8 +112,9 @@ export function ActiveTradesView() {
               }`}
             >
               <th className="py-2.5 px-2.5 whitespace-nowrap">{t('trade.pair_open_time')}</th>
-              <th className="py-2.5 px-2.5 whitespace-nowrap">{t('trade.open_current_price')}</th>
               <th className="py-2.5 px-2.5 whitespace-nowrap">{t('trade.unrealized')}</th>
+              <th className="py-2.5 px-2.5 whitespace-nowrap">{t('dashboard.stake_amount')}</th>
+              <th className="py-2.5 px-2.5 text-center whitespace-nowrap">{t('trade.open_current_price')}</th>
               <th className="py-2.5 px-2.5 whitespace-nowrap">{t('trade.stop_loss')}</th>
               <th className="py-2.5 px-2.5 whitespace-nowrap">{t('trade.strategy_signal')}</th>
               <th className="py-2.5 px-2.5 text-right whitespace-nowrap">{t('trade.actions')}</th>
@@ -142,11 +143,6 @@ export function ActiveTradesView() {
                   </td>
 
                   <td className="py-2.5 px-2.5 whitespace-nowrap">
-                    <div className="text-slate-700 dark:text-slate-300 font-medium">{trade.open_rate}</div>
-                    <div className="text-[11px] text-slate-500">{trade.current_rate || '-'}</div>
-                  </td>
-
-                  <td className="py-2.5 px-2.5 whitespace-nowrap">
                     <div
                       className={`font-bold text-sm flex items-center gap-1 font-mono ${
                         isProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
@@ -163,6 +159,20 @@ export function ActiveTradesView() {
                     </div>
                     <div className="text-[10px] text-slate-500 font-mono">
                       {t('trade.return')}: {isProfit ? '+' : ''}{trade.profit_pct}%
+                    </div>
+                  </td>
+
+                  <td className="py-2.5 px-2.5 whitespace-nowrap">
+                    <div className="text-slate-700 dark:text-slate-300 font-medium">{formatCurrency(trade.stake_amount || 0)}</div>
+                    <div className="text-[10px] text-slate-500">{t('dashboard.amount')}: {trade.amount || '-'}</div>
+                  </td>
+
+                  <td className="py-2.5 px-2.5 text-center whitespace-nowrap">
+                    <div className="inline-grid grid-cols-2 gap-x-3 text-center min-w-[112px]">
+                      <span className="text-[9px] uppercase tracking-wide text-slate-400">Open</span>
+                      <span className="text-[9px] uppercase tracking-wide text-slate-400">Now</span>
+                      <span className="font-medium text-slate-700 dark:text-slate-300">{trade.open_rate}</span>
+                      <span className="font-semibold text-cyan-600 dark:text-cyan-400">{trade.current_rate || '-'}</span>
                     </div>
                   </td>
 

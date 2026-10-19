@@ -68,7 +68,7 @@ export function OverviewView() {
             <ShieldAlert className="w-3.5 h-3.5 text-purple-400" />
           </div>
           <div className="text-xl font-bold text-purple-400 font-mono">
-            {profitSummary?.max_drawdown_pct?.toFixed(2) || '2.15'}%
+            {(profitSummary?.max_drawdown_pct ?? 0).toFixed(2)}%
           </div>
           <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
             <Clock className="w-3 h-3" />
