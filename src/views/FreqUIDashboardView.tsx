@@ -255,7 +255,7 @@ export function FreqUIDashboardView() {
   const dailyStats = useMemo(() => {
     const totalProfit = sortedDaily.reduce((sum, d) => sum + (d.abs_profit || 0), 0);
     const totalTrades = sortedDaily.reduce((sum, d) => sum + (d.trade_count || 0), 0);
-    const winDays = sortedDaily.filter((d) => (d.trade_count || 0) > 0 && d.abs_profit >= 0).length;
+    const winDays = sortedDaily.filter((d) => (d.trade_count || 0) > 0 && d.abs_profit > 0).length;
     const lossDays = sortedDaily.filter((d) => (d.trade_count || 0) > 0 && d.abs_profit < 0).length;
     const daysCount = sortedDaily.length || 1;
     const avgDailyProfit = totalProfit / daysCount;
@@ -795,6 +795,10 @@ export function FreqUIDashboardView() {
                 const absVal = Math.abs(d.abs_profit || 0);
                 const hasTrade = (d.trade_count && d.trade_count > 0) || absVal > 0;
                 const isSelected = selectedDayDate === d.date;
+                const relPct = d.rel_profit !== undefined
+                  ? (d.rel_profit * 100).toFixed(2)
+                  : (d.starting_balance && d.starting_balance > 0 ? ((d.abs_profit / d.starting_balance) * 100).toFixed(2) : null);
+                const relText = relPct !== null ? ` (${Number(relPct) >= 0 ? '+' : ''}${relPct}%)` : '';
                 let heightPct: number;
 
                 if (isLogScale) {
@@ -812,7 +816,7 @@ export function FreqUIDashboardView() {
                     key={d.date}
                     onClick={() => setSelectedDayDate(isSelected ? null : d.date)}
                     className="flex-1 flex flex-col items-center h-full min-h-0 justify-end group min-w-[24px] max-w-[48px] cursor-pointer relative"
-                    title={`${d.date}: ${formatCurrency(d.abs_profit, { showSign: true })} (${d.trade_count || 0} trades)`}
+                    title={`${d.date}: ${formatCurrency(d.abs_profit, { showSign: true })}${relText} (${d.trade_count || 0} trades)`}
                   >
                     {/* Hover & Active Tooltip (terintegrasi dengan upstream indicator) */}
                     <div
@@ -823,7 +827,7 @@ export function FreqUIDashboardView() {
                       }`}
                     >
                       {hasTrade
-                        ? `${isReadOnly ? t('ui.hidden') : formatCurrency(d.abs_profit, { showSign: true })} (${d.trade_count || 0})`
+                        ? `${isReadOnly ? t('ui.hidden') : formatCurrency(d.abs_profit, { showSign: true })}${relText} [${d.trade_count || 0}]`
                         : `${formatCurrency(0)} (0 ${t('dashboard.trades_count')})`}
                     </div>
 
@@ -936,8 +940,12 @@ export function FreqUIDashboardView() {
                   <span className="text-[10px] text-slate-500 font-medium truncate">
                     {t('dashboard.best_day')}
                   </span>
-                  <span className="font-mono font-bold text-xs sm:text-sm mt-0.5 text-emerald-500 dark:text-emerald-400 truncate">
-                    +{formatCurrency(dailyStats.bestDay)}
+                  <span
+                    className={`font-mono font-bold text-xs sm:text-sm mt-0.5 truncate ${
+                      dailyStats.bestDay >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'
+                    }`}
+                  >
+                    {isReadOnly ? t('ui.hidden') : formatCurrency(dailyStats.bestDay, { showSign: true })}
                   </span>
                 </div>
               </div>

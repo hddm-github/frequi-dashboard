@@ -172,8 +172,20 @@ export function EquityCurveView() {
       });
     });
 
+    // Append Live point representing real-time balance + floating unrealized PnL
+    points.push({
+      date: 'Live',
+      fullDate: t('equity.current'),
+      value: currentEquity,
+      pnl: totalNetProfit,
+      pct: totalReturnPct,
+      dailyPnl: totalUnrealized,
+      tradeCount: (profitSummary?.closed_trade_count || 0) + activeTrades.length,
+      isStart: false,
+    });
+
     return points;
-  }, [allSortedRecords, filteredRecords, initialCapital, currentEquity, totalNetProfit, totalReturnPct, profitSummary, t]);
+  }, [allSortedRecords, filteredRecords, initialCapital, currentEquity, totalNetProfit, totalReturnPct, totalUnrealized, activeTrades, profitSummary, t]);
 
   // Win/Loss days count in the filtered range
   const periodWinDays = useMemo(() => {

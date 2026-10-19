@@ -39,59 +39,74 @@ function timeframeToSeconds(tf: string): number {
   return num * 60;
 }
 
-type PositionMarkerKind = 'add' | 'build' | 'reduce';
+type PositionMarkerKind = 'rebuy' | 'grind_entry' | 'grind_exit' | 'derisk';
 
 function getPositionMarkerKind(
   order: NonNullable<Trade['orders']>[number],
   trade: Trade,
   index: number
 ): PositionMarkerKind | null {
-  const tag = String(order.ft_order_tag || '').toLowerCase();
-  const side = String(order.ft_order_side || '').toLowerCase();
-  const entrySide = trade.is_short ? 'sell' : 'buy';
-  const isEntrySide = side === entrySide;
-  const isExitSide = side === (entrySide === 'buy' ? 'sell' : 'buy');
-  const nfiMode = tag.match(/(?:^|[^0-9])(\d{2,3})(?:[^0-9]|$)/)?.[1] || '';
-  const isNfiRebuyMode = ['61', '62', '63', '64', '65', '68', '561', '562', '563'].includes(nfiMode);
-  const isNfiGrindMode = ['120', '620'].includes(nfiMode);
-  const isDerisk = ['d', 'd1', 'derisk_level_1', 'derisk_level_2', 'derisk_level_3'].some((name) => tag === name || tag.startsWith(`${name} `));
-  const isEntry = order.ft_is_entry === true || tag.includes('entry') || tag.includes('rebuy') || tag.includes('dca') || tag.includes('grind') || isEntrySide;
-
-  // First position-opening order is represented by the dedicated Entry marker,
-  // even when its strategy tag is a numeric NFI signal such as 61.
-  if (index === 0 && isEntrySide && !isDerisk) return null;
-
-  if (isEntry) {
-    if (isNfiGrindMode || tag.includes('grind') || tag.includes('grinding')) return 'build';
-    if (isNfiRebuyMode || tag.includes('rebuy') || tag.includes('dca') || tag.includes('reaccumul') || index > 0) return 'add';
+  const status = String(order.status || '').toLowerCase();
+  if (status === 'canceled' || status === 'cancelled') {
     return null;
   }
 
+  const tag = String(order.ft_order_tag || '').toLowerCase();
+  const side = String(order.ft_order_side || '').toLowerCase();
+  const entrySide = trade.is_short ? 'sell' : 'buy';
+  const exitSide = trade.is_short ? 'buy' : 'sell';
+  const isEntrySide = side === entrySide;
+  const isExitSide = side === exitSide;
+  const nfiMode = tag.match(/(?:^|[^0-9])(\d{2,3})(?:[^0-9]|$)/)?.[1] || '';
+  const isNfiRebuyMode = ['61', '62', '63', '64', '65', '68', '561', '562', '563'].includes(nfiMode);
+  const isNfiGrindMode = ['120', '620'].includes(nfiMode);
+  const isDerisk = ['d', 'd1', 'd2', 'd3', 'derisk', 'derisk_level_1', 'derisk_level_2', 'derisk_level_3'].some(
+    (name) => tag === name || tag.startsWith(`${name} `) || tag.startsWith(`${name}_`)
+  );
+  const isEntry = order.ft_is_entry === true || tag.includes('entry') || tag.includes('rebuy') || tag.includes('dca') || tag.includes('grind') || isEntrySide;
+
+  // First position-opening order is represented by the dedicated Long / Short marker
+  if (index === 0 && isEntrySide && !isDerisk) return null;
+
+  if (isEntry && !isExitSide) {
+    if (isNfiGrindMode || tag.includes('grind') || tag.includes('grinding') || tag.startsWith('g')) return 'grind_entry';
+    if (isNfiRebuyMode || tag.includes('rebuy') || tag.includes('dca') || tag.includes('reaccumul') || index > 0) return 'rebuy';
+    return 'rebuy';
+  }
+
+  if (isDerisk || tag.includes('derisk') || tag.includes('de-risk')) {
+    return 'derisk';
+  }
+
   if (
-    isDerisk ||
+    tag.includes('grind_exit') ||
     tag.includes('partial') ||
-    tag.includes('derisk') ||
     tag.includes('reduce') ||
-    tag.includes('de-risk') ||
-    tag.includes('sell') ||
     isExitSide
   ) {
-    return 'reduce';
+    return 'grind_exit';
   }
 
   return null;
 }
 
-function markerLabel(kind: PositionMarkerKind, isZh: boolean): string {
+function markerLabel(kind: PositionMarkerKind, isZh: boolean, isShort?: boolean): string {
   if (isZh) {
-    return kind === 'add' ? '加仓' : kind === 'build' ? '研磨' : '减仓';
+    if (kind === 'rebuy') return isShort ? '做空加仓' : '加仓 (Rebuy)';
+    if (kind === 'grind_entry') return '研磨入场 (Grind-Entry)';
+    if (kind === 'derisk') return '避险 (De-risk)';
+    return '研磨减仓 (Grind-Exit)';
   }
-  return kind === 'add' ? 'Add' : kind === 'build' ? 'Build' : 'Reduce';
+  if (kind === 'rebuy') return isShort ? 'Short Rebuy' : 'Rebuy';
+  if (kind === 'grind_entry') return 'Grind-Entry';
+  if (kind === 'derisk') return 'De-risk';
+  return 'Grind-Exit';
 }
 
 function markerColor(kind: PositionMarkerKind, isDark: boolean): string {
-  if (kind === 'add') return isDark ? '#38bdf8' : '#0369a1';
-  if (kind === 'build') return isDark ? '#a78bfa' : '#6d28d9';
+  if (kind === 'rebuy') return isDark ? '#38bdf8' : '#0369a1';
+  if (kind === 'grind_entry') return isDark ? '#a78bfa' : '#6d28d9';
+  if (kind === 'derisk') return isDark ? '#fb923c' : '#ea580c';
   return isDark ? '#f59e0b' : '#b45309';
 }
 
@@ -349,25 +364,25 @@ export function CandleChartView() {
           order.order_filled_date || order.order_date
         );
         if (!orderTime) return;
-        // Initial entry and full exit already have dedicated markers. Do not stack Add/Reduce on them.
-        if ((kind === 'add' || kind === 'build') && entryTime === orderTime) return;
-        if (kind === 'reduce' && exitTime === orderTime) return;
+        // Initial entry and full exit already have dedicated markers. Do not stack on them.
+        const isEntryKind = kind === 'rebuy' || kind === 'grind_entry';
+        if (isEntryKind && entryTime === orderTime) return;
+        if (!isEntryKind && exitTime === orderTime) return;
         const price = Number(order.average || order.safe_price || order.price || 0);
-        const label = markerLabel(kind, locale === 'zh');
-        const isEntry = order.ft_is_entry === true || kind !== 'reduce';
+        const label = markerLabel(kind, locale === 'zh', trade.is_short);
         result.push({
           time: orderTime,
-          position: kind === 'reduce'
-            ? (trade.is_short ? 'belowBar' : 'aboveBar')
-            : (isEntry === trade.is_short ? 'aboveBar' : 'belowBar'),
-          shape: kind === 'reduce'
-            ? (trade.is_short ? 'arrowUp' : 'arrowDown')
-            : (trade.is_short ? 'arrowDown' : 'arrowUp'),
+          position: isEntryKind
+            ? (trade.is_short ? 'aboveBar' : 'belowBar')
+            : (trade.is_short ? 'belowBar' : 'aboveBar'),
+          shape: isEntryKind
+            ? (trade.is_short ? 'arrowDown' : 'arrowUp')
+            : (trade.is_short ? 'arrowUp' : 'arrowDown'),
           color: markerColor(kind, isDark),
           markerType: kind,
           tradeId: trade.trade_id,
           text: `#${trade.trade_id} ${label}${price > 0 ? ` @${formatPrice(price)}` : ''}`,
-          size: kind === 'reduce' ? 1.5 : 1.25,
+          size: isEntryKind ? 1.25 : 1.5,
         });
       });
     };
@@ -382,8 +397,7 @@ export function CandleChartView() {
       .forEach((trade) => {
         const cTime = findCandleTime(trade.open_timestamp, trade.open_date);
         if (cTime) {
-          const entryText = locale === 'zh' ? '入场' : 'Entry';
-          const buyText = locale === 'zh' ? '买入' : 'Buy';
+          const sideText = trade.is_short ? (locale === 'zh' ? '做空' : 'Short') : (locale === 'zh' ? '做多' : 'Long');
           result.push({
             time: cTime,
             position: trade.is_short ? 'aboveBar' : 'belowBar',
@@ -393,7 +407,7 @@ export function CandleChartView() {
               : (isDark ? '#10b981' : '#047857'),
             markerType: 'entry',
             tradeId: trade.trade_id,
-            text: `#${trade.trade_id} ${entryText} @${trade.open_rate} [${trade.enter_tag || buyText}]`,
+            text: `#${trade.trade_id} ${sideText} @${trade.open_rate} [${trade.enter_tag || sideText}]`,
             size: 2,
           });
         }
@@ -407,7 +421,7 @@ export function CandleChartView() {
         if (trade.open_timestamp || trade.open_date) {
           const openTime = findCandleTime(trade.open_timestamp, trade.open_date);
           if (openTime) {
-            const entryText = locale === 'zh' ? '入场' : 'Entry';
+            const sideText = trade.is_short ? (locale === 'zh' ? '做空' : 'Short') : (locale === 'zh' ? '做多' : 'Long');
             result.push({
               time: openTime,
               position: trade.is_short ? 'aboveBar' : 'belowBar',
@@ -417,7 +431,7 @@ export function CandleChartView() {
                 : (isDark ? '#34d399' : '#047857'),
               markerType: 'entry',
               tradeId: trade.trade_id,
-              text: `#${trade.trade_id} ${entryText} @${trade.open_rate} [${trade.enter_tag || ''}]`,
+              text: `#${trade.trade_id} ${sideText} @${trade.open_rate} [${trade.enter_tag || sideText}]`,
               size: 1.5,
             });
           }
@@ -427,7 +441,7 @@ export function CandleChartView() {
           const closeTime = findCandleTime(trade.close_timestamp, trade.close_date);
           if (closeTime) {
             const isProfit = (trade.profit_pct ?? 0) >= 0;
-            const exitText = locale === 'zh' ? '平仓' : 'Close';
+            const exitText = locale === 'zh' ? '平仓' : 'Exit';
             result.push({
               time: closeTime,
               position: trade.is_short ? 'belowBar' : 'aboveBar',
@@ -1071,32 +1085,58 @@ export function CandleChartView() {
                                     <span>{t('candle.order_history')} ({tr.orders!.length})</span>
                                   </div>
                                   {tr.orders!.map((ord, idx) => {
+                                    const isShort = tr.is_short;
                                     const isBuy = ord.ft_order_side === 'buy';
-                                    const defaultTag = isBuy ? (locale === 'zh' ? '入场' : 'Entry') : (locale === 'zh' ? '平仓' : 'Exit');
-                                    const tag = ord.ft_order_tag || defaultTag;
-                                    const isGrind = tag.includes('grind');
-                                    const isRebuy = tag.includes('rebuy') || tag === 'r';
-                                    const isDerisk = tag.includes('derisk');
+                                    const isEntrySide = isShort ? !isBuy : isBuy;
+                                    const status = String(ord.status || '').toLowerCase();
+                                    const isCancelled = status === 'canceled' || status === 'cancelled';
+
+                                    let defaultTag = '';
+                                    if (idx === 0 && isEntrySide) {
+                                      defaultTag = isShort ? (locale === 'zh' ? '做空' : 'Short') : (locale === 'zh' ? '做多' : 'Long');
+                                    } else if (isEntrySide) {
+                                      defaultTag = 'Grind-Entry';
+                                    } else {
+                                      defaultTag = 'Grind-Exit';
+                                    }
+
+                                    let tag = ord.ft_order_tag || defaultTag;
+                                    if (idx === 0 && isEntrySide && (!ord.ft_order_tag || ord.ft_order_tag.toLowerCase().includes('entry'))) {
+                                      tag = isShort ? (locale === 'zh' ? '做空' : 'Short') : (locale === 'zh' ? '做多' : 'Long');
+                                    }
+
+                                    const tagLower = tag.toLowerCase();
+                                    const isGrind = tagLower.includes('grind');
+                                    const isRebuy = tagLower.includes('rebuy') || tagLower === 'r';
+                                    const isDerisk = tagLower.includes('derisk') || tagLower.includes('de-risk');
 
                                     let badgeColor = isDark
                                       ? 'bg-slate-700/50 text-slate-300'
                                       : 'bg-slate-100 text-slate-700 border border-slate-200';
-                                    if (isGrind) {
+                                    if (isCancelled) {
+                                      badgeColor = isDark
+                                        ? 'bg-slate-800 text-slate-400 border border-slate-700 line-through'
+                                        : 'bg-slate-200 text-slate-500 border border-slate-300 line-through';
+                                    } else if (isGrind) {
                                       badgeColor = isDark
                                         ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                                         : 'bg-purple-100 text-purple-800 border border-purple-200 font-semibold';
                                     } else if (isRebuy) {
                                       badgeColor = isDark
+                                        ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                                        : 'bg-sky-100 text-sky-800 border border-sky-200 font-semibold';
+                                    } else if (isDerisk) {
+                                      badgeColor = isDark
                                         ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                                         : 'bg-amber-100 text-amber-800 border border-amber-200 font-semibold';
-                                    } else if (isDerisk) {
+                                    } else if (isEntrySide) {
+                                      badgeColor = isShort
+                                        ? (isDark ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-rose-100 text-rose-800 border border-rose-200 font-semibold')
+                                        : (isDark ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold');
+                                    } else {
                                       badgeColor = isDark
                                         ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                                         : 'bg-rose-100 text-rose-800 border border-rose-200 font-semibold';
-                                    } else if (isBuy) {
-                                      badgeColor = isDark
-                                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                        : 'bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold';
                                     }
 
                                     return (
@@ -1110,11 +1150,19 @@ export function CandleChartView() {
                                       >
                                         <div className="flex items-center gap-1.5 truncate min-w-0">
                                           <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${badgeColor}`}>
-                                            {isBuy ? (locale === 'zh' ? '买入' : 'BUY') : (locale === 'zh' ? '卖出' : 'SELL')}
+                                            {isCancelled
+                                              ? (locale === 'zh' ? '已撤单' : 'CANCELLED')
+                                              : isBuy
+                                              ? (locale === 'zh' ? '买入' : 'BUY')
+                                              : (locale === 'zh' ? '卖出' : 'SELL')}
                                           </span>
                                           <span
                                             className={`font-semibold truncate shrink min-w-0 ${
-                                              isDark ? 'text-slate-200' : 'text-slate-800'
+                                              isCancelled
+                                                ? 'line-through text-slate-400 dark:text-slate-500'
+                                                : isDark
+                                                ? 'text-slate-200'
+                                                : 'text-slate-800'
                                             }`}
                                             title={tag}
                                           >
@@ -1201,9 +1249,10 @@ export function CandleChartView() {
         <div className="flex items-center justify-between gap-1.5 w-full min-w-0 overflow-x-auto no-scrollbar pt-1.5 border-t border-slate-200/60 dark:border-slate-800/80 max-md:gap-1">
           <div className="md:hidden flex items-center gap-x-2 px-1 py-0.5 text-[10px] font-medium whitespace-nowrap shrink-0 min-w-0">
               <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><span className="font-bold">↑</span> {t('candle.long')}</span>
-              <span className="flex items-center gap-1 text-sky-700 dark:text-sky-300"><span className="font-bold">↑</span> {t('candle.add_marker')}</span>
-              <span className="flex items-center gap-1 text-violet-700 dark:text-violet-300"><span className="font-bold">↑</span> {t('candle.build_marker')}</span>
-              <span className="flex items-center gap-1 text-amber-700 dark:text-amber-300"><span className="font-bold">↓</span> {t('candle.reduce_marker')}</span>
+              <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400"><span className="font-bold">↓</span> {t('candle.short')}</span>
+              <span className="flex items-center gap-1 text-sky-700 dark:text-sky-300"><span className="font-bold">↕</span> {t('candle.add_marker')}</span>
+              <span className="flex items-center gap-1 text-violet-700 dark:text-violet-300"><span className="font-bold">↕</span> {t('candle.build_marker')}</span>
+              <span className="flex items-center gap-1 text-amber-700 dark:text-amber-300"><span className="font-bold">↕</span> {t('candle.reduce_marker')}</span>
               <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400"><span className="font-bold">↓</span> {t('candle.closed')}</span>
           </div>
           <div className="md:hidden ml-auto flex items-center gap-1 shrink-0">
@@ -1300,9 +1349,10 @@ export function CandleChartView() {
               {showMarkers && (
                 <div className="flex items-center gap-x-2 text-[10px] font-medium whitespace-nowrap">
                   <span className="text-emerald-600 dark:text-emerald-400">↑ {t('candle.long')}</span>
-                  <span className="text-sky-700 dark:text-sky-300">↑ {t('candle.add_marker')}</span>
-                  <span className="text-violet-700 dark:text-violet-300">↑ {t('candle.build_marker')}</span>
-                  <span className="text-amber-700 dark:text-amber-300">↓ {t('candle.reduce_marker')}</span>
+                  <span className="text-rose-600 dark:text-rose-400">↓ {t('candle.short')}</span>
+                  <span className="text-sky-700 dark:text-sky-300">↕ {t('candle.add_marker')}</span>
+                  <span className="text-violet-700 dark:text-violet-300">↕ {t('candle.build_marker')}</span>
+                  <span className="text-amber-700 dark:text-amber-300">↕ {t('candle.reduce_marker')}</span>
                   <span className="text-rose-600 dark:text-rose-400">↓ {t('candle.closed')}</span>
                 </div>
               )}

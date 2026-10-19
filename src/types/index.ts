@@ -70,6 +70,7 @@ export interface ProfitSummary {
 export interface DailyRecord {
   date: string;
   abs_profit: number;
+  rel_profit?: number;
   fiat_value: number;
   trade_count: number;
   starting_balance?: number;

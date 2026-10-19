@@ -611,6 +611,7 @@ export class FreqtradeClient {
       return records.map((d) => ({
         date: String(d.date || ''),
         abs_profit: Number(d.abs_profit ?? 0),
+        rel_profit: d.rel_profit !== undefined ? Number(d.rel_profit) : undefined,
         fiat_value: Number(d.fiat_value ?? 0),
         trade_count: Number(d.trade_count ?? 0),
         starting_balance: d.starting_balance !== undefined ? Number(d.starting_balance) : undefined,
