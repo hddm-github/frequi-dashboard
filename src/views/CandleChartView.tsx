@@ -217,6 +217,25 @@ function findTradesForCandle(
         result.push({ type: 'close', trade });
       }
     }
+    // Match orders (DCA additions, grind, de-risk)
+    if (Array.isArray(trade.orders)) {
+      for (const order of trade.orders) {
+        const orderSec = getSec(
+          order.order_filled_timestamp || order.order_timestamp,
+          order.order_filled_date || order.order_date
+        );
+        if (orderSec > 0) {
+          if (
+            (orderSec >= candleTimeSec && orderSec < candleTimeSec + tfSec) ||
+            Math.abs(orderSec - candleTimeSec) <= tfSec
+          ) {
+            if (!result.some((r) => r.trade.trade_id === trade.trade_id)) {
+              result.push({ type: trade.is_open ? 'open' : 'close', trade });
+            }
+          }
+        }
+      }
+    }
   }
 
   return result;
@@ -271,6 +290,12 @@ export function CandleChartView() {
   // Real-time hovered candle and trade operations
   const [hoveredBar, setHoveredBar] = useState<HoveredBarData | null>(null);
   const [hoveredTrades, setHoveredTrades] = useState<HoveredTradeItem[]>([]);
+  const [pinnedTrade, setPinnedTrade] = useState<HoveredTradeItem | null>(null);
+
+  // Clear pinned trade inspector when pair changes
+  useEffect(() => {
+    setPinnedTrade(null);
+  }, [selectedPair]);
 
   const candlesRef = useRef<CandleData[]>([]);
   candlesRef.current = candles;
@@ -938,6 +963,9 @@ export function CandleChartView() {
         amplitudePct,
         isUp,
       });
+      if (matchedTrades.length > 0) {
+        setPinnedTrade(matchedTrades[0]);
+      }
       setHoveredTrades(matchedTrades);
     });
 
@@ -950,6 +978,7 @@ export function CandleChartView() {
       const matchedTrades = findTradesForCandle(tSec, tfSec, pairTradesRef.current);
       if (matchedTrades.length > 0) {
         setSelectedTrade(matchedTrades[0].trade);
+        setPinnedTrade(matchedTrades[0]);
       }
     });
 
@@ -1901,115 +1930,126 @@ export function CandleChartView() {
               </div>
 
               {/* If candle has trade operations */}
-              {isHovering && hoveredTrades.length > 0 && (
+              {(isHovering ? hoveredTrades.length > 0 : pinnedTrade !== null) && (
                 <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 dark:bg-amber-500/20 text-amber-800 dark:text-amber-400 border border-amber-300 dark:border-amber-500/40 animate-pulse font-sans">
-                  ★ {t('candle.contains_trades')} ({hoveredTrades.length})
+                  ★ {t('candle.contains_trades')} ({hoveredTrades.length || 1})
                 </span>
               )}
             </div>
 
-            {/* Row 2: Trade Details on this Hovered Candle */}
-            {isHovering && hoveredTrades.length > 0 && (
-              <div className="flex flex-col gap-1 max-w-2xl">
-                {hoveredTrades.map(({ trade, type }, idx) => {
-                  const isProfit = (trade.profit_pct ?? 0) >= 0;
-                  const isNfi = isNfiStrategy(botState.strategy);
-                  const nfiSignal = isNfi ? parseNfiSignal(trade.enter_tag, locale === 'zh') : null;
+            {/* Row 2: Trade Details on this Hovered / Pinned Candle */}
+            {((isHovering && hoveredTrades.length > 0) || pinnedTrade) && (() => {
+              const activeItem = (hoveredTrades.length > 0 ? hoveredTrades[0] : null) || pinnedTrade;
+              if (!activeItem) return null;
+              const { trade, type } = activeItem;
+              const isProfit = (trade.profit_pct ?? 0) >= 0;
+              const isNfi = isNfiStrategy(botState.strategy);
+              const nfiSignal = isNfi ? parseNfiSignal(trade.enter_tag, locale === 'zh') : null;
 
-                  return (
-                    <div
-                      key={`${trade.trade_id}-${type}-${idx}`}
-                      onClick={() => setSelectedTrade(trade)}
-                      className={`pointer-events-auto flex flex-wrap items-center gap-2.5 px-3 py-1.5 rounded-lg border text-xs shadow-lg backdrop-blur-md cursor-pointer transition-all ${
-                        type === 'open'
-                          ? trade.is_short
-                            ? 'bg-rose-50 border-rose-300 text-rose-950 hover:bg-rose-100 dark:bg-rose-950/90 dark:border-rose-500/60 dark:text-rose-100 dark:hover:bg-rose-900/90'
-                            : 'bg-emerald-50 border-emerald-300 text-emerald-950 hover:bg-emerald-100 dark:bg-emerald-950/90 dark:border-emerald-500/60 dark:text-emerald-100 dark:hover:bg-emerald-900/90'
-                          : isProfit
-                          ? 'bg-emerald-50 border-emerald-300 text-emerald-950 hover:bg-emerald-100 dark:bg-emerald-950/90 dark:border-emerald-500/60 dark:text-emerald-100 dark:hover:bg-emerald-900/90'
-                          : 'bg-rose-50 border-rose-300 text-rose-950 hover:bg-rose-100 dark:bg-rose-950/90 dark:border-rose-500/60 dark:text-rose-100 dark:hover:bg-rose-900/90'
-                      }`}
-                      title={t('candle.click_expand_trade')}
-                    >
-                      {/* Trade Badge */}
-                      <span className="font-bold flex items-center gap-1.5 font-mono">
-                        <Bookmark className="w-3.5 h-3.5 text-amber-500" />
-                        <span>#{trade.trade_id}</span>
-                        <span
-                          className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
-                            type === 'open'
-                              ? trade.is_short
-                                ? 'bg-rose-600 text-white'
-                                : 'bg-emerald-600 text-white'
-                              : 'bg-blue-600 text-white'
-                          }`}
-                        >
-                          {type === 'open'
+              return (
+                <div className="flex flex-col gap-1 max-w-2xl">
+                  <div
+                    onClick={() => setSelectedTrade(trade)}
+                    className={`pointer-events-auto flex flex-wrap items-center gap-2.5 px-3 py-1.5 rounded-lg border text-xs shadow-lg backdrop-blur-md cursor-pointer transition-all ${
+                      type === 'open'
+                        ? trade.is_short
+                          ? 'bg-rose-50 border-rose-300 text-rose-950 hover:bg-rose-100 dark:bg-rose-950/90 dark:border-rose-500/60 dark:text-rose-100 dark:hover:bg-rose-900/90'
+                          : 'bg-emerald-50 border-emerald-300 text-emerald-950 hover:bg-emerald-100 dark:bg-emerald-950/90 dark:border-emerald-500/60 dark:text-emerald-100 dark:hover:bg-emerald-900/90'
+                        : isProfit
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-950 hover:bg-emerald-100 dark:bg-emerald-950/90 dark:border-emerald-500/60 dark:text-emerald-100 dark:hover:bg-emerald-900/90'
+                        : 'bg-rose-50 border-rose-300 text-rose-950 hover:bg-rose-100 dark:bg-rose-950/90 dark:border-rose-500/60 dark:text-rose-100 dark:hover:bg-rose-900/90'
+                    }`}
+                    title={t('candle.click_expand_trade')}
+                  >
+                    {/* Trade Badge */}
+                    <span className="font-bold flex items-center gap-1.5 font-mono">
+                      <Bookmark className="w-3.5 h-3.5 text-amber-500" />
+                      <span>#{trade.trade_id}</span>
+                      <span
+                        className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                          type === 'open'
                             ? trade.is_short
-                              ? t('candle.short_entry')
-                              : t('candle.long_entry')
-                            : t('candle.closed_exit')}
+                              ? 'bg-rose-600 text-white'
+                              : 'bg-emerald-600 text-white'
+                            : 'bg-blue-600 text-white'
+                        }`}
+                      >
+                        {type === 'open'
+                          ? trade.is_short
+                            ? t('candle.short_entry')
+                            : t('candle.long_entry')
+                          : t('candle.closed_exit')}
+                      </span>
+                    </span>
+
+                    {/* Prices */}
+                    <span className="font-mono">
+                      {type === 'open' ? (
+                        <span>
+                          {t('candle.open_price')}: <strong>{formatPrice(trade.open_rate)}</strong>
                         </span>
-                      </span>
-
-                      {/* Prices */}
-                      <span className="font-mono">
-                        {type === 'open' ? (
-                          <span>
-                            {t('candle.open_price')}: <strong>{formatPrice(trade.open_rate)}</strong>
-                          </span>
-                        ) : (
-                          <span>
-                            {t('candle.open')}: <strong>{formatPrice(trade.open_rate)}</strong> → {t('candle.close')}:{' '}
-                            <strong>{formatPrice(trade.close_rate || 0)}</strong>
-                          </span>
-                        )}
-                      </span>
-
-                      {/* Profit for Close */}
-                      {type === 'close' && (
-                        <span className="font-mono font-bold">
-                          {t('closed.realized_pnl')}:{' '}
-                          <span className={isProfit ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}>
-                            {isProfit ? '+' : ''}
-                            {trade.profit_pct}%
-                            {trade.profit_abs !== undefined && (
-                              <span className="ml-1 text-[11px] font-normal opacity-90">
-                                ({trade.profit_abs >= 0 ? '+' : ''}
-                                {trade.profit_abs.toFixed(2)} USDT)
-                              </span>
-                            )}
-                          </span>
+                      ) : (
+                        <span>
+                          {t('candle.open')}: <strong>{formatPrice(trade.open_rate)}</strong> → {t('candle.close')}:{' '}
+                          <strong>{formatPrice(trade.close_rate || 0)}</strong>
                         </span>
                       )}
+                    </span>
 
-                      {/* Signal Tag */}
-                      {trade.enter_tag && (
-                        <span className="px-1.5 py-0.5 rounded bg-cyan-100/80 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-500/30 font-mono text-[11px]">
-                          {t('candle.entry_signal')}: {trade.enter_tag}
-                          {nfiSignal && nfiSignal.category !== (locale === 'zh' ? '常规入场' : 'Standard entry') && (
-                            <span className="ml-1 font-sans text-[10px] opacity-90 font-normal">
-                              ({nfiSignal.category})
+                    {/* Profit for Close */}
+                    {type === 'close' && (
+                      <span className="font-mono font-bold">
+                        {t('closed.realized_pnl')}:{' '}
+                        <span className={isProfit ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}>
+                          {isProfit ? '+' : ''}
+                          {trade.profit_pct}%
+                          {trade.profit_abs !== undefined && (
+                            <span className="ml-1 text-[11px] font-normal opacity-90">
+                              ({trade.profit_abs >= 0 ? '+' : ''}
+                              {trade.profit_abs.toFixed(2)} USDT)
                             </span>
                           )}
                         </span>
-                      )}
-
-                      {/* Exit Reason */}
-                      {type === 'close' && (trade.exit_reason || trade.exit_tag) && (
-                        <span className="px-1.5 py-0.5 rounded bg-amber-100/80 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 font-mono text-[11px]">
-                          {t('candle.exit_reason')}: {formatExitReason(trade.exit_reason, trade.exit_tag, locale === 'zh')}
-                        </span>
-                      )}
-
-                      <span className="text-[10px] opacity-75 ml-auto font-sans">
-                        [{t('candle.click_full_details')}]
                       </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    )}
+
+                    {/* Signal Tag */}
+                    {trade.enter_tag && (
+                      <span className="px-1.5 py-0.5 rounded bg-cyan-100/80 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-500/30 font-mono text-[11px]">
+                        {t('candle.entry_signal')}: {trade.enter_tag}
+                        {nfiSignal && nfiSignal.category !== (locale === 'zh' ? '常规入场' : 'Standard entry') && (
+                          <span className="ml-1 font-sans text-[10px] opacity-90 font-normal">
+                            ({nfiSignal.category})
+                          </span>
+                        )}
+                      </span>
+                    )}
+
+                    {/* Exit Reason */}
+                    {type === 'close' && (trade.exit_reason || trade.exit_tag) && (
+                      <span className="px-1.5 py-0.5 rounded bg-amber-100/80 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 font-mono text-[11px]">
+                        {t('candle.exit_reason')}: {formatExitReason(trade.exit_reason, trade.exit_tag, locale === 'zh')}
+                      </span>
+                    )}
+
+                    <span className="text-[10px] opacity-75 ml-auto font-sans flex items-center gap-1.5">
+                      <span>[{t('candle.click_full_details')}]</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPinnedTrade(null);
+                        }}
+                        className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 transition-colors"
+                        title="Close"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
