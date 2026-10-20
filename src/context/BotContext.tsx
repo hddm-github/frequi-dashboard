@@ -519,11 +519,11 @@ export function BotProvider({ children }: { children: ReactNode }) {
       }
       setActiveTrades(active);
 
-      // Smart pair sync
+      // Smart pair sync: only initialize default pair when none is selected yet.
+      // Never overwrite user's selected pair (including historical trades like NXPC) during background polling.
       const currentActiveState = state || botStateRef.current;
       setSelectedPair((prev) => {
-        const isValid = prev && (active.some((t) => t.pair === prev) || (currentActiveState && currentActiveState.whitelist.includes(prev)));
-        if (isValid) return prev;
+        if (prev) return prev;
         if (active.length > 0 && active[0].pair) return active[0].pair;
         if (currentActiveState && currentActiveState.whitelist.length > 0) return currentActiveState.whitelist[0];
         return '';
