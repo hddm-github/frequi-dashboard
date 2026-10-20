@@ -407,14 +407,19 @@ export function ClosedTradesView() {
                       isDark ? 'hover:bg-[#1a233a]/50 transition-colors' : 'hover:bg-slate-50 transition-colors'
                     }
                   >
-                    <td className="py-2.5 px-3 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 font-bold">
+                    <td
+                      onClick={() => handleViewChart(t.pair)}
+                      className="py-2.5 px-3 whitespace-nowrap cursor-pointer group"
+                      title={translate('ui.open_candle_chart')}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold group-hover:text-cyan-500 transition-colors">
                         {t.is_short ? (
                           <ArrowDownRight className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                         ) : (
                           <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                         )}
-                        <span>{t.pair || '-'}</span>
+                        <span className="hover:underline">{t.pair || '-'}</span>
+                        <CandlestickChart className="w-3 h-3 text-cyan-500 opacity-70 group-hover:opacity-100 transition-opacity shrink-0" />
                       </div>
                       <div className="text-[10px] text-slate-500 font-normal">
                         #{t.trade_id} · {formatUtc8(t.close_timestamp || t.close_date, 'YYYY-MM-DD HH:mm:ss')}

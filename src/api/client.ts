@@ -732,7 +732,7 @@ export class FreqtradeClient {
         rows = res.data;
         columns = Array.isArray(res.columns) ? res.columns : [];
       } else {
-        return [];
+        return await this.fetchBinanceCandles(pair, tf, limit, beforeTimestamp);
       }
 
       const dateIdx = columns.findIndex((c) => c.toLowerCase() === 'date');
@@ -835,10 +835,21 @@ export class FreqtradeClient {
 
       for (const t of targets) {
         try {
-          let resp: Response;
-          resp = await fetch(`${t.host}${t.path}`);
+          let resp: Response | null = null;
+          try {
+            resp = await fetch(`${t.host}${t.path}`);
+          } catch {
+            // Direct connection failed (e.g. local network block), fallback to proxy
+            try {
+              resp = await fetch(`/api-proxy${t.path}`, {
+                headers: { 'x-target-url': t.host },
+              });
+            } catch {
+              resp = null;
+            }
+          }
 
-          if (!resp.ok) continue;
+          if (!resp || !resp.ok) continue;
           const klines = await resp.json();
           if (Array.isArray(klines) && klines.length > 0) {
             const data: CandleData[] = [];

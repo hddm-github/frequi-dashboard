@@ -291,14 +291,15 @@ export function CandleChartView() {
     }
   }, [botState.timeframe]);
 
-  // Combine whitelist and active trade pairs for pair selector
+  // Combine whitelist, active trades, and closed trades for pair selector
   const availablePairs = useMemo(() => {
     const set = new Set<string>();
     activeTrades.forEach((t) => set.add(t.pair));
     botState.whitelist.forEach((p) => set.add(p));
+    closedTrades.forEach((t) => set.add(t.pair));
     if (selectedPair) set.add(selectedPair);
     return Array.from(set);
-  }, [botState.whitelist, activeTrades, selectedPair]);
+  }, [botState.whitelist, activeTrades, closedTrades, selectedPair]);
 
   // All trades (active + closed) for current selectedPair
   const pairTrades = useMemo(() => {
@@ -749,10 +750,11 @@ export function CandleChartView() {
   handleLoadOlderCandlesRef.current = handleLoadOlderCandles;
 
   // Focus chart timeScale to a specific trade
-  const focusTradeOnChart = (trade: Trade) => {
+  const focusTradeOnChart = (trade: Trade, candlesList?: CandleData[]) => {
     setSelectedTrade(trade);
     setShowTradeDropdown(false);
-    if (!chartRef.current || candles.length === 0) return;
+    const list = candlesList || candles;
+    if (!chartRef.current || list.length === 0) return;
 
     const targetMs =
       trade.close_timestamp ||
@@ -761,12 +763,14 @@ export function CandleChartView() {
     if (!targetMs) return;
 
     const targetSec = targetMs > 1e11 ? Math.floor(targetMs / 1000) : Math.floor(targetMs);
-    const index = candles.findIndex((c) => Math.abs((c.time as number) - targetSec) < 3600);
+    const index = list.findIndex((c) => Math.abs((c.time as number) - targetSec) < 3600);
     if (index >= 0) {
       chartRef.current.timeScale().setVisibleLogicalRange({
         from: Math.max(0, index - 25),
-        to: Math.min(candles.length - 1, index + 25),
+        to: Math.min(list.length - 1, index + 25),
       });
+    } else {
+      zoomToRecentCandles(chartRef.current, list.length);
     }
   };
 
@@ -1042,7 +1046,13 @@ export function CandleChartView() {
           }))
         );
 
-        zoomToRecentCandles(chartRef.current, data.length);
+        const currentActive = activeTrades.find((t) => t.pair === pair);
+        const latestClosed = closedTrades.find((t) => t.pair === pair);
+        if (!currentActive && latestClosed) {
+          focusTradeOnChart(latestClosed, data);
+        } else {
+          zoomToRecentCandles(chartRef.current, data.length);
+        }
       }
     } catch (err: any) {
       console.error('Failed to load candles', err);
@@ -1109,11 +1119,21 @@ export function CandleChartView() {
                   isDark ? 'bg-[#1a233a] border-slate-700 text-slate-200' : 'bg-white border-slate-300 text-slate-800 shadow-2xs'
                 }`}
               >
-                {availablePairs.map((pair) => (
-                  <option key={pair} value={pair}>
-                    {pair} {activeTrades.some((tr) => tr.pair === pair) ? `★ (${t('candle.open_position')})` : ''}
-                  </option>
-                ))}
+                {availablePairs.map((pair) => {
+                  const isActive = activeTrades.some((tr) => tr.pair === pair);
+                  const isWhitelisted = botState.whitelist.includes(pair);
+                  let labelTag = '';
+                  if (isActive) {
+                    labelTag = ` ★ (${t('candle.open_position')})`;
+                  } else if (!isWhitelisted) {
+                    labelTag = ` 🕒 (${locale === 'zh' ? '历史记录' : 'History'})`;
+                  }
+                  return (
+                    <option key={pair} value={pair}>
+                      {pair}{labelTag}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
