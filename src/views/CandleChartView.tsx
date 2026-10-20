@@ -290,11 +290,11 @@ export function CandleChartView() {
   // Real-time hovered candle and trade operations
   const [hoveredBar, setHoveredBar] = useState<HoveredBarData | null>(null);
   const [hoveredTrades, setHoveredTrades] = useState<HoveredTradeItem[]>([]);
-  const [pinnedTrade, setPinnedTrade] = useState<HoveredTradeItem | null>(null);
+  const isHudHoveredRef = useRef(false);
 
-  // Clear pinned trade inspector when pair changes
+  // Clear selected trade modal inspector when pair changes
   useEffect(() => {
-    setPinnedTrade(null);
+    setSelectedTrade(null);
   }, [selectedPair]);
 
   const candlesRef = useRef<CandleData[]>([]);
@@ -775,8 +775,10 @@ export function CandleChartView() {
   handleLoadOlderCandlesRef.current = handleLoadOlderCandles;
 
   // Focus chart timeScale to a specific trade
-  const focusTradeOnChart = (trade: Trade, candlesList?: CandleData[]) => {
-    setSelectedTrade(trade);
+  const focusTradeOnChart = (trade: Trade, candlesList?: CandleData[], openInspector: boolean = false) => {
+    if (openInspector) {
+      setSelectedTrade(trade);
+    }
     setShowTradeDropdown(false);
     const list = candlesList || candles;
     if (!chartRef.current || list.length === 0) return;
@@ -909,6 +911,7 @@ export function CandleChartView() {
     // Listen to mouse moving across candles to display real OHLCV and trade info in HUD
     chart.subscribeCrosshairMove((param) => {
       if (!param.point || !param.time || !candleSeriesRef.current) {
+        if (isHudHoveredRef.current) return;
         setHoveredBar(null);
         setHoveredTrades([]);
         return;
@@ -936,6 +939,7 @@ export function CandleChartView() {
           close = found.close;
           volume = found.volume;
         } else {
+          if (isHudHoveredRef.current) return;
           setHoveredBar(null);
           setHoveredTrades([]);
           return;
@@ -963,9 +967,6 @@ export function CandleChartView() {
         amplitudePct,
         isUp,
       });
-      if (matchedTrades.length > 0) {
-        setPinnedTrade(matchedTrades[0]);
-      }
       setHoveredTrades(matchedTrades);
     });
 
@@ -978,7 +979,6 @@ export function CandleChartView() {
       const matchedTrades = findTradesForCandle(tSec, tfSec, pairTradesRef.current);
       if (matchedTrades.length > 0) {
         setSelectedTrade(matchedTrades[0].trade);
-        setPinnedTrade(matchedTrades[0]);
       }
     });
 
@@ -1078,7 +1078,7 @@ export function CandleChartView() {
         const currentActive = activeTrades.find((t) => t.pair === pair);
         const latestClosed = closedTrades.find((t) => t.pair === pair);
         if (!currentActive && latestClosed) {
-          focusTradeOnChart(latestClosed, data);
+          focusTradeOnChart(latestClosed, data, false);
         } else {
           zoomToRecentCandles(chartRef.current, data.length);
         }
@@ -1667,145 +1667,7 @@ export function CandleChartView() {
         </div>
       )}
 
-      {/* Selected Trade Detail Floating Inspector */}
-      {selectedTrade && (
-        <div
-          className={`absolute top-12 left-2 right-2 sm:left-auto sm:right-4 z-30 w-auto sm:w-80 max-w-sm rounded-xl shadow-2xl border p-3.5 text-xs backdrop-blur-md transition-all ${
-            isDark ? 'bg-[#131b2e]/95 border-slate-700/80 text-slate-200 shadow-2xl' : 'bg-white/95 border-slate-300 text-slate-800 shadow-xl'
-          }`}
-        >
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-700/40">
-            <div className="flex items-center gap-1.5 font-bold font-mono">
-              <Crosshair className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{t('candle.trade_details')} #{selectedTrade.trade_id}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${
-                  selectedTrade.is_short
-                    ? 'bg-rose-500/20 text-rose-400'
-                    : 'bg-emerald-500/20 text-emerald-400'
-                }`}
-              >
-                {selectedTrade.is_short ? t('candle.short') : t('candle.long')}
-              </span>
-            </div>
-            <button
-              onClick={() => setSelectedTrade(null)}
-              className="p-1 hover:text-slate-100 cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
 
-          <div className="space-y-1.5 font-mono text-[11px]">
-            <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">{t('candle.status')}:</span>
-              <span className={selectedTrade.is_open ? 'text-amber-500 font-bold' : 'text-slate-700 dark:text-slate-300'}>
-                {selectedTrade.is_open ? `● ${t('candle.open_position')}` : t('candle.closed_position')}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">{t('candle.pair')}:</span>
-              <span className="text-slate-900 dark:text-slate-100 font-bold">{selectedTrade.pair}</span>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">{t('candle.duration')}:</span>
-              <span className="text-slate-700 dark:text-slate-300">
-                {formatDuration(selectedTrade.open_date, selectedTrade.close_date, locale === 'zh')}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">{t('candle.open_time')}:</span>
-              <span className="text-slate-700 dark:text-slate-300">
-                {selectedTrade.open_date ? formatUtc8(selectedTrade.open_timestamp || selectedTrade.open_date, 'YYYY-MM-DD HH:mm:ss') : '-'}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">{t('candle.avg_open')}:</span>
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatPrice(selectedTrade.open_rate)}</span>
-            </div>
-
-            {selectedTrade.close_rate && (
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">{t('candle.avg_close')}:</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">{formatPrice(selectedTrade.close_rate)}</span>
-              </div>
-            )}
-
-            {selectedTrade.close_date && (
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">{t('candle.close_time')}:</span>
-                <span className="text-slate-700 dark:text-slate-300">
-                  {formatUtc8(selectedTrade.close_timestamp || selectedTrade.close_date, 'YYYY-MM-DD HH:mm:ss')}
-                </span>
-              </div>
-            )}
-
-            <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400">{t('candle.profit_ratio')}:</span>
-              <span
-                className={`font-bold ${
-                  (selectedTrade.profit_pct ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
-                }`}
-              >
-                {(selectedTrade.profit_pct ?? 0) >= 0 ? '+' : ''}
-                {selectedTrade.profit_pct}%
-                {selectedTrade.profit_abs !== undefined && (
-                  <span className="ml-1 text-[10px] font-normal opacity-80">
-                    ({selectedTrade.profit_abs >= 0 ? '+' : ''}
-                    {selectedTrade.profit_abs.toFixed(2)} USDT)
-                  </span>
-                )}
-              </span>
-            </div>
-
-            {selectedTrade.stake_amount !== undefined && (
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">{t('candle.margin')}:</span>
-                <span className="text-slate-800 dark:text-slate-200">
-                  {selectedTrade.stake_amount} {botState.stake_currency || 'USDT'}
-                </span>
-              </div>
-            )}
-
-            {selectedTrade.stop_loss_abs && (
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">{t('candle.stop_protection')}:</span>
-                <span className="text-rose-600 dark:text-rose-400 font-semibold">
-                  {formatPrice(selectedTrade.stop_loss_abs)}
-                  {selectedTrade.stop_loss_pct !== undefined && ` (${selectedTrade.stop_loss_pct}%)`}
-                </span>
-              </div>
-            )}
-
-            {selectedTrade.enter_tag && (
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">{t('candle.entry_signal')}:</span>
-                <span className="text-cyan-700 dark:text-cyan-400 font-semibold">
-                  {selectedTrade.enter_tag}
-                  {isNfiStrategy(botState.strategy) && (
-                    <span className="ml-1 text-[10px] opacity-80 font-normal">
-                      ({parseNfiSignal(selectedTrade.enter_tag, locale === 'zh').category})
-                    </span>
-                  )}
-                </span>
-              </div>
-            )}
-
-            {selectedTrade.exit_reason && (
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400">{t('candle.exit_reason')}:</span>
-                <span className="text-amber-700 dark:text-amber-400 font-semibold" title={selectedTrade.exit_reason}>
-                  {formatExitReason(selectedTrade.exit_reason, selectedTrade.exit_tag, locale === 'zh')}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Error / Empty overlay */}
       {errorMsg && (
@@ -1832,7 +1694,17 @@ export function CandleChartView() {
       <div className="relative flex-1 w-full min-h-0 overflow-hidden">
         {/* Floating Top Legend HUD (OHLCV & Trade Markers) */}
         {showCandleInfo && displayBar && (
-          <div className="absolute top-2 left-3 right-3 z-20 pointer-events-none flex flex-col gap-1.5">
+          <div
+            className="absolute top-2 left-3 right-3 z-20 pointer-events-none flex flex-col gap-1.5"
+            onMouseEnter={() => {
+              isHudHoveredRef.current = true;
+            }}
+            onMouseLeave={() => {
+              isHudHoveredRef.current = false;
+              setHoveredTrades([]);
+              setHoveredBar(null);
+            }}
+          >
             {/* Row 1: OHLCV Bar */}
             <div
               className={`pointer-events-auto flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 rounded-lg border backdrop-blur-md text-xs shadow-md transition-all font-mono ${
@@ -1930,16 +1802,16 @@ export function CandleChartView() {
               </div>
 
               {/* If candle has trade operations */}
-              {(isHovering ? hoveredTrades.length > 0 : pinnedTrade !== null) && (
+              {isHovering && hoveredTrades.length > 0 && (
                 <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 dark:bg-amber-500/20 text-amber-800 dark:text-amber-400 border border-amber-300 dark:border-amber-500/40 animate-pulse font-sans">
-                  ★ {t('candle.contains_trades')} ({hoveredTrades.length || 1})
+                  ★ {t('candle.contains_trades')} ({hoveredTrades.length})
                 </span>
               )}
             </div>
 
-            {/* Row 2: Trade Details on this Hovered / Pinned Candle */}
-            {((isHovering && hoveredTrades.length > 0) || pinnedTrade) && (() => {
-              const activeItem = (hoveredTrades.length > 0 ? hoveredTrades[0] : null) || pinnedTrade;
+            {/* Row 2: Trade Details on this Hovered Candle */}
+            {isHovering && hoveredTrades.length > 0 && (() => {
+              const activeItem = hoveredTrades[0];
               if (!activeItem) return null;
               const { trade, type } = activeItem;
               const isProfit = (trade.profit_pct ?? 0) >= 0;
@@ -2034,17 +1906,6 @@ export function CandleChartView() {
 
                     <span className="text-[10px] opacity-75 ml-auto font-sans flex items-center gap-1.5">
                       <span>[{t('candle.click_full_details')}]</span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPinnedTrade(null);
-                        }}
-                        className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 transition-colors"
-                        title="Close"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
                     </span>
                   </div>
                 </div>
@@ -2197,6 +2058,259 @@ export function CandleChartView() {
                     : 'Chart horizontal lines: Rose/Green dashed for Short/Long entry, Sky dashed for DCA additions, Green/Rose dashed for Take-Profit/Stop-Loss exit, and Amber dotted for active Stop-Loss.'}
                 </span>
               </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Selected Trade Detail Modal Portal */}
+      {selectedTrade && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[130] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setSelectedTrade(null)}
+        >
+          <div
+            className={`w-full max-w-lg max-h-[85dvh] flex flex-col rounded-2xl shadow-2xl border overflow-hidden animate-in zoom-in-95 duration-150 ${
+              isDark ? 'bg-[#131b2e] border-slate-700/80 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className={`flex items-center justify-between px-4 py-3 border-b shrink-0 ${
+              isDark ? 'border-slate-700/60 bg-[#162036]' : 'border-slate-200 bg-slate-50'
+            }`}>
+              <div className="flex items-center gap-2 font-bold font-mono text-sm">
+                <Crosshair className="w-4 h-4 text-emerald-500" />
+                <span>{t('candle.trade_details')} #{selectedTrade.trade_id}</span>
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                    selectedTrade.is_short
+                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                      : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  }`}
+                >
+                  {selectedTrade.is_short ? t('candle.short') : t('candle.long')}
+                </span>
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                    selectedTrade.is_open
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      : 'bg-slate-700/40 text-slate-400 border border-slate-600/30'
+                  }`}
+                >
+                  {selectedTrade.is_open ? t('candle.open_position') : t('candle.closed_position')}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedTrade(null)}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                  isDark ? 'hover:bg-slate-700/60 text-slate-400 hover:text-white' : 'hover:bg-slate-200 text-slate-500 hover:text-slate-900'
+                }`}
+                title="Close"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="p-4 space-y-2.5 font-mono text-xs overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                <div className="flex justify-between items-center p-2 rounded-lg bg-slate-500/5 border border-slate-700/20">
+                  <span className="text-slate-500 dark:text-slate-400 font-sans">{t('candle.pair')}:</span>
+                  <span className="text-slate-900 dark:text-slate-100 font-bold">{selectedTrade.pair}</span>
+                </div>
+
+                <div className="flex justify-between items-center p-2 rounded-lg bg-slate-500/5 border border-slate-700/20">
+                  <span className="text-slate-500 dark:text-slate-400 font-sans">{t('candle.duration')}:</span>
+                  <span className="text-slate-700 dark:text-slate-300">
+                    {formatDuration(selectedTrade.open_date, selectedTrade.close_date, locale === 'zh')}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center p-2 rounded-lg bg-slate-500/5 border border-slate-700/20">
+                  <span className="text-slate-500 dark:text-slate-400 font-sans">{t('candle.avg_open')}:</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatPrice(selectedTrade.open_rate)}</span>
+                </div>
+
+                <div className="flex justify-between items-center p-2 rounded-lg bg-slate-500/5 border border-slate-700/20">
+                  <span className="text-slate-500 dark:text-slate-400 font-sans">{t('candle.avg_close')}:</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">{selectedTrade.close_rate ? formatPrice(selectedTrade.close_rate) : '-'}</span>
+                </div>
+
+                <div className="flex justify-between items-center p-2 rounded-lg bg-slate-500/5 border border-slate-700/20">
+                  <span className="text-slate-500 dark:text-slate-400 font-sans">{t('candle.open_time')}:</span>
+                  <span className="text-slate-700 dark:text-slate-300">
+                    {selectedTrade.open_date ? formatUtc8(selectedTrade.open_timestamp || selectedTrade.open_date, 'YYYY-MM-DD HH:mm:ss') : '-'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center p-2 rounded-lg bg-slate-500/5 border border-slate-700/20">
+                  <span className="text-slate-500 dark:text-slate-400 font-sans">{t('candle.close_time')}:</span>
+                  <span className="text-slate-700 dark:text-slate-300">
+                    {selectedTrade.close_date ? formatUtc8(selectedTrade.close_timestamp || selectedTrade.close_date, 'YYYY-MM-DD HH:mm:ss') : '-'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center p-2 rounded-lg bg-slate-500/5 border border-slate-700/20">
+                  <span className="text-slate-500 dark:text-slate-400 font-sans">{t('candle.profit_ratio')}:</span>
+                  <span
+                    className={`font-bold ${
+                      (selectedTrade.profit_pct ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                    }`}
+                  >
+                    {(selectedTrade.profit_pct ?? 0) >= 0 ? '+' : ''}
+                    {selectedTrade.profit_pct}%
+                    {selectedTrade.profit_abs !== undefined && (
+                      <span className="ml-1 text-[10px] font-normal opacity-80">
+                        ({selectedTrade.profit_abs >= 0 ? '+' : ''}
+                        {selectedTrade.profit_abs.toFixed(2)} USDT)
+                      </span>
+                    )}
+                  </span>
+                </div>
+
+                {selectedTrade.stake_amount !== undefined && (
+                  <div className="flex justify-between items-center p-2 rounded-lg bg-slate-500/5 border border-slate-700/20">
+                    <span className="text-slate-500 dark:text-slate-400 font-sans">{t('candle.margin')}:</span>
+                    <span className="text-slate-800 dark:text-slate-200">
+                      {selectedTrade.stake_amount} {botState.stake_currency || 'USDT'}
+                    </span>
+                  </div>
+                )}
+
+                {selectedTrade.stop_loss_abs && (
+                  <div className="flex justify-between items-center p-2 rounded-lg bg-slate-500/5 border border-slate-700/20">
+                    <span className="text-slate-500 dark:text-slate-400 font-sans">{t('candle.stop_protection')}:</span>
+                    <span className="text-rose-600 dark:text-rose-400 font-semibold">
+                      {formatPrice(selectedTrade.stop_loss_abs)}
+                      {selectedTrade.stop_loss_pct !== undefined && ` (${selectedTrade.stop_loss_pct}%)`}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {selectedTrade.enter_tag && (
+                <div className="flex justify-between items-center p-2 rounded-lg bg-slate-500/5 border border-slate-700/20 text-[11px]">
+                  <span className="text-slate-500 dark:text-slate-400 font-sans">{t('candle.entry_signal')}:</span>
+                  <span className="text-cyan-700 dark:text-cyan-400 font-semibold">
+                    {selectedTrade.enter_tag}
+                    {isNfiStrategy(botState.strategy) && (
+                      <span className="ml-1 text-[10px] opacity-80 font-normal">
+                        ({parseNfiSignal(selectedTrade.enter_tag, locale === 'zh').category})
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
+
+              {selectedTrade.exit_reason && (
+                <div className="flex justify-between items-center p-2 rounded-lg bg-slate-500/5 border border-slate-700/20 text-[11px]">
+                  <span className="text-slate-500 dark:text-slate-400 font-sans">{t('candle.exit_reason')}:</span>
+                  <span className="text-amber-700 dark:text-amber-400 font-semibold" title={selectedTrade.exit_reason}>
+                    {formatExitReason(selectedTrade.exit_reason, selectedTrade.exit_tag, locale === 'zh')}
+                  </span>
+                </div>
+              )}
+
+              {/* Orders breakdown if any */}
+              {Array.isArray(selectedTrade.orders) && selectedTrade.orders.length > 0 && (
+                <div className={`mt-3 pt-3 border-t space-y-2 ${isDark ? 'border-slate-700/60' : 'border-slate-200'}`}>
+                  <div className={`text-[10px] font-bold uppercase tracking-wider flex items-center justify-between ${
+                    isDark ? 'text-slate-400' : 'text-slate-500'
+                  }`}>
+                    <span>{t('candle.order_history')} ({selectedTrade.orders.length})</span>
+                  </div>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {selectedTrade.orders.map((ord, idx) => {
+                      const { actionBadge, badgeCategory, displayTag } = formatOrderAction(
+                        ord,
+                        selectedTrade,
+                        idx,
+                        locale === 'zh'
+                      );
+                      const isCancelled = badgeCategory === 'cancelled';
+
+                      let badgeColor = isDark
+                        ? 'bg-slate-700/50 text-slate-300'
+                        : 'bg-slate-100 text-slate-700 border border-slate-200';
+                      if (isCancelled) {
+                        badgeColor = isDark
+                          ? 'bg-slate-800 text-slate-400 border border-slate-700 line-through'
+                          : 'bg-slate-200 text-slate-500 border border-slate-300 line-through';
+                      } else if (badgeCategory === 'entry') {
+                        badgeColor = selectedTrade.is_short
+                          ? (isDark ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-rose-100 text-rose-800 border border-rose-200 font-semibold')
+                          : (isDark ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold');
+                      } else if (badgeCategory === 'rebuy') {
+                        badgeColor = isDark
+                          ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                          : 'bg-sky-100 text-sky-800 border border-sky-200 font-semibold';
+                      } else if (badgeCategory === 'grind_in') {
+                        badgeColor = isDark
+                          ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                          : 'bg-purple-100 text-purple-800 border border-purple-200 font-semibold';
+                      } else if (badgeCategory === 'grind_out') {
+                        badgeColor = isDark
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                          : 'bg-amber-100 text-amber-800 border border-amber-200 font-semibold';
+                      } else if (badgeCategory === 'derisk') {
+                        badgeColor = isDark
+                          ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+                          : 'bg-orange-100 text-orange-800 border border-orange-200 font-semibold';
+                      } else if (badgeCategory === 'exit') {
+                        const isWin = (selectedTrade.profit_pct ?? 0) >= 0;
+                        badgeColor = isWin
+                          ? (isDark ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold')
+                          : (isDark ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-rose-100 text-rose-800 border border-rose-200 font-semibold');
+                      }
+
+                      return (
+                        <div
+                          key={ord.order_id || idx}
+                          className={`text-[10px] font-mono flex items-center justify-between px-2.5 py-1.5 rounded-lg gap-1.5 min-w-0 transition-colors ${
+                            isDark
+                              ? 'bg-slate-900/60 border border-slate-800/80 text-slate-200'
+                              : 'bg-slate-50 hover:bg-slate-100 border border-slate-200/90 text-slate-800 shadow-2xs'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 truncate min-w-0">
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${badgeColor}`}>
+                              {actionBadge}
+                            </span>
+                            <span
+                              className={`font-semibold truncate shrink min-w-0 ${
+                                isCancelled
+                                  ? 'line-through text-slate-400 dark:text-slate-500'
+                                  : isDark
+                                  ? 'text-slate-200'
+                                  : 'text-slate-800'
+                              }`}
+                            >
+                              {formatPrice(ord.safe_price || ord.price || ord.average || 0)}
+                            </span>
+                            <span className="text-slate-400 dark:text-slate-500 shrink-0">
+                              × {ord.amount}
+                            </span>
+                            {displayTag && (
+                              <span className="text-[9px] opacity-75 truncate shrink min-w-0 text-cyan-600 dark:text-cyan-400">
+                                ({displayTag})
+                              </span>
+                            )}
+                          </div>
+                          <div className="shrink-0 text-right text-slate-500 dark:text-slate-400 text-[9px]">
+                            {ord.order_filled_date || ord.order_date
+                              ? formatUtc8(ord.order_filled_timestamp || ord.order_filled_date || ord.order_timestamp || ord.order_date, 'HH:mm:ss')
+                              : '-'}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>,
