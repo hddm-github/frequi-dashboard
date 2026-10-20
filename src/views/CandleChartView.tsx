@@ -242,18 +242,53 @@ function findTradesForCandle(
 }
 
 export function CandleChartView() {
-  const { client, botState, selectedPair, setSelectedPair, activeTrades, closedTrades, theme, formatCurrency } = useBot();
+  const { client, botState, selectedPair, setSelectedPair, activeTrades, closedTrades, theme, formatCurrency, activeBotId } = useBot();
   const t = useT();
   const { locale } = useLocale();
   const view = useOptionalView();
   const viewPair = (view?.params as Record<string, any> | undefined)?.pair;
 
+  const activeBotIdRef = useRef<string | null>(activeBotId);
+  activeBotIdRef.current = activeBotId;
+
+  // Track active bot changes to immediately purge stale chart canvas data
+  const prevBotIdRef = useRef<string | null>(activeBotId);
+  useEffect(() => {
+    if (prevBotIdRef.current && prevBotIdRef.current !== activeBotId) {
+      // Bot switched! Clear all candle, volume and marker data immediately
+      setCandles([]);
+      candlesRef.current = [];
+      candleSeriesRef.current?.setData([]);
+      volumeSeriesRef.current?.setData([]);
+      markersRef.current?.setMarkers([]);
+      priceLinesRef.current = [];
+      setSelectedTrade(null);
+      setHoveredTrades([]);
+      setHoveredBar(null);
+      setErrorMsg(null);
+      // Clear view param if it was bound to previous bot's trade
+      if (view?.setParams) {
+        view.setParams({ pair: undefined } as any);
+      }
+    }
+    prevBotIdRef.current = activeBotId;
+  }, [activeBotId, view]);
+
   // If view was opened or updated with a specific pair param from workspace, sync it to state
   useEffect(() => {
     if (viewPair && typeof viewPair === 'string' && viewPair !== selectedPair) {
-      setSelectedPair(viewPair);
+      // Check if viewPair is valid for the current bot!
+      const isPairValidForBot =
+        (botState.whitelist || []).includes(viewPair) ||
+        activeTrades.some((t) => t.pair === viewPair) ||
+        closedTrades.some((t) => t.pair === viewPair);
+      if (isPairValidForBot) {
+        setSelectedPair(viewPair);
+      } else if (view?.setParams) {
+        view.setParams({ pair: undefined } as any);
+      }
     }
-  }, [viewPair]);
+  }, [viewPair, botState.whitelist, activeTrades, closedTrades, selectedPair, setSelectedPair, view]);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -1026,10 +1061,19 @@ export function CandleChartView() {
   // 4. Initial load or reload on pair/timeframe change
   const loadCandles = async () => {
     const pair = selectedPairRef.current || selectedPair;
-    if (!pair) return;
+    if (!pair) {
+      setEmpty(true);
+      setCandles([]);
+      candlesRef.current = [];
+      candleSeriesRef.current?.setData([]);
+      volumeSeriesRef.current?.setData([]);
+      markersRef.current?.setMarkers([]);
+      return;
+    }
     setLoading(true);
     setErrorMsg(null);
     hasMoreHistoryRef.current = true;
+    const reqBotId = activeBotIdRef.current;
 
     const activeTf =
       timeframeRef.current && timeframeRef.current !== '-'
@@ -1041,6 +1085,11 @@ export function CandleChartView() {
     try {
       // Load initial batch of 1000 candles for comprehensive history
       const data = await client.getCandles(pair, activeTf, 1000);
+
+      // Verify bot or pair didn't change while request was in-flight
+      if (activeBotIdRef.current !== reqBotId || (selectedPairRef.current && selectedPairRef.current !== pair)) {
+        return;
+      }
 
       if (data.length === 0) {
         setEmpty(true);
@@ -1084,17 +1133,21 @@ export function CandleChartView() {
         }
       }
     } catch (err: any) {
-      console.error('Failed to load candles', err);
-      setErrorMsg(err?.message || 'Failed to load candle data');
-      setEmpty(true);
+      if (activeBotIdRef.current === reqBotId) {
+        console.error('Failed to load candles', err);
+        setErrorMsg(err?.message || 'Failed to load candle data');
+        setEmpty(true);
+      }
     } finally {
-      setLoading(false);
+      if (activeBotIdRef.current === reqBotId) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     loadCandles();
-  }, [selectedPair, timeframe, client]);
+  }, [selectedPair, timeframe, client, activeBotId]);
 
   const renderGuideButton = (isMobile: boolean) => (
     <button

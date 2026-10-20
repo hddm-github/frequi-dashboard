@@ -46,6 +46,7 @@ export function ClosedTradesView() {
     loadAllClosedTrades,
     isLoadingAllTrades,
     botState,
+    activeBotId,
   } = useBot();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -59,6 +60,12 @@ export function ClosedTradesView() {
   const isMobile = useIsMobile();
   const { locale, t: translate } = useLocale();
   const ws = useOptionalWorkspace();
+
+  // Reset pagination and active modals on bot switch
+  useEffect(() => {
+    setCurrentPage(1);
+    setShareTrade(null);
+  }, [activeBotId]);
 
   // Close export menu when clicking outside
   useEffect(() => {

@@ -111,6 +111,7 @@ function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | nul
 }
 
 function loadBotSnapshot(botId: string | null): {
+  botId?: string;
   botState?: BotState;
   activeTrades?: Trade[];
   profitSummary?: ProfitSummary;
@@ -119,7 +120,11 @@ function loadBotSnapshot(botId: string | null): {
   if (!botId) return null;
   try {
     const raw = localStorage.getItem(`frequi_snapshot_${botId}`);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.botId && parsed.botId !== botId) return null;
+      return parsed;
+    }
   } catch {}
   return null;
 }
@@ -139,6 +144,7 @@ function saveBotSnapshot(
     const updated = {
       ...existing,
       ...data,
+      botId,
       savedAt: Date.now(),
     };
     localStorage.setItem(`frequi_snapshot_${botId}`, JSON.stringify(updated));
@@ -211,6 +217,10 @@ export function BotProvider({ children }: { children: ReactNode }) {
 
   // Update client when active profile / config changes
   useEffect(() => {
+    const cur = clientRef.current.getConfig();
+    if (cur.apiUrl === config.apiUrl && cur.username === config.username && cur.password === config.password) {
+      return;
+    }
     const nextClient = new FreqtradeClient(config);
     clientRef.current = nextClient;
     setClient(nextClient);
@@ -413,18 +423,32 @@ export function BotProvider({ children }: { children: ReactNode }) {
     return 2000;
   }, [dailyRecords, botState.balance, profitSummary]);
 
-  // Track whether the user has manually overridden initial capital
+  // Helper to load bot-scoped initial capital
+  const getBotInitialCapital = useCallback((botId: string | null) => {
+    if (!botId) return { isCustom: false, value: 2000 };
+    try {
+      const isCustom = localStorage.getItem(`frequi_initial_capital_custom_${botId}`) === 'true';
+      const saved = localStorage.getItem(`frequi_initial_capital_${botId}`);
+      if (isCustom && saved && Number(saved) > 0 && Number(saved) !== 10000) {
+        return { isCustom: true, value: Number(saved) };
+      }
+      // Fallback check legacy global key if bot-specific not set
+      const legacyCustom = localStorage.getItem('frequi_initial_capital_custom') === 'true';
+      const legacySaved = localStorage.getItem('frequi_initial_capital');
+      if (legacyCustom && legacySaved && Number(legacySaved) > 0 && Number(legacySaved) !== 10000) {
+        return { isCustom: true, value: Number(legacySaved) };
+      }
+    } catch {}
+    return { isCustom: false, value: 2000 };
+  }, []);
+
+  // Track whether the user has manually overridden initial capital for current active bot
   const [isManualCapital, setIsManualCapital] = useState<boolean>(() => {
-    return localStorage.getItem('frequi_initial_capital_custom') === 'true';
+    return getBotInitialCapital(initialData.activeId).isCustom;
   });
 
   const [initialCapital, setInitialCapitalState] = useState<number>(() => {
-    const isCustom = localStorage.getItem('frequi_initial_capital_custom') === 'true';
-    const saved = localStorage.getItem('frequi_initial_capital');
-    if (isCustom && saved && Number(saved) > 0 && Number(saved) !== 10000) {
-      return Number(saved);
-    }
-    return 2000;
+    return getBotInitialCapital(initialData.activeId).value;
   });
 
   // When bot data loads and user hasn't manually overridden, auto-sync initial capital to inferred value
@@ -435,16 +459,35 @@ export function BotProvider({ children }: { children: ReactNode }) {
   }, [autoInferredCapital, isManualCapital]);
 
   const setInitialCapital = useCallback((val: number) => {
+    const curId = activeBotIdRef.current;
     setInitialCapitalState(val);
     setIsManualCapital(true);
-    localStorage.setItem('frequi_initial_capital_custom', 'true');
-    localStorage.setItem('frequi_initial_capital', String(val));
+    if (curId) {
+      try {
+        localStorage.setItem(`frequi_initial_capital_custom_${curId}`, 'true');
+        localStorage.setItem(`frequi_initial_capital_${curId}`, String(val));
+      } catch {}
+    }
+    // Also update legacy key for backward compatibility
+    try {
+      localStorage.setItem('frequi_initial_capital_custom', 'true');
+      localStorage.setItem('frequi_initial_capital', String(val));
+    } catch {}
   }, []);
 
   const resetInitialCapitalToAuto = useCallback(() => {
+    const curId = activeBotIdRef.current;
     setIsManualCapital(false);
-    localStorage.removeItem('frequi_initial_capital_custom');
-    localStorage.removeItem('frequi_initial_capital');
+    if (curId) {
+      try {
+        localStorage.removeItem(`frequi_initial_capital_custom_${curId}`);
+        localStorage.removeItem(`frequi_initial_capital_${curId}`);
+      } catch {}
+    }
+    try {
+      localStorage.removeItem('frequi_initial_capital_custom');
+      localStorage.removeItem('frequi_initial_capital');
+    } catch {}
     setInitialCapitalState(autoInferredCapital);
   }, [autoInferredCapital]);
 
@@ -519,11 +562,17 @@ export function BotProvider({ children }: { children: ReactNode }) {
       }
       setActiveTrades(active);
 
-      // Smart pair sync: only initialize default pair when none is selected yet.
-      // Never overwrite user's selected pair (including historical trades like NXPC) during background polling.
+      // Smart pair sync: ensure selectedPair belongs to the current active bot!
       const currentActiveState = state || botStateRef.current;
       setSelectedPair((prev) => {
-        if (prev) return prev;
+        const botWhitelist = currentActiveState?.whitelist || [];
+        const botActivePairs = active.map((t) => t.pair);
+        const botClosedPairs = closedTradesRef.current.map((t) => t.pair);
+        const isValidForBot =
+          prev &&
+          (botWhitelist.includes(prev) || botActivePairs.includes(prev) || botClosedPairs.includes(prev));
+        if (isValidForBot) return prev;
+
         if (active.length > 0 && active[0].pair) return active[0].pair;
         if (currentActiveState && currentActiveState.whitelist.length > 0) return currentActiveState.whitelist[0];
         return '';
@@ -533,8 +582,8 @@ export function BotProvider({ children }: { children: ReactNode }) {
       setLastError(null);
 
       // ── SWR: persist snapshot for instant next-load ──
-      if (state) {
-        saveBotSnapshot(activeBotIdRef.current, { botState: state, activeTrades: active });
+      if (state && currentActiveBotId === activeBotIdRef.current) {
+        saveBotSnapshot(currentActiveBotId, { botState: state, activeTrades: active });
       }
 
       // ── Tier 2 & 3: Event-Driven DB Sync ──
@@ -565,21 +614,8 @@ export function BotProvider({ children }: { children: ReactNode }) {
         const closed = await targetClient.getClosedTrades(500, false).catch(() => null);
         if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
         if (closed) {
-          setClosedTrades((prev) => {
-            let next = closed;
-            if (prev.length > closed.length) {
-              const tradeMap = new Map<number, Trade>();
-              prev.forEach((t) => tradeMap.set(t.trade_id, t));
-              closed.forEach((t) => tradeMap.set(t.trade_id, t));
-              next = Array.from(tradeMap.values()).sort((a, b) => {
-                const timeA = a.close_timestamp || (a.close_date ? new Date(a.close_date).getTime() : 0);
-                const timeB = b.close_timestamp || (b.close_date ? new Date(b.close_date).getTime() : 0);
-                return timeB - timeA;
-              });
-            }
-            closedTradesRef.current = next;
-            return next;
-          });
+          setClosedTrades(closed);
+          closedTradesRef.current = closed;
         }
 
         const daily = await targetClient.getDailyPerformance(30).catch(() => null);
@@ -587,7 +623,9 @@ export function BotProvider({ children }: { children: ReactNode }) {
         if (daily) setDailyRecords(daily);
 
         // SWR: include secondary data in snapshot
-        saveBotSnapshot(activeBotIdRef.current, { profitSummary: summary, closedTrades: closed || undefined });
+        if (currentActiveBotId === activeBotIdRef.current) {
+          saveBotSnapshot(currentActiveBotId, { profitSummary: summary, closedTrades: closed || undefined });
+        }
 
         if (fetchTier3) {
           const sigs = await targetClient.getSignalStats(closed || undefined).catch(() => null);
@@ -617,31 +655,54 @@ export function BotProvider({ children }: { children: ReactNode }) {
     const target = profiles.find((p) => p.id === id);
     if (!target) return false;
 
-    // 立即注销上一机器人的所有在途请求并重置互斥锁
+    // 立即注销上一机器人的所有在途请求并重置状态互斥锁
     const myReqId = ++activeRequestIdRef.current;
     activeBotIdRef.current = id;
     lastLoadedBotIdRef.current = id;
     isRefreshingRef.current = false;
     lastSecondaryFetchTimeRef.current = 0;
+    lastBotStateFetchTimeRef.current = 0;
+    botStateRef.current = null;
     prevActiveTradeCountRef.current = -1;
     prevActiveTradeIdsRef.current = '';
 
     setIsConnecting(true);
     setLastError(null);
 
-    // Set neutral connecting strategy state
-    setBotState({
-      ...EMPTY_BOT_STATE,
-      strategy: 'Connecting...',
-    });
-    setActiveTrades([]);
-    setClosedTrades([]);
-    closedTradesRef.current = [];
-    setProfitSummary(null);
+    // 检查是否有针对目标机器人的 SWR 快照，若有则瞬间装载，实现 0 延迟秒切！
+    const targetSnapshot = loadBotSnapshot(id);
+    if (targetSnapshot) {
+      setBotState(targetSnapshot.botState || EMPTY_BOT_STATE);
+      setActiveTrades(targetSnapshot.activeTrades || []);
+      setClosedTrades(targetSnapshot.closedTrades || []);
+      closedTradesRef.current = targetSnapshot.closedTrades || [];
+      setProfitSummary(targetSnapshot.profitSummary || null);
+      const defaultPair =
+        (targetSnapshot.activeTrades && targetSnapshot.activeTrades[0]?.pair) ||
+        (targetSnapshot.botState && targetSnapshot.botState.whitelist?.[0]) ||
+        '';
+      setSelectedPair(defaultPair);
+    } else {
+      // 目标机器人无本地快照，清空旧数据防止残留污染
+      setBotState({
+        ...EMPTY_BOT_STATE,
+        strategy: 'Connecting...',
+      });
+      setActiveTrades([]);
+      setClosedTrades([]);
+      closedTradesRef.current = [];
+      setProfitSummary(null);
+      setSelectedPair('');
+    }
+
     setDailyRecords([]);
     setSignals([]);
     setLogs([]);
-    setSelectedPair('');
+
+    // 切换 initialCapital 到目标 bot 的配置
+    const capInfo = getBotInitialCapital(id);
+    setIsManualCapital(capInfo.isCustom);
+    setInitialCapitalState(capInfo.value);
 
     setActiveBotId(id);
     localStorage.setItem('nfi_active_bot_id', id);
@@ -656,7 +717,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
     setClient(newClient);
 
     const ok = await newClient.ping();
-    if (activeRequestIdRef.current !== myReqId) return false;
+    if (activeRequestIdRef.current !== myReqId || activeBotIdRef.current !== id) return false;
 
     setIsConnecting(false);
 
@@ -672,7 +733,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
       setLastError(errMsg);
       return false;
     }
-  }, [profiles, refreshData]);
+  }, [profiles, refreshData, getBotInitialCapital]);
 
   // Add a new profile
   const addProfile = useCallback(async (
@@ -805,24 +866,18 @@ export function BotProvider({ children }: { children: ReactNode }) {
   }, [client, isReadOnly, refreshData]);
 
   const loadAllClosedTrades = useCallback(async (): Promise<Trade[]> => {
-    if (!client) return closedTradesRef.current;
+    if (!clientRef.current) return closedTradesRef.current;
+    const currentActiveBotId = activeBotIdRef.current;
     setIsLoadingAllTrades(true);
     try {
-      const all = await client.getAllClosedTrades();
+      const all = await clientRef.current.getAllClosedTrades();
+      if (activeBotIdRef.current !== currentActiveBotId) return closedTradesRef.current;
       if (all && all.length > 0) {
-        setClosedTrades((prev) => {
-          const tradeMap = new Map<number, Trade>();
-          prev.forEach((t) => tradeMap.set(t.trade_id, t));
-          all.forEach((t) => tradeMap.set(t.trade_id, t));
-          const merged = Array.from(tradeMap.values());
-          merged.sort((a, b) => {
-            const timeA = a.close_timestamp || (a.close_date ? new Date(a.close_date).getTime() : 0);
-            const timeB = b.close_timestamp || (b.close_date ? new Date(b.close_date).getTime() : 0);
-            return timeB - timeA;
-          });
-          closedTradesRef.current = merged;
-          return merged;
-        });
+        setClosedTrades(all);
+        closedTradesRef.current = all;
+        if (currentActiveBotId) {
+          saveBotSnapshot(currentActiveBotId, { closedTrades: all });
+        }
       }
       return closedTradesRef.current;
     } catch (err) {
@@ -831,7 +886,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoadingAllTrades(false);
     }
-  }, [client]);
+  }, []);
 
   const fetchLogs = useCallback(async (customLimit?: number) => {
     if (!clientRef.current) return;

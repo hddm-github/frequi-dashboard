@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useBot } from '../context/BotContext';
 import { useOptionalWorkspace } from '@danfessler/trellis-react';
 import { CandlestickChart, XCircle, ArrowUpRight, ArrowDownRight, Share2 } from 'lucide-react';
@@ -22,11 +22,18 @@ export function ActiveTradesView() {
     activeProfile,
     currencyUnit,
     exchangeRates,
+    activeBotId,
   } = useBot();
   const [shareTrade, setShareTrade] = useState<Trade | null>(null);
   const [forceExitTarget, setForceExitTarget] = useState<Trade | null>(null);
   const SHOW_SHARE_BUTTON = false;
   const ws = useOptionalWorkspace();
+
+  // Reset open modals on bot switch
+  useEffect(() => {
+    setShareTrade(null);
+    setForceExitTarget(null);
+  }, [activeBotId]);
 
   const handleViewChart = (pair: string) => {
     setSelectedPair(pair);

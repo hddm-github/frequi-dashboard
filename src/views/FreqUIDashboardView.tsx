@@ -51,6 +51,7 @@ export function FreqUIDashboardView() {
     activeProfile,
     exchangeRates,
     loadAllClosedTrades,
+    activeBotId,
   } = useBot();
 
   const ws = useOptionalWorkspace();
@@ -58,6 +59,11 @@ export function FreqUIDashboardView() {
   const isZh = locale === 'zh';
   const [isLogScale, setIsLogScale] = useState(true);
   const [selectedDayDate, setSelectedDayDate] = useState<string | null>(null);
+
+  // Reset selected day on bot switch
+  useEffect(() => {
+    setSelectedDayDate(null);
+  }, [activeBotId]);
 
   const handleViewChart = (pair: string) => {
     setSelectedPair(pair);

@@ -30,6 +30,7 @@ export function EquityCurveView() {
     formatCurrency,
     theme,
     isReadOnly,
+    activeBotId,
   } = useBot();
 
   const isDark = theme === 'dark';
@@ -42,6 +43,16 @@ export function EquityCurveView() {
   const [showConfig, setShowConfig] = useState(false);
   const [tempCapital, setTempCapital] = useState(String(initialCapital));
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  // Sync tempCapital when initialCapital changes (e.g. switching bot)
+  useEffect(() => {
+    setTempCapital(String(initialCapital));
+  }, [initialCapital]);
+
+  // Reset hovered index on bot switch
+  useEffect(() => {
+    setHoveredIdx(null);
+  }, [activeBotId]);
 
   // Responsive container width tracking via ResizeObserver
   const chartContainerRef = useRef<HTMLDivElement>(null);
