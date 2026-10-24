@@ -211,22 +211,22 @@ export function EquityCurveView() {
   const isMobile = containerWidth < 540;
   const svgWidth = Math.max(280, containerWidth);
   const svgHeight = isMobile
-    ? (viewMode === 'dual' ? 290 : 230)
+    ? (viewMode === 'dual' ? 330 : 250)
     : (viewMode === 'dual' ? 360 : 300);
 
   // Responsive chart horizontal paddings
-  const paddingLeft = isMobile ? 24 : 48;
-  const paddingRight = isMobile ? 24 : 45;
+  const paddingLeft = isMobile ? 32 : 48;
+  const paddingRight = isMobile ? 28 : 45;
   const chartW = Math.max(10, svgWidth - paddingLeft - paddingRight);
 
   // Responsive Tier Heights:
-  // Mobile: dual (curve 122, bar 74, axis 276); single (165, axis 216)
+  // Mobile: dual (curve 135, bar 82, axis 308); single (180, axis 235)
   // Desktop: dual (curve 140, bar 95, axis 336); single (220, axis 280)
-  const curveTop = viewMode === 'bars' ? 0 : (isMobile ? 20 : 25);
+  const curveTop = viewMode === 'bars' ? 0 : (isMobile ? 18 : 25);
   const curveHeight = viewMode === 'dual'
-    ? (isMobile ? 122 : 140)
+    ? (isMobile ? 135 : 140)
     : viewMode === 'curve'
-    ? (isMobile ? 165 : 220)
+    ? (isMobile ? 180 : 220)
     : 0;
   const curveBottom = curveTop + curveHeight;
 
@@ -240,15 +240,15 @@ export function EquityCurveView() {
     ? (isMobile ? 25 : 35)
     : 0;
   const barHeight = viewMode === 'dual'
-    ? (isMobile ? 74 : 95)
+    ? (isMobile ? 82 : 95)
     : viewMode === 'bars'
-    ? (isMobile ? 155 : 210)
+    ? (isMobile ? 165 : 210)
     : 0;
   const barBottom = barTop + barHeight;
 
   // Bottom Timeline axis Y
   const axisY = isMobile
-    ? (viewMode === 'dual' ? 276 : 216)
+    ? (viewMode === 'dual' ? 308 : 235)
     : (viewMode === 'dual' ? 336 : 280);
 
   // Cumulative equity ranges
@@ -850,47 +850,60 @@ export function EquityCurveView() {
           </div>
         </div>
 
-        {/* Mobile Live Inspector Strip (Appears above chart on tap/drag, never blocks the SVG) */}
-        {activePoint && (
-          <div
-            className={`sm:hidden mb-2 px-2.5 py-1.5 rounded-lg border text-[11px] font-mono flex items-center justify-between gap-2 animate-in fade-in transition-all ${
-              isDark
-                ? 'bg-[#1a233a] border-emerald-500/40 text-slate-100 shadow-md'
-                : 'bg-emerald-50/90 border-emerald-300 text-slate-800 shadow-xs'
-            }`}
-          >
-            <div className="flex items-center gap-1.5 min-w-0 truncate">
-              <Calendar className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-              <span className="font-sans font-semibold text-slate-700 dark:text-slate-200 truncate">
-                {activePoint.fullDate}
-              </span>
-              {!activePoint.isStart && (
-                <span
-                  className={`font-bold shrink-0 ${
-                    activePoint.dailyPnl >= 0 ? 'text-emerald-500' : 'text-rose-500'
-                  }`}
-                >
-                  {formatCurrency(activePoint.dailyPnl, { showSign: true })}
+        {/* Mobile Live Inspector Bar (Fixed height, prevents layout jumping on touch) */}
+        <div
+          className={`sm:hidden h-8 px-2.5 rounded-lg border text-[11px] font-mono flex items-center justify-between mb-1.5 shrink-0 transition-colors ${
+            activePoint
+              ? isDark
+                ? 'bg-[#1a233a] border-emerald-500/40 text-slate-100'
+                : 'bg-emerald-50/90 border-emerald-300 text-slate-800'
+              : isDark
+              ? 'bg-[#0f1626]/40 border-slate-800/60 text-slate-400'
+              : 'bg-slate-50 border-slate-200/60 text-slate-400'
+          }`}
+        >
+          {activePoint ? (
+            <>
+              <div className="flex items-center gap-1.5 min-w-0 truncate">
+                <Calendar className="w-3 h-3 text-emerald-500 shrink-0" />
+                <span className="font-sans font-semibold text-slate-700 dark:text-slate-200 truncate">
+                  {activePoint.fullDate}
                 </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="text-right">
-                <span className="text-slate-400 text-[10px] mr-1">{t('equity.total')}:</span>
-                <span className="font-bold text-purple-500 dark:text-purple-400">
+                {!activePoint.isStart && (
+                  <span
+                    className={`font-bold shrink-0 ${
+                      activePoint.dailyPnl >= 0 ? 'text-emerald-500' : 'text-rose-500'
+                    }`}
+                  >
+                    {formatCurrency(activePoint.dailyPnl, { showSign: true })}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-purple-500 dark:text-purple-400 font-bold">
                   {formatCurrency(activePoint.value)}
                 </span>
+                <button
+                  type="button"
+                  onClick={() => setHoveredIdx(null)}
+                  className="p-0.5 rounded text-slate-400 hover:text-slate-200 cursor-pointer"
+                  title={t('dashboard.clear_selection')}
+                >
+                  <X className="w-3 h-3" />
+                </button>
               </div>
-              <button
-                onClick={() => setHoveredIdx(null)}
-                className="p-0.5 rounded text-slate-400 hover:text-slate-200 cursor-pointer"
-                title={t('dashboard.clear_selection')}
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+            </>
+          ) : (
+            <div className="flex items-center justify-between w-full text-[10px]">
+              <span className="text-slate-500 truncate">
+                {locale === 'zh' ? '💡 滑动或点击图表查看对应日期' : '💡 Tap or drag chart to inspect date'}
+              </span>
+              <span className="font-mono text-emerald-500 font-medium shrink-0 ml-1">
+                {formatCurrency(currentEquity)}
+              </span>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* SVG Equity Area & Daily Bars Composite Chart */}
         <div
@@ -1236,22 +1249,28 @@ export function EquityCurveView() {
 
           {/* Central Legend indicators */}
           <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] w-full sm:w-auto">
-            <div className="flex items-center gap-1">
-              <span className="w-2.5 h-0.5 bg-emerald-500 inline-block rounded" />
-              <span>{t('equity.curve_section')}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded bg-emerald-500 inline-block" />
-              <span>{t('equity.daily_profit')}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded bg-rose-500 inline-block" />
-              <span>{t('equity.daily_loss')}</span>
-            </div>
-            <div className="flex items-center gap-1 text-slate-400">
-              <span className="w-2 border-t border-dashed border-slate-400 inline-block" />
-              <span>{t('equity.zero_line')}</span>
-            </div>
+            {viewMode !== 'bars' && (
+              <div className="flex items-center gap-1">
+                <span className="w-2.5 h-0.5 bg-emerald-500 inline-block rounded" />
+                <span>{t('equity.curve_section')}</span>
+              </div>
+            )}
+            {viewMode !== 'curve' && (
+              <>
+                <div className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded bg-emerald-500 inline-block" />
+                  <span>{t('equity.daily_profit')}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded bg-rose-500 inline-block" />
+                  <span>{t('equity.daily_loss')}</span>
+                </div>
+                <div className="flex items-center gap-1 text-slate-400">
+                  <span className="w-2 border-t border-dashed border-slate-400 inline-block" />
+                  <span>{t('equity.zero_line')}</span>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Desktop Right Metrics: Peak & Current */}

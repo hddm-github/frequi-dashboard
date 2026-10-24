@@ -132,6 +132,8 @@ export interface BotState {
   tradable_balance_ratio?: number;
   stake_amount: number | string;
   whitelist: string[];
+  blacklist?: string[];
+  blacklist_expanded?: string[];
 }
 
 export interface LogEntry {

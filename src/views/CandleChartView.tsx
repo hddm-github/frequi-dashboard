@@ -136,13 +136,35 @@ function formatPrice(val: number): string {
   if (val >= 1000) {
     return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
+  if (val >= 10) {
+    return val.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 4 });
+  }
   if (val >= 1) {
-    return val.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+    return val.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 5 });
+  }
+  if (val >= 0.01) {
+    return val.toLocaleString(undefined, { minimumFractionDigits: 5, maximumFractionDigits: 6 });
   }
   if (val >= 0.0001) {
-    return val.toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 6 });
+    return val.toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 7 });
   }
   return val.toFixed(8);
+}
+
+function getCandlePriceFormat(candles: Array<{ close?: number }>): { type: 'price'; precision: number; minMove: number } {
+  if (!candles || candles.length === 0) {
+    return { type: 'price', precision: 2, minMove: 0.01 };
+  }
+  const lastClose = candles[candles.length - 1]?.close || 1;
+  const sample = Math.abs(lastClose);
+
+  if (sample >= 1000) return { type: 'price', precision: 2, minMove: 0.01 };
+  if (sample >= 10) return { type: 'price', precision: 3, minMove: 0.001 };
+  if (sample >= 1) return { type: 'price', precision: 4, minMove: 0.0001 };
+  if (sample >= 0.1) return { type: 'price', precision: 5, minMove: 0.00001 };
+  if (sample >= 0.01) return { type: 'price', precision: 6, minMove: 0.000001 };
+  if (sample >= 0.0001) return { type: 'price', precision: 7, minMove: 0.0000001 };
+  return { type: 'price', precision: 8, minMove: 0.00000001 };
 }
 
 function formatVolume(val: number): string {
@@ -888,6 +910,14 @@ export function CandleChartView() {
       borderVisible: false,
       wickUpColor: '#10b981',
       wickDownColor: '#ef4444',
+      priceFormat: getCandlePriceFormat(candlesRef.current),
+    });
+
+    candleSeries.priceScale().applyOptions({
+      scaleMargins: {
+        top: 0.16,
+        bottom: 0.08,
+      },
     });
 
     const volumeSeries = chart.addSeries(HistogramSeries, {
@@ -1106,6 +1136,10 @@ export function CandleChartView() {
       candlesRef.current = data;
 
       if (candleSeriesRef.current && volumeSeriesRef.current) {
+        candleSeriesRef.current.applyOptions({
+          priceFormat: getCandlePriceFormat(data),
+        });
+
         candleSeriesRef.current.setData(
           data.map((c) => ({
             time: c.time as any,

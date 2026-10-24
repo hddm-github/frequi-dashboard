@@ -3,14 +3,14 @@ import { useBot } from '../context/BotContext';
 import { Terminal, Filter, RefreshCw } from 'lucide-react';
 import { useT } from '../i18n/LocaleContext';
 
-function formatLogTimestamp(raw: string): string {
-  if (!raw) return '-';
-  // Freqtrade 机器人输出的日志自带本地时间字符串（如 "2026-10-13 15:24:33,123"）
-  // 直接截取至秒级，保留服务器原始时间，避免被 formatUtc8 重复额外加 8 小时
-  if (raw.includes('-') && (raw.includes(':') || raw.includes(' '))) {
-    return raw.replace('T', ' ').replace(',', '.').slice(0, 19);
+function parseLogTimestamp(raw: string): { fullDate: string; time: string } {
+  if (!raw) return { fullDate: '', time: '-' };
+  const s = raw.replace('T', ' ').replace(',', '.');
+  const parts = s.split(' ');
+  if (parts.length >= 2) {
+    return { fullDate: parts[0], time: parts[1].slice(0, 8) };
   }
-  return raw.slice(0, 19);
+  return { fullDate: s.slice(0, 10), time: s.slice(11, 19) || s.slice(0, 8) };
 }
 
 export function BotLogsView() {
@@ -132,6 +132,7 @@ export function BotLogsView() {
           <div className="text-center text-xs text-slate-400 py-10">{t('logs.empty')}</div>
         ) : (
           filteredLogs.map((log) => {
+            const { fullDate, time } = parseLogTimestamp(log.timestamp);
             const levelColor =
               log.level === 'ERROR'
                 ? 'text-rose-600 bg-rose-50 dark:bg-rose-500/10 dark:text-rose-400'
@@ -144,17 +145,21 @@ export function BotLogsView() {
             return (
               <div
                 key={log.id}
-                className={`leading-relaxed p-1 rounded flex items-start gap-2 ${
+                className={`leading-relaxed p-1 rounded flex items-start gap-1.5 sm:gap-2 ${
                   isDark ? 'hover:bg-slate-900/40' : 'hover:bg-slate-100'
                 }`}
               >
-                <span className="text-slate-600 dark:text-slate-400 text-[10px] shrink-0 font-mono">
-                  {formatLogTimestamp(log.timestamp)}
+                <span
+                  className="text-slate-600 dark:text-slate-400 text-[10px] shrink-0 font-mono"
+                  title={fullDate ? `${fullDate} ${time}` : time}
+                >
+                  <span className="hidden sm:inline opacity-70">{fullDate} </span>
+                  <span className="font-medium text-slate-500 dark:text-slate-300">{time}</span>
                 </span>
-                <span className={`text-[10px] px-1 py-0.2 rounded font-bold shrink-0 ${levelColor}`}>
+                <span className={`text-[9px] px-1 py-0.2 rounded font-bold shrink-0 ${levelColor}`}>
                   {levelLabel(log.level)}
                 </span>
-                <span className="break-all">{log.message}</span>
+                <span className="break-all flex-1 min-w-0">{log.message}</span>
               </div>
             );
           })

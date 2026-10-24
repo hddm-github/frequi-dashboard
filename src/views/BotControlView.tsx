@@ -14,6 +14,11 @@ import {
   ExternalLink,
   Edit3,
   BookOpen,
+  Ban,
+  ShieldCheck,
+  Plus,
+  X,
+  Loader2,
 } from 'lucide-react';
 import { EditBotModal } from '../components/EditBotModal';
 import { StrategyBlueprintModal } from '../components/StrategyBlueprintModal';
@@ -22,6 +27,7 @@ import { localizeError } from '../utils/localizeError';
 
 export function BotControlView() {
   const {
+    client,
     activeProfile,
     botState,
     isConnected,
@@ -51,6 +57,50 @@ export function BotControlView() {
   const [opMessage, setOpMessage] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showBlueprint, setShowBlueprint] = useState(false);
+
+  // Whitelist / Blacklist Tab State
+  const [activeListTab, setActiveListTab] = useState<'whitelist' | 'blacklist'>('whitelist');
+  const [showExpandedBlacklist, setShowExpandedBlacklist] = useState(false);
+  const [newBlacklistPair, setNewBlacklistPair] = useState('');
+  const [submittingBlacklist, setSubmittingBlacklist] = useState(false);
+  const [blacklistOpMessage, setBlacklistOpMessage] = useState<string | null>(null);
+
+  const blacklist = botState.blacklist || [];
+  const blacklistExpanded = botState.blacklist_expanded || [];
+
+  const handleAddBlacklist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const pair = newBlacklistPair.trim();
+    if (!pair || isReadOnly || submittingBlacklist) return;
+
+    setSubmittingBlacklist(true);
+    setBlacklistOpMessage(null);
+    try {
+      await client.addBlacklist([pair]);
+      setNewBlacklistPair('');
+      await refreshData();
+      setBlacklistOpMessage(`${t('ui.operation_succeeded')}: +${pair}`);
+    } catch (err: any) {
+      setBlacklistOpMessage(localizeError(err?.message, locale, t));
+    } finally {
+      setSubmittingBlacklist(false);
+    }
+  };
+
+  const handleDeleteBlacklist = async (pair: string) => {
+    if (isReadOnly || submittingBlacklist) return;
+    setSubmittingBlacklist(true);
+    setBlacklistOpMessage(null);
+    try {
+      await client.deleteBlacklist([pair]);
+      await refreshData();
+      setBlacklistOpMessage(`${t('ui.operation_succeeded')}: -${pair}`);
+    } catch (err: any) {
+      setBlacklistOpMessage(localizeError(err?.message, locale, t));
+    } finally {
+      setSubmittingBlacklist(false);
+    }
+  };
 
   const isDark = theme === 'dark';
   const { locale, t } = useLocale();
@@ -285,41 +335,184 @@ export function BotControlView() {
         </div>
       </div>
 
-      {/* 3. Whitelist Pairs */}
+      {/* 3. Whitelist & Blacklist Pairlists */}
       <div
         className={`p-4 rounded-xl border shadow-xs transition-colors ${
           isDark ? 'bg-[#131b2e] border-slate-800' : 'bg-white border-slate-200'
         }`}
       >
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-blue-500" />
-            <span className="font-bold text-xs uppercase tracking-wide">
-              {t('ui.whitelist_pairs')} ({botState.whitelist.length} {t('ui.pairs_count')})
-            </span>
-          </div>
-          <span className="text-[10px] text-slate-500">{t('ui.open_candle_chart')}</span>
-        </div>
+        {/* Tab Selector Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-1.5 p-1 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveListTab('whitelist')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                activeListTab === 'whitelist'
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>{t('ui.whitelist_pairs')}</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                {botState.whitelist.length}
+              </span>
+            </button>
 
-        {botState.whitelist.length === 0 ? (
-          <div className="text-center py-6 text-xs text-slate-500">
-            {t('ui.loading_pairs')}
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pt-1">
-            {botState.whitelist.map((pair) => (
-              <button
-                key={pair}
-                onClick={() => handleViewChart(pair)}
-                className={`px-2 py-1 rounded-lg text-xs font-mono font-medium border transition-colors cursor-pointer ${
-                  isDark
-                    ? 'border-slate-700 bg-[#1a233a] hover:border-emerald-500 hover:text-emerald-400'
-                    : 'border-slate-200 bg-slate-50 hover:border-emerald-500 hover:text-emerald-600'
+            <button
+              type="button"
+              onClick={() => setActiveListTab('blacklist')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                activeListTab === 'blacklist'
+                  ? 'bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-400 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              <Ban className="w-3.5 h-3.5" />
+              <span>{t('ui.blacklist_pairs')}</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  blacklist.length > 0
+                    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                    : 'bg-slate-500/10 text-slate-400'
                 }`}
               >
-                {pair}
-              </button>
-            ))}
+                {blacklist.length}
+              </span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {activeListTab === 'whitelist' ? (
+              <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
+                {t('ui.open_candle_chart')}
+              </span>
+            ) : (
+              blacklistExpanded.length > 0 && blacklistExpanded.length !== blacklist.length && (
+                <button
+                  type="button"
+                  onClick={() => setShowExpandedBlacklist(!showExpandedBlacklist)}
+                  className="text-[11px] text-slate-500 hover:text-rose-500 font-medium transition-colors cursor-pointer"
+                >
+                  {showExpandedBlacklist
+                    ? `← ${t('ui.blacklist_rules')} (${blacklist.length})`
+                    : `${t('ui.blacklist_expanded')} (${blacklistExpanded.length})`}
+                </button>
+              )
+            )}
+          </div>
+        </div>
+
+        {/* Tab 1: Whitelist Content */}
+        {activeListTab === 'whitelist' && (
+          <div>
+            {botState.whitelist.length === 0 ? (
+              <div className="text-center py-6 text-xs text-slate-500">
+                {t('ui.loading_pairs')}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pt-1">
+                {botState.whitelist.map((pair) => (
+                  <button
+                    key={pair}
+                    onClick={() => handleViewChart(pair)}
+                    className={`px-2 py-1 rounded-lg text-xs font-mono font-medium border transition-colors cursor-pointer ${
+                      isDark
+                        ? 'border-slate-700 bg-[#1a233a] hover:border-emerald-500 hover:text-emerald-400'
+                        : 'border-slate-200 bg-slate-50 hover:border-emerald-500 hover:text-emerald-600'
+                    }`}
+                  >
+                    {pair}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 2: Blacklist Content */}
+        {activeListTab === 'blacklist' && (
+          <div className="space-y-3">
+            {blacklist.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center">
+                <ShieldCheck className="w-8 h-8 text-emerald-500 mb-2" />
+                <span className="text-xs text-slate-500 max-w-sm">
+                  {t('ui.blacklist_empty')}
+                </span>
+              </div>
+            ) : (
+              <div>
+                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pt-1">
+                  {(showExpandedBlacklist && blacklistExpanded.length > 0 ? blacklistExpanded : blacklist).map((pair) => (
+                    <div
+                      key={pair}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium border transition-colors ${
+                        isDark
+                          ? 'border-rose-900/40 bg-rose-950/20 text-rose-300'
+                          : 'border-rose-200 bg-rose-50 text-rose-700'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleViewChart(pair.replace(/\.\*$/, 'USDT'))}
+                        title={t('ui.open_candle_chart')}
+                        className="hover:underline cursor-pointer"
+                      >
+                        {pair}
+                      </button>
+                      {!isReadOnly && !showExpandedBlacklist && (
+                        <button
+                          type="button"
+                          disabled={submittingBlacklist}
+                          onClick={() => handleDeleteBlacklist(pair)}
+                          title="Delete"
+                          className="p-0.5 rounded text-rose-400 hover:text-rose-600 hover:bg-rose-500/10 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Quick Add Blacklist Pair (Writable bots only) */}
+            {!isReadOnly && (
+              <form onSubmit={handleAddBlacklist} className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                <input
+                  type="text"
+                  value={newBlacklistPair}
+                  onChange={(e) => setNewBlacklistPair(e.target.value)}
+                  placeholder={t('ui.blacklist_add_placeholder')}
+                  disabled={submittingBlacklist}
+                  className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-mono border focus:outline-none transition-colors ${
+                    isDark
+                      ? 'bg-[#1a233a] border-slate-700 text-slate-100 focus:border-rose-500'
+                      : 'bg-slate-50 border-slate-200 text-slate-800 focus:border-rose-500'
+                  }`}
+                />
+                <button
+                  type="submit"
+                  disabled={!newBlacklistPair.trim() || submittingBlacklist}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-600 hover:bg-rose-500 text-white transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                >
+                  {submittingBlacklist ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Plus className="w-3.5 h-3.5" />
+                  )}
+                  <span>{t('ui.blacklist_add')}</span>
+                </button>
+              </form>
+            )}
+
+            {blacklistOpMessage && (
+              <div className="text-[11px] font-mono text-emerald-500 dark:text-emerald-400">
+                {blacklistOpMessage}
+              </div>
+            )}
           </div>
         )}
       </div>

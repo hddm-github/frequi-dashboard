@@ -67,19 +67,6 @@ export function ClosedTradesView() {
     setShareTrade(null);
   }, [activeBotId]);
 
-  // Close export menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
-        setShowExportMenu(false);
-      }
-    };
-    if (showExportMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showExportMenu]);
-
   // Desktop: 50 trades per page, Mobile: 20 trades per page
   const pageSize = isMobile ? 20 : 50;
 
@@ -267,7 +254,7 @@ export function ClosedTradesView() {
         <div className="flex items-center gap-2 flex-wrap">
           <History className="w-4 h-4 text-emerald-500 shrink-0" />
           <span className="text-xs font-bold uppercase tracking-wide">
-            {translate('closed.sync_btn')} ( {sortedTrades.length}
+            {translate('closed.title') || '已平仓记录'} ( {sortedTrades.length}
             {profitSummary?.closed_trade_count && profitSummary.closed_trade_count > sortedTrades.length
               ? ` / ${profitSummary.closed_trade_count}`
               : ''}{' '}
@@ -324,56 +311,73 @@ export function ClosedTradesView() {
               </button>
 
               {showExportMenu && typeof document !== 'undefined' && createPortal(
-                <div className="fixed inset-0 z-[140] flex items-end sm:items-start justify-center sm:justify-end p-3 sm:p-4 bg-black/20 sm:bg-transparent" onClick={() => setShowExportMenu(false)}>
+                <div
+                  className="fixed inset-0 z-[140] flex items-end sm:items-start justify-center sm:justify-end p-3 sm:p-4 bg-black/40 sm:bg-transparent backdrop-blur-[1px] sm:backdrop-blur-none"
+                  onClick={() => setShowExportMenu(false)}
+                >
                   <div
                     className={`w-full max-w-sm sm:w-60 rounded-2xl sm:rounded-xl border shadow-2xl p-2 transition-all sm:mt-12 sm:mr-2 max-h-[70dvh] overflow-y-auto ${
                       isDark ? 'bg-[#131b2e] border-slate-700 text-slate-100 shadow-black/60' : 'bg-white border-slate-200 text-slate-800 shadow-slate-300/50'
                     }`}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="flex items-center justify-between px-2 py-1.5">
+                    <div className="flex items-center justify-between px-2 py-1.5 border-b border-slate-100 dark:border-slate-800 mb-1">
                       <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
                         {translate('closed.export_btn')}
                       </div>
-                      <button type="button" onClick={() => setShowExportMenu(false)} className="text-xs text-slate-400 hover:text-slate-700 dark:hover:text-white" aria-label={translate('common.close') || 'Close'}>×</button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowExportMenu(false);
+                        }}
+                        className="text-base text-slate-400 hover:text-slate-700 dark:hover:text-white px-1 leading-none cursor-pointer"
+                        aria-label={translate('common.close') || 'Close'}
+                      >
+                        ×
+                      </button>
                     </div>
                     <button
-                      onClick={() => handleExport('excel')}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleExport('excel');
+                      }}
                       className={`w-full text-left px-2.5 py-2.5 rounded-xl flex items-start gap-2.5 transition-colors cursor-pointer ${
-                        isDark ? 'hover:bg-slate-800/80' : 'hover:bg-slate-100'
+                        isDark ? 'hover:bg-slate-800/80 active:bg-slate-800' : 'hover:bg-slate-100 active:bg-slate-200'
                       }`}
                     >
-                      <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-500 shrink-0 mt-0.5"><FileSpreadsheet className="w-4 h-4" /></div>
-                      <div className="min-w-0"><div className="text-xs font-semibold">{translate('closed.export_excel_option')}</div><div className="text-[10px] text-slate-400 leading-tight mt-0.5">{translate('closed.export_excel_desc')}</div></div>
+                      <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-500 shrink-0 mt-0.5">
+                        <FileSpreadsheet className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold">{translate('closed.export_excel_option')}</div>
+                        <div className="text-[10px] text-slate-400 leading-tight mt-0.5">{translate('closed.export_excel_desc')}</div>
+                      </div>
                     </button>
                     <button
-                      onClick={() => handleExport('pdf')}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleExport('pdf');
+                      }}
                       className={`w-full text-left px-2.5 py-2.5 rounded-xl flex items-start gap-2.5 transition-colors cursor-pointer mt-0.5 ${
-                        isDark ? 'hover:bg-slate-800/80' : 'hover:bg-slate-100'
+                        isDark ? 'hover:bg-slate-800/80 active:bg-slate-800' : 'hover:bg-slate-100 active:bg-slate-200'
                       }`}
                     >
-                      <div className="p-1.5 rounded-md bg-rose-500/10 text-rose-500 shrink-0 mt-0.5"><FileText className="w-4 h-4" /></div>
-                      <div className="min-w-0"><div className="text-xs font-semibold">{translate('closed.export_pdf_option')}</div><div className="text-[10px] text-slate-400 leading-tight mt-0.5">{translate('closed.export_pdf_desc')}</div></div>
+                      <div className="p-1.5 rounded-md bg-rose-500/10 text-rose-500 shrink-0 mt-0.5">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold">{translate('closed.export_pdf_option')}</div>
+                        <div className="text-[10px] text-slate-400 leading-tight mt-0.5">{translate('closed.export_pdf_desc')}</div>
+                      </div>
                     </button>
                   </div>
                 </div>,
                 document.body
               )}
             </div>
-
-            <button
-              onClick={handleManualRefresh}
-              disabled={isRefreshing}
-              className={`px-2.5 py-1 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shrink-0 ${
-                isDark
-                  ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
-                  : 'border-slate-300 bg-white hover:bg-slate-100 text-slate-700'
-              }`}
-              title={translate('ui.refresh_data')}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span>{translate('closed.sync_btn')}</span>
-            </button>
           </div>
         </div>
       </div>

@@ -254,10 +254,21 @@ export function FreqUIDashboardView() {
     return Math.max(...vals, 1);
   }, [sortedDaily]);
 
-  const selectedDayRecord = useMemo(() => {
-    if (!selectedDayDate) return null;
-    return sortedDaily.find((d) => d.date === selectedDayDate) || null;
-  }, [selectedDayDate, sortedDaily]);
+  const latestDayRecord = useMemo(() => {
+    if (sortedDaily.length === 0) return null;
+    return sortedDaily[sortedDaily.length - 1];
+  }, [sortedDaily]);
+
+  const activeDayRecord = useMemo(() => {
+    if (selectedDayDate) {
+      return sortedDaily.find((d) => d.date === selectedDayDate) || latestDayRecord;
+    }
+    return latestDayRecord;
+  }, [selectedDayDate, sortedDaily, latestDayRecord]);
+
+  const isCustomSelected = useMemo(() => {
+    return Boolean(selectedDayDate && latestDayRecord && selectedDayDate !== latestDayRecord.date);
+  }, [selectedDayDate, latestDayRecord]);
 
   const dailyStats = useMemo(() => {
     const totalProfit = sortedDaily.reduce((sum, d) => sum + (d.abs_profit || 0), 0);
@@ -744,47 +755,63 @@ export function FreqUIDashboardView() {
             </div>
           </div>
 
-          {/* Selected Date Summary Pill (persis seperti Gambar 2 versi upstream) */}
-          {selectedDayRecord && (
-            <div
-              className={`flex items-center justify-between px-2.5 py-1 rounded-lg border text-xs font-mono mb-1 shrink-0 transition-colors ${
-                isDark
+          {/* Permanent Daily Summary Banner (常驻展示，严格固定高度 h-[34px]，彻底消除切换日期的任何布局跳动) */}
+          <div
+            className={`h-[34px] min-h-[34px] max-h-[34px] flex items-center justify-between px-2.5 rounded-lg border text-xs font-mono mb-1.5 shrink-0 overflow-hidden transition-colors ${
+              activeDayRecord
+                ? isDark
                   ? 'bg-cyan-950/40 border-cyan-800/60 text-cyan-200'
                   : 'bg-cyan-50/80 border-cyan-200 text-cyan-900'
-              }`}
-            >
-              <div className="flex items-center gap-1.5 min-w-0">
-                <Calendar className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
-                <span className="font-bold text-cyan-600 dark:text-cyan-400">{selectedDayRecord.date}</span>
-                <span className="text-slate-400">·</span>
-                <span className="text-slate-500">
-                  {selectedDayRecord.trade_count || 0} {t('dashboard.trades_count')}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span
-                  className={`font-bold ${
-                    selectedDayRecord.abs_profit >= 0
-                      ? 'text-emerald-500 dark:text-emerald-400'
-                      : 'text-rose-500 dark:text-rose-400'
-                  }`}
-                >
-                  {isReadOnly ? t('ui.hidden') : formatCurrency(selectedDayRecord.abs_profit, { showSign: true })}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDayDate(null)}
-                  className="p-0.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                  title="Close"
-                  aria-label="Close selected day summary"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          )}
+                : 'border-transparent'
+            }`}
+          >
+            {activeDayRecord ? (
+              <>
+                <div className="flex items-center gap-1.5 min-w-0 overflow-hidden whitespace-nowrap">
+                  <Calendar className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
+                  <span className="font-bold text-cyan-600 dark:text-cyan-400 shrink-0">{activeDayRecord.date}</span>
+                  {activeDayRecord.date === latestDayRecord?.date && (
+                    <span className="h-[18px] px-1.5 inline-flex items-center justify-center rounded bg-cyan-500/20 text-cyan-400 font-sans text-[10px] font-semibold leading-none shrink-0 border border-cyan-500/30">
+                      {locale === 'zh' ? '今日' : 'Today'}
+                    </span>
+                  )}
+                  <span className="text-slate-400 shrink-0">·</span>
+                  <span className="text-slate-500 truncate text-[11px]">
+                    {activeDayRecord.trade_count || 0} {t('dashboard.trades_count')}
+                  </span>
+                </div>
 
-          {/* Bar Chart Area: Semua batang tumbuh KE ATAS dari baseline bawah (persis versi upstream & Gambar 2) */}
+                <div className="flex items-center gap-1.5 shrink-0 ml-2 whitespace-nowrap">
+                  <span
+                    className={`font-bold font-mono text-xs sm:text-sm ${
+                      activeDayRecord.abs_profit >= 0
+                        ? 'text-emerald-500 dark:text-emerald-400'
+                        : 'text-rose-500 dark:text-rose-400'
+                    }`}
+                  >
+                    {isReadOnly ? t('ui.hidden') : formatCurrency(activeDayRecord.abs_profit, { showSign: true })}
+                  </span>
+
+                  {/* 恒定占位槽：确保无论是否显示恢复按钮，右侧数据都不会发生横向抖动 */}
+                  <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                    {isCustomSelected ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDayDate(null)}
+                        className="p-0.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        title={locale === 'zh' ? '恢复至今日' : 'Reset to today'}
+                        aria-label="Reset to today"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </>
+            ) : null}
+          </div>
+
+          {/* Bar Chart Area: 所有柱子从底部基线向上伸展 */}
           <div
             className={`flex-1 h-44 sm:h-52 lg:h-auto min-h-[170px] flex items-end justify-around gap-1.5 pt-2 px-1 border-b pb-1 ${
               isDark ? 'border-slate-800/60' : 'border-slate-200'
@@ -797,7 +824,7 @@ export function FreqUIDashboardView() {
                 const isPos = (d.abs_profit || 0) >= 0;
                 const absVal = Math.abs(d.abs_profit || 0);
                 const hasTrade = (d.trade_count && d.trade_count > 0) || absVal > 0;
-                const isSelected = selectedDayDate === d.date;
+                const isSelected = activeDayRecord?.date === d.date;
                 const relPct = d.rel_profit !== undefined
                   ? (d.rel_profit * 100).toFixed(2)
                   : (d.starting_balance && d.starting_balance > 0 ? ((d.abs_profit / d.starting_balance) * 100).toFixed(2) : null);
@@ -805,7 +832,6 @@ export function FreqUIDashboardView() {
                 let heightPct: number;
 
                 if (isLogScale) {
-                  // 对数高度映射：采用 log10(val + 1)，确保小额盈亏明显可见，大额适度延展
                   const logVal = Math.log10(absVal + 1);
                   const logMax = Math.log10(maxDailyVal + 1);
                   heightPct = logMax > 0 ? Math.round((logVal / logMax) * 78) + 12 : 10;
@@ -817,23 +843,10 @@ export function FreqUIDashboardView() {
                 return (
                   <div
                     key={d.date}
-                    onClick={() => setSelectedDayDate(isSelected ? null : d.date)}
+                    onClick={() => setSelectedDayDate(d.date === activeDayRecord?.date && isCustomSelected ? null : d.date)}
                     className="flex-1 flex flex-col items-center h-full min-h-0 justify-end group min-w-[24px] max-w-[48px] cursor-pointer relative"
                     title={`${d.date}: ${formatCurrency(d.abs_profit, { showSign: true })}${relText} (${d.trade_count || 0} trades)`}
                   >
-                    {/* Hover & Active Tooltip (terintegrasi dengan upstream indicator) */}
-                    <div
-                      className={`text-[10px] font-mono text-center whitespace-nowrap z-20 px-1.5 py-0.5 rounded shadow-lg pointer-events-none absolute -top-5 transition-opacity ${
-                        isSelected
-                          ? 'opacity-100 bg-cyan-600 text-white font-bold'
-                          : 'opacity-0 group-hover:opacity-100 bg-black/85 text-white'
-                      }`}
-                    >
-                      {hasTrade
-                        ? `${isReadOnly ? t('ui.hidden') : formatCurrency(d.abs_profit, { showSign: true })}${relText} [${d.trade_count || 0}]`
-                        : `${formatCurrency(0)} (0 ${t('dashboard.trades_count')})`}
-                    </div>
-
                     <div className="flex-1 w-full h-full min-h-0 flex items-end justify-center">
                       {hasTrade ? (
                         <div
@@ -850,7 +863,11 @@ export function FreqUIDashboardView() {
                         />
                       ) : (
                         <div
-                          className="w-full max-w-[28px] h-1.5 rounded-full bg-slate-200 dark:bg-slate-700/80 mb-0.5 transition-colors group-hover:bg-slate-300 dark:group-hover:bg-slate-600"
+                          className={`w-full max-w-[28px] h-1.5 rounded-full bg-slate-200 dark:bg-slate-700/80 mb-0.5 transition-colors group-hover:bg-slate-300 dark:group-hover:bg-slate-600 ${
+                            isSelected
+                              ? 'ring-2 ring-cyan-400 ring-offset-1 dark:ring-offset-[#131b2e]'
+                              : ''
+                          }`}
                           title={`${d.date}: 0 ${t('dashboard.trades_count')}`}
                         />
                       )}

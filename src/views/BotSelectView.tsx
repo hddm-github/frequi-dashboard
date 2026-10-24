@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useRef, type FormEvent } from 'react';
 import freqtradeLogo from '../assets/freqtrade.png';
 import { useBot } from '../context/BotContext';
 import { useLocale } from '../i18n/LocaleContext';
@@ -6,6 +6,7 @@ import {
   Server,
   Plus,
   ArrowRight,
+  ChevronLeft,
   Trash2,
   Edit3,
   ShieldCheck,
@@ -15,6 +16,9 @@ import {
   AlertCircle,
   X,
   Globe,
+  Download,
+  Upload,
+  CheckCircle2,
 } from 'lucide-react';
 import { EditBotModal } from '../components/EditBotModal';
 import { normalizeApiUrl } from '../api/client';
@@ -30,6 +34,7 @@ export function BotSelectView() {
     setIsSelectingBot,
     theme,
     setTheme,
+    importProfiles,
   } = useBot();
 
   const { locale, toggleLocale, t } = useLocale();
@@ -42,10 +47,119 @@ export function BotSelectView() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [editingBot, setEditingBot] = useState<BotProfile | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isDark = theme === 'dark';
+
+  const handleExportBots = () => {
+    if (profiles.length === 0) {
+      setErrorMsg(locale === 'zh' ? '暂无可导出的机器人配置' : 'No bot configurations to export');
+      return;
+    }
+
+    const botSettings: Record<string, { initialCapital?: number; isManualCapital?: boolean }> = {};
+    profiles.forEach((p) => {
+      const cap = localStorage.getItem(`frequi_initial_capital_${p.id}`);
+      const isCustom = localStorage.getItem(`frequi_initial_capital_custom_${p.id}`) === 'true';
+      if (cap || isCustom) {
+        botSettings[p.id] = {
+          initialCapital: cap ? Number(cap) : undefined,
+          isManualCapital: isCustom,
+        };
+      }
+    });
+
+    const exportData = {
+      version: 1,
+      appName: 'FreqUI',
+      exportedAt: new Date().toISOString(),
+      activeBotId,
+      profiles,
+      botSettings,
+      preferences: {
+        currencyUnit: localStorage.getItem('frequi_currency_unit') || 'USD',
+        refreshInterval: localStorage.getItem('frequi_refresh_interval') || '2',
+      },
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `frequi-bots-backup-${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    setSuccessMsg(t('botselect.export_success') || '机器人配置已成功导出');
+    setTimeout(() => setSuccessMsg(null), 4000);
+  };
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const parsed = JSON.parse(text);
+
+        let importedProfiles: BotProfile[] = [];
+        let importedActiveId: string | undefined = undefined;
+        let importedSettings: Record<string, any> | undefined = undefined;
+
+        if (Array.isArray(parsed)) {
+          importedProfiles = parsed;
+        } else if (parsed && Array.isArray(parsed.profiles)) {
+          importedProfiles = parsed.profiles;
+          importedActiveId = parsed.activeBotId;
+          importedSettings = parsed.botSettings;
+          if (parsed.preferences?.currencyUnit) {
+            localStorage.setItem('frequi_currency_unit', parsed.preferences.currencyUnit);
+          }
+          if (parsed.preferences?.refreshInterval) {
+            localStorage.setItem('frequi_refresh_interval', parsed.preferences.refreshInterval);
+          }
+        } else {
+          setErrorMsg(t('botselect.import_invalid') || '无效的配置文件格式');
+          return;
+        }
+
+        if (importedProfiles.length === 0) {
+          setErrorMsg(t('botselect.import_invalid') || '配置文件中未发现机器人配置');
+          return;
+        }
+
+        const success = await importProfiles(importedProfiles, importedActiveId, importedSettings);
+        if (success) {
+          setSuccessMsg(
+            locale === 'zh'
+              ? `成功导入 ${importedProfiles.length} 个机器人配置！`
+              : `Successfully imported ${importedProfiles.length} bots!`
+          );
+          setTimeout(() => setSuccessMsg(null), 3000);
+        } else {
+          setErrorMsg(t('botselect.failed_add'));
+        }
+      } catch (err: any) {
+        setErrorMsg(err?.message || (t('botselect.import_invalid') || '解析配置文件失败'));
+      } finally {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const handleSelect = async (id: string) => {
     setErrorMsg(null);
@@ -89,7 +203,7 @@ export function BotSelectView() {
 
   return (
     <div
-      className={`min-h-[100dvh] w-full max-w-full overflow-x-hidden flex flex-col justify-between transition-colors ${
+      className={`h-[100dvh] h-full w-full max-w-full overflow-y-auto overflow-x-hidden flex flex-col justify-between transition-colors ${
         isDark ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-50 text-slate-800'
       }`}
     >
@@ -97,9 +211,9 @@ export function BotSelectView() {
       <header
         className={`px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b transition-colors ${
           isDark ? 'border-slate-800 bg-[#0f1626]/90' : 'border-slate-200 bg-white/80'
-        } backdrop-blur-sm`}
+        } backdrop-blur-sm sticky top-0 z-30`}
       >
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-md overflow-hidden border border-slate-700/40 shrink-0">
             <img src={freqtradeLogo} alt="Freqtrade" className="w-full h-full object-contain p-0.5" />
           </div>
@@ -148,9 +262,28 @@ export function BotSelectView() {
         </div>
       </header>
 
+      {/* Sub-header for returning to workspace (identical to More tab secondary pages) */}
+      {activeBotId && (
+        <div
+          className={`shrink-0 px-4 sm:px-6 py-2 flex items-center justify-between border-b text-xs font-semibold sticky top-[57px] sm:top-[65px] z-20 backdrop-blur-sm transition-colors ${
+            isDark ? 'bg-[#121a2b]/95 border-slate-800' : 'bg-white/95 border-slate-200'
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setIsSelectingBot(false)}
+            className="flex items-center gap-1 text-emerald-500 hover:text-emerald-400 cursor-pointer font-medium transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>{t('mobile.back')}</span>
+          </button>
+          <span className="text-slate-400 font-medium">{t('botselect.title')}</span>
+        </div>
+      )}
+
       {/* Main Bot List Container */}
       <main className="flex-1 max-w-5xl w-full mx-auto p-6 sm:p-10">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-xl font-bold tracking-tight">{t('botselect.title')}</h1>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -158,16 +291,70 @@ export function BotSelectView() {
             </p>
           </div>
 
-          {!isAdding && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".json,application/json"
+              className="hidden"
+              onChange={handleImportFile}
+            />
+
             <button
-              onClick={() => setIsAdding(true)}
-              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+              type="button"
+              onClick={handleExportBots}
+              disabled={profiles.length === 0}
+              className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 shrink-0 ${
+                isDark
+                  ? 'border-slate-700 bg-[#131b2e] hover:bg-[#1a233a] text-slate-200'
+                  : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-700'
+              }`}
+              title={locale === 'zh' ? '将当前所有机器人配置导出为文件以备恢复' : 'Export all bot configurations to JSON'}
             >
-              <Plus className="w-4 h-4" />
-              <span>{t('connect.title')}</span>
+              <Download className="w-3.5 h-3.5 text-cyan-500" />
+              <span>{t('botselect.export_config')}</span>
             </button>
-          )}
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                isDark
+                  ? 'border-slate-700 bg-[#131b2e] hover:bg-[#1a233a] text-slate-200'
+                  : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-700'
+              }`}
+              title={locale === 'zh' ? '从已导出的 JSON 配置文件恢复机器人' : 'Import bot configurations from JSON'}
+            >
+              <Upload className="w-3.5 h-3.5 text-emerald-500" />
+              <span>{t('botselect.import_config')}</span>
+            </button>
+
+            {!isAdding && (
+              <button
+                onClick={() => setIsAdding(true)}
+                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all cursor-pointer shrink-0 whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{locale === 'zh' ? '添加机器人' : t('connect.title')}</span>
+              </button>
+            )}
+          </div>
         </div>
+
+        {successMsg && (
+          <div className="mb-6 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs flex items-center justify-between gap-2 shadow-xs">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>{successMsg}</span>
+            </div>
+            <button
+              onClick={() => setSuccessMsg(null)}
+              className="p-1 rounded text-emerald-500 hover:text-emerald-300 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {errorMsg && (
           <div className="mb-6 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs flex items-center justify-between gap-2 shadow-xs">
@@ -439,31 +626,22 @@ export function BotSelectView() {
               </div>
             );
           })}
-
-          {/* Quick Add Placeholder Card */}
-          <div
-            onClick={() => setIsAdding(true)}
-            className={`rounded-2xl border border-dashed p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all ${
-              isDark
-                ? 'border-slate-800 hover:border-emerald-500/50 hover:bg-[#1a233a]/50 text-slate-400 hover:text-emerald-400'
-                : 'border-slate-300 hover:border-emerald-500 hover:bg-emerald-50/20 text-slate-500 hover:text-emerald-600'
-            }`}
-          >
-            <div className="p-3 rounded-full bg-slate-100 dark:bg-[#1a233a]">
-              <Plus className="w-5 h-5" />
-            </div>
-            <span className="font-semibold text-xs">{t('botselect.quick_add')}</span>
-            <span className="text-[11px] text-slate-500 text-center">
-              {t('botselect.quick_add_desc')}
-            </span>
-          </div>
         </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="p-4 text-center text-xs text-slate-500">
-        FreqUI · Strategy bot console
-      </footer>
+        {profiles.length === 0 && !isAdding && (
+          <div className="text-center py-16 text-slate-500">
+            <p className="text-sm">{t('botselect.no_bots') || '暂无已配置的策略机器人'}</p>
+            <button
+              type="button"
+              onClick={() => setIsAdding(true)}
+              className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition-colors cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t('botselect.add_bot')}</span>
+            </button>
+          </div>
+        )}
+      </main>
 
       {/* Edit Bot Modal */}
       <EditBotModal

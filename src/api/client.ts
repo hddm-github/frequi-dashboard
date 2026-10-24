@@ -21,6 +21,8 @@ export const EMPTY_BOT_STATE: BotState = {
   free_balance: 0,
   stake_amount: 0,
   whitelist: [],
+  blacklist: [],
+  blacklist_expanded: [],
 };
 
 export function normalizeApiUrl(url: string): string {
@@ -98,6 +100,8 @@ export class FreqtradeClient {
     stake_amount: number | string;
     tradable_balance_ratio?: number;
     whitelist: string[];
+    blacklist?: string[];
+    blacklist_expanded?: string[];
   } | null = null;
   private lastStaticFetchTime: number = 0;
 
@@ -348,7 +352,7 @@ export class FreqtradeClient {
     }
 
     try {
-      const [versionData, configData, whitelistData] = await Promise.all([
+      const [versionData, configData, whitelistData, blacklistData] = await Promise.all([
         this.request<{ version: string }>('version').catch(() => ({ version: 'Freqtrade' })),
         this.request<{
           strategy?: string;
@@ -362,6 +366,7 @@ export class FreqtradeClient {
           tradable_balance_ratio?: number;
         }>('show_config').catch(() => ({} as any)),
         this.request<{ whitelist: string[] }>('whitelist').catch(() => ({ whitelist: [] })),
+        this.request<{ blacklist?: string[]; blacklist_expanded?: string[] }>('blacklist').catch(() => ({ blacklist: [], blacklist_expanded: [] })),
       ]);
 
       this.cachedStaticState = {
@@ -376,6 +381,8 @@ export class FreqtradeClient {
         stake_amount: configData.stake_amount ?? 0,
         tradable_balance_ratio: configData.tradable_balance_ratio ?? 0.99,
         whitelist: whitelistData.whitelist || [],
+        blacklist: blacklistData.blacklist || [],
+        blacklist_expanded: blacklistData.blacklist_expanded || [],
       };
       this.lastStaticFetchTime = now;
       return this.cachedStaticState;
@@ -394,6 +401,8 @@ export class FreqtradeClient {
         stake_amount: 0,
         tradable_balance_ratio: 0.99,
         whitelist: [],
+        blacklist: [],
+        blacklist_expanded: [],
       };
     }
   }
@@ -419,11 +428,31 @@ export class FreqtradeClient {
         tradable_balance_ratio: staticConfig.tradable_balance_ratio,
         stake_amount: staticConfig.stake_amount,
         whitelist: staticConfig.whitelist,
+        blacklist: staticConfig.blacklist || [],
+        blacklist_expanded: staticConfig.blacklist_expanded || [],
       };
     } catch (err: any) {
       console.warn('Real API getBotState failed:', err);
       return EMPTY_BOT_STATE;
     }
+  }
+
+  async getBlacklist(): Promise<{ blacklist: string[]; blacklist_expanded: string[] }> {
+    return this.request<{ blacklist: string[]; blacklist_expanded: string[] }>('blacklist');
+  }
+
+  async addBlacklist(pairs: string[]): Promise<{ blacklist: string[]; blacklist_expanded: string[] }> {
+    return this.request<{ blacklist: string[]; blacklist_expanded: string[] }>('blacklist', {
+      method: 'POST',
+      body: JSON.stringify({ blacklist: pairs }),
+    });
+  }
+
+  async deleteBlacklist(pairs: string[]): Promise<{ blacklist: string[]; blacklist_expanded: string[] }> {
+    const query = pairs.map((p) => `pairs_to_delete=${encodeURIComponent(p)}`).join('&');
+    return this.request<{ blacklist: string[]; blacklist_expanded: string[] }>(`blacklist?${query}`, {
+      method: 'DELETE',
+    });
   }
 
   /**

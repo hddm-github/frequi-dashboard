@@ -78,6 +78,11 @@ interface BotContextValue {
   setRefreshInterval: (seconds: number) => void;
   loadAllClosedTrades: () => Promise<Trade[]>;
   isLoadingAllTrades: boolean;
+  importProfiles: (
+    importedProfiles: BotProfile[],
+    activeId?: string,
+    botSettings?: Record<string, { initialCapital?: number; isManualCapital?: boolean }>
+  ) => Promise<boolean>;
 }
 
 const BotContext = createContext<BotContextValue | null>(null);
@@ -276,10 +281,13 @@ export function BotProvider({ children }: { children: ReactNode }) {
     return 2;
   });
 
+  const [timerResetKey, setTimerResetKey] = useState<number>(0);
+
   const setRefreshInterval = useCallback((seconds: number) => {
     const val = Math.max(0, Math.floor(seconds));
     setRefreshIntervalState(val);
     setRefreshCountdown(val);
+    setTimerResetKey((k) => k + 1);
     try {
       localStorage.setItem('frequi_refresh_interval', String(val));
     } catch {}
@@ -579,6 +587,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
       });
 
       setIsConnected(true);
+      setIsConnecting(false);
       setLastError(null);
 
       // ── SWR: persist snapshot for instant next-load ──
@@ -646,6 +655,10 @@ export function BotProvider({ children }: { children: ReactNode }) {
     } finally {
       if (activeRequestIdRef.current === currentReqId) {
         isRefreshingRef.current = false;
+        if (refreshIntervalRef.current > 0) {
+          setRefreshCountdown(refreshIntervalRef.current);
+          setTimerResetKey((k) => k + 1);
+        }
       }
     }
   }, []);
@@ -656,7 +669,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
     if (!target) return false;
 
     // 立即注销上一机器人的所有在途请求并重置状态互斥锁
-    const myReqId = ++activeRequestIdRef.current;
+    ++activeRequestIdRef.current;
     activeBotIdRef.current = id;
     lastLoadedBotIdRef.current = id;
     isRefreshingRef.current = false;
@@ -716,22 +729,27 @@ export function BotProvider({ children }: { children: ReactNode }) {
     clientRef.current = newClient;
     setClient(newClient);
 
-    const ok = await newClient.ping();
-    if (activeRequestIdRef.current !== myReqId || activeBotIdRef.current !== id) return false;
-
-    setIsConnecting(false);
-
-    if (ok) {
-      setIsConnected(true);
-      setLastError(null);
+    try {
       await refreshData(newClient, true);
-      setIsSelectingBot(false);
-      return true;
-    } else {
-      setIsConnected(false);
-      const errMsg = newClient.lastError || 'Unable to connect to bot node (timeout or auth error)';
-      setLastError(errMsg);
+
+      if (activeBotIdRef.current === id) {
+        setIsConnected(true);
+        setLastError(null);
+        setIsSelectingBot(false);
+        return true;
+      }
       return false;
+    } catch (err: any) {
+      if (activeBotIdRef.current === id) {
+        setIsConnected(false);
+        const errMsg = err?.message || 'Unable to connect to bot node';
+        setLastError(errMsg);
+      }
+      return false;
+    } finally {
+      if (activeBotIdRef.current === id) {
+        setIsConnecting(false);
+      }
     }
   }, [profiles, refreshData, getBotInitialCapital]);
 
@@ -831,6 +849,55 @@ export function BotProvider({ children }: { children: ReactNode }) {
     }
   }, [profiles, activeBotId, switchBot]);
 
+  // Batch import profiles from backup file preserving exact ordering and config
+  const importProfiles = useCallback(
+    async (
+      importedProfiles: BotProfile[],
+      newActiveId?: string,
+      botSettings?: Record<string, { initialCapital?: number; isManualCapital?: boolean }>
+    ): Promise<boolean> => {
+      if (!Array.isArray(importedProfiles) || importedProfiles.length === 0) {
+        return false;
+      }
+
+      // Sanitize and preserve exact order
+      const sanitized: BotProfile[] = importedProfiles.map((p, idx) => ({
+        id: p.id || `bot_${Date.now()}_${idx}`,
+        name: p.name || `Bot #${idx + 1}`,
+        apiUrl: normalizeApiUrl(p.apiUrl || '/'),
+        username: p.username || '',
+        password: p.password || '',
+        createdAt: p.createdAt || Date.now(),
+        lastConnected: p.lastConnected,
+      }));
+
+      // Restore bot-specific initial capital settings if provided
+      if (botSettings) {
+        Object.entries(botSettings).forEach(([botId, s]) => {
+          if (s?.initialCapital !== undefined) {
+            localStorage.setItem(`frequi_initial_capital_${botId}`, String(s.initialCapital));
+          }
+          if (s?.isManualCapital) {
+            localStorage.setItem(`frequi_initial_capital_custom_${botId}`, 'true');
+          }
+        });
+      }
+
+      // Target active bot: either specified or first bot in the imported array
+      const targetActiveId =
+        newActiveId && sanitized.some((p) => p.id === newActiveId)
+          ? newActiveId
+          : sanitized[0].id;
+
+      saveProfiles(sanitized, targetActiveId);
+
+      // Immediately connect to the target active bot
+      await switchBot(targetActiveId);
+      return true;
+    },
+    [switchBot]
+  );
+
   const disconnectCurrent = useCallback(() => {
     setIsSelectingBot(true);
   }, []);
@@ -918,9 +985,11 @@ export function BotProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!activeProfile || isSelectingBot || refreshInterval <= 0) return;
 
+    setRefreshCountdown(refreshInterval);
+
     const timer = setInterval(() => {
-      // 只有在标签页处于可见状态下才倒计时与轮询，完全避免后台隐秘消耗连接
-      if (document.visibilityState === 'visible') {
+      // 只有在标签页处于可见状态且当前不在刷新请求中时才倒计时与轮询
+      if (document.visibilityState === 'visible' && !isRefreshingRef.current) {
         setRefreshCountdown((prev) => {
           if (prev <= 1) {
             refreshData();
@@ -931,7 +1000,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
       }
     }, 1000);
     return () => clearInterval(timer);
-  }, [activeProfile, isSelectingBot, refreshData, refreshInterval]);
+  }, [activeProfile, isSelectingBot, refreshData, refreshInterval, timerResetKey]);
 
   // Page Visibility: pause polling when tab is hidden, refresh immediately on visible
   useEffect(() => {
@@ -957,6 +1026,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
     const handleOnline = () => {
       console.info('[Network] Browser is back online. Auto-reconnecting bot...');
       setIsConnected(true);
+      setIsConnecting(false);
       setLastError(null);
       refreshData(undefined, true);
     };
@@ -1048,6 +1118,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
         setRefreshInterval,
         loadAllClosedTrades,
         isLoadingAllTrades,
+        importProfiles,
       }}
     >
       {children}
