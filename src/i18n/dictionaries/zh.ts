@@ -342,6 +342,14 @@ export const zh: Record<string, string> = {
   'dashboard.loss_short': '负',
   'dashboard.total_closed': '共平仓',
   'dashboard.max_drawdown_label': '单日最大回撤',
+  'dashboard.hide_this_card': '隐藏此组件',
+  'dashboard.unhide': '取消隐藏',
+  'dashboard.hidden_banner': '已隐藏 {count} 个组件',
+  'dashboard.restore_all': '全部恢复显示',
+  'dashboard.component_manager': '自定义组件',
+  'dashboard.component_manager_title': '仪表盘组件显示设置',
+  'dashboard.no_visible_components': '当前已隐藏所有仪表盘组件',
+  'dashboard.show_all': '全部显示',
 
   // Closed Trades View
   'closed.title': '已平仓记录',

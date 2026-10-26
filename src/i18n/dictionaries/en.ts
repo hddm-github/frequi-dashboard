@@ -350,6 +350,14 @@ export const en: Record<string, string> = {
   'dashboard.loss_short': 'L',
   'dashboard.closed_trades_summary': 'Closed {total} trades · Avg {avg}',
   'dashboard.max_daily_drawdown': 'Max daily drawdown:',
+  'dashboard.hide_this_card': 'Hide this component',
+  'dashboard.unhide': 'Unhide',
+  'dashboard.hidden_banner': '{count} component(s) hidden',
+  'dashboard.restore_all': 'Restore all',
+  'dashboard.component_manager': 'Components',
+  'dashboard.component_manager_title': 'Dashboard Component Visibility',
+  'dashboard.no_visible_components': 'All dashboard components are currently hidden',
+  'dashboard.show_all': 'Show all',
 
   // Closed Trades View
   'closed.title': 'Closed Trades',
