@@ -89,8 +89,52 @@ const BotContext = createContext<BotContextValue | null>(null);
 
 function loadInitialProfiles(): { profiles: BotProfile[]; activeId: string | null } {
   try {
-    // Load only explicitly saved bot profiles. Deleted profiles stay deleted.
-    // 3. Normal load from localStorage
+    // 1. Check if bot connection parameters are passed via URL query or hash
+    if (typeof window !== 'undefined' && window.location) {
+      try {
+        const searchParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(
+          window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash
+        );
+        const getParam = (key: string) => searchParams.get(key) || hashParams.get(key);
+        const paramApiUrl = getParam('apiUrl') || getParam('url');
+        if (paramApiUrl) {
+          const paramName = getParam('name') || 'Freqtrade Bot';
+          const paramUser = getParam('username') || getParam('user') || '';
+          const paramPass = getParam('password') || getParam('pass') || '';
+          const raw = localStorage.getItem('nfi_bot_profiles');
+          let currentProfiles: BotProfile[] = [];
+          if (raw) {
+            try {
+              const p = JSON.parse(raw);
+              if (Array.isArray(p)) currentProfiles = p;
+            } catch {}
+          }
+          const normalized = normalizeApiUrl(paramApiUrl);
+          let existing = currentProfiles.find(
+            (p) => p.apiUrl === normalized && p.username === paramUser
+          );
+          if (!existing) {
+            existing = {
+              id: `bot-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              name: paramName,
+              apiUrl: normalized,
+              username: paramUser,
+              password: paramPass,
+              createdAt: Date.now(),
+            };
+            currentProfiles.push(existing);
+            localStorage.setItem('nfi_bot_profiles', JSON.stringify(currentProfiles));
+          }
+          localStorage.setItem('nfi_active_bot_id', existing.id);
+          return { profiles: currentProfiles, activeId: existing.id };
+        }
+      } catch (paramErr) {
+        console.warn('Failed to parse URL bot params:', paramErr);
+      }
+    }
+
+    // 2. Normal load from localStorage
     const raw = localStorage.getItem('nfi_bot_profiles');
     if (raw) {
       const parsed = JSON.parse(raw);

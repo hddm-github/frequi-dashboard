@@ -92,6 +92,9 @@ export const en: Record<string, string> = {
 
   'login.theme_light': 'Light mode',
   'login.theme_dark': 'Dark mode',
+  'login.import_config': 'Import Config (JSON)',
+  'login.import_config_short': 'Import',
+  'login.or_manual': 'Or connect manually',
   'login.connect_title': 'Connect your Freqtrade bot',
   'login.connect_desc': 'Connect to your live Freqtrade bot through its REST API',
   'login.bot_name': 'Bot Display Name',
