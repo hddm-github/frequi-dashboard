@@ -503,6 +503,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
   const isRefreshingRef = useRef<boolean>(false);
   const lastSecondaryFetchTimeRef = useRef<number>(0);
   const lastBotStateFetchTimeRef = useRef<number>(0);
+  const lastRefreshTimeRef = useRef<number>(0);
   const botStateRef = useRef<BotState | null>(null);
   const prevActiveTradeCountRef = useRef<number>(-1);
   const prevActiveTradeIdsRef = useRef<string>('');
@@ -547,6 +548,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
 
     try {
       const now = Date.now();
+      lastRefreshTimeRef.current = now;
       const timeSinceLastState = now - lastBotStateFetchTimeRef.current;
       const shouldFetchBotState =
         forceAll ||
@@ -640,10 +642,6 @@ export function BotProvider({ children }: { children: ReactNode }) {
           const sigs = await targetClient.getSignalStats(closed || undefined).catch(() => null);
           if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
           if (sigs) setSignals(sigs);
-
-          const logList = await targetClient.getLogs(logLimitRef.current).catch(() => null);
-          if (activeRequestIdRef.current !== currentReqId || activeBotIdRef.current !== currentActiveBotId) return;
-          if (logList) setLogs(logList);
         }
       }
     } catch (err: any) {
@@ -1008,10 +1006,16 @@ export function BotProvider({ children }: { children: ReactNode }) {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        const now = Date.now();
+        // 快速切标签页时（3秒内刚刷新过），无需重复打接口
+        if (now - lastRefreshTimeRef.current < 3000) {
+          return;
+        }
         if (refreshInterval > 0) {
           setRefreshCountdown(refreshInterval);
         }
-        refreshData(undefined, true);
+        // 轻量增量刷新（forceAll = false），绝不全量扫接口
+        refreshData(undefined, false);
       }
     };
 
@@ -1028,7 +1032,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
       setIsConnected(true);
       setIsConnecting(false);
       setLastError(null);
-      refreshData(undefined, true);
+      refreshData(undefined, false);
     };
 
     const handleOffline = () => {
@@ -1052,7 +1056,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
 
     const retryTimer = setInterval(() => {
       if (document.visibilityState === 'visible' && (typeof navigator === 'undefined' || navigator.onLine)) {
-        refreshData(undefined, true);
+        refreshData(undefined, false);
       }
     }, 5000);
 

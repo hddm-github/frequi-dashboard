@@ -23,10 +23,17 @@ export function BotLogsView() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (logs.length === 0) {
-      fetchLogs(logLimit);
-    }
-  }, [fetchLogs, logLimit, logs.length]);
+    fetchLogs(logLimit);
+
+    // 仅在当前处于“运行日志”组件内时，才定时轮询日志
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchLogs(logLimit);
+      }
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, [fetchLogs, logLimit]);
 
   const filteredLogs = logs.filter((log) => {
     if (filterLevel === 'ALL') return true;
