@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Layers, Info, Coins, ShieldCheck } from 'lucide-react';
+import { X, Layers, Coins, ShieldCheck } from 'lucide-react';
 import { useT } from '../i18n/LocaleContext';
 import type { BalanceCurrency } from '../types';
 
@@ -146,36 +146,47 @@ export function WalletBalanceModal({
             }`}
           >
             <div
-              className={`px-3 py-2 text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between border-b ${
+              className={`px-3 sm:px-4 py-2 text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between border-b ${
                 isDark ? 'bg-slate-800/60 border-slate-700/80 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-600'
               }`}
             >
-              <span className="w-24 shrink-0">{t('dashboard.asset')}</span>
+              <span className="w-36 sm:w-44 shrink-0">{t('dashboard.asset')}</span>
               <span className="flex-1 text-right">{t('dashboard.free_amount')}</span>
               <span className="flex-1 text-right">{t('dashboard.est_value')}</span>
-              <span className="w-16 text-right shrink-0">{t('dashboard.portfolio_ratio')}</span>
+              <span className="w-14 sm:w-16 text-right shrink-0">{t('dashboard.portfolio_ratio')}</span>
             </div>
 
-            <div className="divide-y divide-slate-200 dark:divide-slate-700/60 max-h-56 overflow-y-auto">
+            <div className="divide-y divide-slate-200 dark:divide-slate-700/60 max-h-64 overflow-y-auto">
               {sortedCurrencies.length > 0 ? (
                 sortedCurrencies.map((item) => {
                   const isStake = item.currency.toUpperCase() === upperStake;
                   const estValue = item.est_stake ?? (isStake ? item.balance : 0);
                   const ratio = effectiveTotal > 0 ? ((estValue / effectiveTotal) * 100).toFixed(1) : '0.0';
+                  // Clean futures pair like PHA/USDT:USDT -> PHA/USDT
+                  const cleanName = item.currency.includes(':')
+                    ? item.currency.split(':')[0]
+                    : item.currency;
 
                   return (
                     <div
                       key={item.currency}
-                      className={`px-3 py-2.5 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${
+                      className={`px-3 sm:px-4 py-2.5 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${
                         isStake ? 'bg-purple-500/5 font-medium' : ''
                       }`}
                     >
-                      {/* Currency badge */}
-                      <div className="w-24 shrink-0 flex items-center gap-1.5">
-                        <span className="font-bold font-mono">{item.currency}</span>
+                      {/* Currency badge - ample width and whitespace-nowrap prevents any wrapping */}
+                      <div className="w-36 sm:w-44 shrink-0 flex items-center gap-1.5 min-w-0 pr-1">
+                        <span className="font-bold font-mono truncate" title={item.currency}>
+                          {cleanName}
+                        </span>
                         {isStake && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded-full font-sans font-medium bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-sans font-medium bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30 whitespace-nowrap shrink-0">
                             {t('dashboard.stake_balance_label')}
+                          </span>
+                        )}
+                        {!isStake && item.is_position && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-sans font-medium bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 whitespace-nowrap shrink-0">
+                            {t('dashboard.position')}
                           </span>
                         )}
                       </div>
@@ -183,7 +194,9 @@ export function WalletBalanceModal({
                       {/* Free balance */}
                       <div className="flex-1 text-right font-mono text-slate-600 dark:text-slate-300">
                         {item.free > 0 ? (
-                          item.free >= 1000 ? item.free.toLocaleString(undefined, { maximumFractionDigits: 2 }) : item.free
+                          item.free >= 1000
+                            ? item.free.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                            : item.free
                         ) : (
                           '0'
                         )}
@@ -195,7 +208,7 @@ export function WalletBalanceModal({
                       </div>
 
                       {/* Ratio */}
-                      <div className="w-16 text-right shrink-0 font-mono text-slate-500 dark:text-slate-400">
+                      <div className="w-14 sm:w-16 text-right shrink-0 font-mono text-slate-500 dark:text-slate-400">
                         {ratio}%
                       </div>
                     </div>
@@ -207,16 +220,6 @@ export function WalletBalanceModal({
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Info callout */}
-          <div
-            className={`p-3 rounded-xl border flex items-start gap-2.5 text-xs ${
-              isDark ? 'bg-amber-950/20 border-amber-500/30 text-amber-300/90' : 'bg-amber-50 border-amber-200 text-amber-800'
-            }`}
-          >
-            <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
-            <span className="leading-relaxed">{t('dashboard.wallet_note')}</span>
           </div>
         </div>
 
@@ -235,7 +238,7 @@ export function WalletBalanceModal({
                 : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
             }`}
           >
-            {t('dashboard.close')}
+            {t('ui.close')}
           </button>
         </div>
       </div>
