@@ -118,6 +118,17 @@ export interface BotConfig {
   max_open_trades?: number;
 }
 
+export interface BalanceCurrency {
+  currency: string;
+  free: number;
+  balance: number;
+  used: number;
+  est_stake?: number;
+  stake?: string;
+  is_position?: boolean;
+  position?: number;
+}
+
 export interface BotState {
   version: string;
   strategy: string;
@@ -127,8 +138,10 @@ export interface BotState {
   dry_run: boolean;
   stake_currency: string;
   max_open_trades: number;
-  balance: number;
-  free_balance?: number;
+  balance: number; // Actual stake currency balance (e.g. USDT)
+  free_balance?: number; // Actual stake currency free balance
+  total_balance?: number; // Total portfolio converted to stake currency (including BNB, etc.)
+  currencies?: BalanceCurrency[];
   tradable_balance_ratio?: number;
   stake_amount: number | string;
   whitelist: string[];

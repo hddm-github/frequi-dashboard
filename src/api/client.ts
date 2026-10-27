@@ -411,8 +411,34 @@ export class FreqtradeClient {
     try {
       const [staticConfig, balanceData] = await Promise.all([
         this.getStaticBotConfig(forceRefreshStatic),
-        this.request<{ total: number; free?: number }>('balance').catch(() => ({ total: 0, free: 0 })),
+        this.request<{
+          total: number;
+          free?: number;
+          currencies?: Array<{
+            currency: string;
+            free: number;
+            balance: number;
+            used: number;
+            est_stake?: number;
+            stake?: string;
+            is_position?: boolean;
+            position?: number;
+          }>;
+          stake?: string;
+          symbol?: string;
+        }>('balance').catch(() => ({ total: 0, free: 0, currencies: [] })),
       ]);
+
+      const stakeCurrency = staticConfig.stake_currency || 'USDT';
+      const currencies = Array.isArray(balanceData.currencies) ? balanceData.currencies : [];
+      const stakeItem = currencies.find(
+        (c) => c.currency.toUpperCase() === stakeCurrency.toUpperCase()
+      );
+
+      // Accurate stake currency balance for trade budgeting
+      const stakeBalance = stakeItem ? Number(stakeItem.balance ?? 0) : Number(balanceData.total ?? 0);
+      const stakeFree = stakeItem ? Number(stakeItem.free ?? 0) : Number(balanceData.free ?? balanceData.total ?? 0);
+      const totalPortfolioBalance = Number(balanceData.total ?? stakeBalance);
 
       return {
         version: staticConfig.version,
@@ -423,8 +449,19 @@ export class FreqtradeClient {
         dry_run: staticConfig.dry_run,
         stake_currency: staticConfig.stake_currency,
         max_open_trades: staticConfig.max_open_trades,
-        balance: balanceData.total ?? 0,
-        free_balance: balanceData.free ?? balanceData.total ?? 0,
+        balance: stakeBalance,
+        free_balance: stakeFree,
+        total_balance: totalPortfolioBalance,
+        currencies: currencies.map((c) => ({
+          currency: c.currency,
+          free: Number(c.free ?? 0),
+          balance: Number(c.balance ?? 0),
+          used: Number(c.used ?? 0),
+          est_stake: Number(c.est_stake ?? 0),
+          stake: c.stake,
+          is_position: c.is_position,
+          position: c.position,
+        })),
         tradable_balance_ratio: staticConfig.tradable_balance_ratio,
         stake_amount: staticConfig.stake_amount,
         whitelist: staticConfig.whitelist,

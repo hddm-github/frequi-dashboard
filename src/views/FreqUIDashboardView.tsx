@@ -29,6 +29,7 @@ import { exportClosedTradesToExcel } from '../utils/excelExport';
 import { exportClosedTradesToPdf } from '../utils/pdfExport';
 import { ShareCardModal } from '../components/share/ShareCardModal';
 import { ForceExitModal } from '../components/ForceExitModal';
+import { WalletBalanceModal } from '../components/WalletBalanceModal';
 import type { ShareCardData, DashboardShareData, ActiveTradeShareData, ClosedTradeShareData } from '../components/share/shareTypes';
 import type { Trade } from '../types';
 
@@ -100,6 +101,7 @@ export function FreqUIDashboardView() {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareModalData, setShareModalData] = useState<ShareCardData | null>(null);
   const [forceExitTarget, setForceExitTarget] = useState<Trade | null>(null);
+  const [showBalanceModal, setShowBalanceModal] = useState(false);
 
   const totalUnrealized = activeTrades.reduce((sum, trade) => sum + (trade.profit_abs || 0), 0);
   const totalStake = activeTrades.reduce((sum, trade) => sum + (trade.stake_amount || 0), 0);
@@ -240,8 +242,12 @@ export function FreqUIDashboardView() {
 
     // Open positions already consume part of total balance. Do not add them
     // back into the next-stake budget.
-    const totalBalance = botState.balance ?? 0;
-    const remainingBalance = Math.max(0, totalBalance - totalStake);
+    // Use free_balance directly if provided, representing free stake currency.
+    const stakeBalance = botState.balance ?? 0;
+    const remainingBalance =
+      botState.free_balance !== undefined
+        ? botState.free_balance
+        : Math.max(0, stakeBalance - totalStake);
     const tradableRatio = botState.tradable_balance_ratio ?? 0.99;
     const estStake = (remainingBalance * tradableRatio) / availableSlots;
 
@@ -770,7 +776,15 @@ export function FreqUIDashboardView() {
                   >
                     {hideBalances ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
-                  <Layers className="w-3.5 h-3.5 text-purple-500" />
+                  <button
+                    type="button"
+                    onClick={() => setShowBalanceModal(true)}
+                    className="p-0.5 rounded text-slate-400 hover:text-purple-500 hover:bg-purple-500/10 transition-colors cursor-pointer"
+                    title={t('dashboard.wallet_breakdown')}
+                    aria-label={t('dashboard.wallet_breakdown')}
+                  >
+                    <Layers className="w-3.5 h-3.5 text-purple-500" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => hideComponent('kpi_balance')}
@@ -785,7 +799,7 @@ export function FreqUIDashboardView() {
               <div className="text-lg sm:text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight whitespace-nowrap truncate my-0.5">
                 {isReadOnly ? t('ui.hidden') : formatCurrency(botState.balance)}
               </div>
-              <div className="h-5 flex items-center text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap overflow-hidden truncate">
+              <div className="h-5 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap overflow-hidden truncate">
                 <span
                   className="truncate"
                   title={`${t('dashboard.per_trade')}: ${nextStakeInfo.label}`}
@@ -801,6 +815,17 @@ export function FreqUIDashboardView() {
                     {nextStakeInfo.label}
                   </span>
                 </span>
+                {botState.total_balance !== undefined &&
+                  Math.abs(botState.total_balance - botState.balance) >= 0.01 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowBalanceModal(true)}
+                      className="ml-1 px-1.5 py-0.2 rounded text-[10px] font-sans font-medium bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 cursor-pointer shrink-0 transition-colors"
+                      title={t('dashboard.total_portfolio_tooltip')}
+                    >
+                      {t('dashboard.total_portfolio')}: {formatCurrency(botState.total_balance)}
+                    </button>
+                  )}
               </div>
             </div>
           )}
@@ -1452,6 +1477,19 @@ export function FreqUIDashboardView() {
         trade={forceExitTarget}
         isOpen={Boolean(forceExitTarget)}
         onClose={() => setForceExitTarget(null)}
+      />
+
+      {/* Wallet Balance / Asset Breakdown Modal */}
+      <WalletBalanceModal
+        isOpen={showBalanceModal}
+        onClose={() => setShowBalanceModal(false)}
+        stakeCurrency={botState.stake_currency || 'USDT'}
+        stakeBalance={botState.balance}
+        stakeFree={botState.free_balance}
+        totalBalance={botState.total_balance}
+        currencies={botState.currencies}
+        formatCurrency={formatCurrency}
+        isDark={isDark}
       />
 
       {/* Share Card Modal (hidden) */}
