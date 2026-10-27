@@ -1473,6 +1473,7 @@ export function FreqUIDashboardView() {
         isOpen={showBalanceModal}
         onClose={() => setShowBalanceModal(false)}
         stakeCurrency={botState.stake_currency || 'USDT'}
+        currencyUnit={currencyUnit}
         stakeBalance={botState.balance}
         stakeFree={botState.free_balance}
         totalBalance={botState.total_balance}

@@ -8,6 +8,7 @@ interface WalletBalanceModalProps {
   isOpen: boolean;
   onClose: () => void;
   stakeCurrency: string;
+  currencyUnit?: string;
   stakeBalance: number;
   stakeFree?: number;
   totalBalance?: number;
@@ -20,6 +21,7 @@ export function WalletBalanceModal({
   isOpen,
   onClose,
   stakeCurrency,
+  currencyUnit,
   stakeBalance,
   stakeFree,
   totalBalance,
@@ -45,6 +47,7 @@ export function WalletBalanceModal({
 
   const effectiveTotal = totalBalance && totalBalance > 0 ? totalBalance : stakeBalance;
   const upperStake = (stakeCurrency || 'USDT').toUpperCase();
+  const displayStakeUnit = currencyUnit || (upperStake === 'USDT' ? 'USD' : upperStake);
 
   // Sort currencies: stake currency first, then by estimated stake descending
   const sortedCurrencies = [...currencies].sort((a, b) => {
@@ -110,7 +113,7 @@ export function WalletBalanceModal({
             >
               <div className="flex items-center gap-1.5 text-xs text-purple-600 dark:text-purple-400 font-medium mb-1">
                 <Coins className="w-3.5 h-3.5 shrink-0" />
-                <span className="font-semibold font-mono">{upperStake}</span>
+                <span className="font-semibold font-mono">{displayStakeUnit}</span>
               </div>
               <div className="text-lg sm:text-xl font-bold font-mono text-purple-700 dark:text-purple-300">
                 {formatCurrency(stakeBalance)}
@@ -174,9 +177,10 @@ export function WalletBalanceModal({
                     const isStake = item.currency.toUpperCase() === upperStake;
                     const estValue = item.est_stake ?? (isStake ? item.balance : 0);
                     const ratio = effectiveTotal > 0 ? ((estValue / effectiveTotal) * 100).toFixed(1) : '0.0';
-                    const cleanName = item.currency.includes(':')
+                    const rawClean = item.currency.includes(':')
                       ? item.currency.split(':')[0]
                       : item.currency;
+                    const cleanName = rawClean.toUpperCase() === 'USDT' ? 'USD' : rawClean;
 
                     return (
                       <tr
