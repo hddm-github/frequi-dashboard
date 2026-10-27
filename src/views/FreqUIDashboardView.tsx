@@ -799,7 +799,7 @@ export function FreqUIDashboardView() {
               <div className="text-lg sm:text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight whitespace-nowrap truncate my-0.5">
                 {isReadOnly ? t('ui.hidden') : formatCurrency(botState.balance)}
               </div>
-              <div className="h-5 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap overflow-hidden truncate">
+              <div className="h-5 flex items-center text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap overflow-hidden truncate">
                 <span
                   className="truncate"
                   title={`${t('dashboard.per_trade')}: ${nextStakeInfo.label}`}
@@ -815,17 +815,6 @@ export function FreqUIDashboardView() {
                     {nextStakeInfo.label}
                   </span>
                 </span>
-                {botState.total_balance !== undefined &&
-                  Math.abs(botState.total_balance - botState.balance) >= 0.01 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowBalanceModal(true)}
-                      className="ml-1 px-1.5 py-0.2 rounded text-[10px] font-sans font-medium bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 cursor-pointer shrink-0 transition-colors"
-                      title={t('dashboard.total_portfolio_tooltip')}
-                    >
-                      {t('dashboard.total_portfolio')}: {formatCurrency(botState.total_balance)}
-                    </button>
-                  )}
               </div>
             </div>
           )}

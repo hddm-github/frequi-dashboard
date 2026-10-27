@@ -99,7 +99,7 @@ export function WalletBalanceModal({
         </div>
 
         {/* Modal Body */}
-        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto">
+        <div className="p-4 sm:p-5 pb-6 space-y-4 overflow-y-auto">
           {/* Summary KPIs */}
           <div className="grid grid-cols-2 gap-3">
             {/* Stake Currency Card */}
@@ -139,107 +139,105 @@ export function WalletBalanceModal({
             </div>
           </div>
 
-          {/* Currency List */}
+          {/* Currency Table */}
           <div
             className={`rounded-xl border overflow-hidden ${
               isDark ? 'border-slate-700/80' : 'border-slate-200'
             }`}
           >
-            <div
-              className={`px-3 sm:px-4 py-2 text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between border-b ${
-                isDark ? 'bg-slate-800/60 border-slate-700/80 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-600'
-              }`}
-            >
-              <span className="w-36 sm:w-44 shrink-0">{t('dashboard.asset')}</span>
-              <span className="flex-1 text-right">{t('dashboard.free_amount')}</span>
-              <span className="flex-1 text-right">{t('dashboard.est_value')}</span>
-              <span className="w-14 sm:w-16 text-right shrink-0">{t('dashboard.portfolio_ratio')}</span>
-            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr
+                    className={`border-b text-[11px] font-semibold uppercase tracking-wider ${
+                      isDark
+                        ? 'bg-slate-800/60 border-slate-700/80 text-slate-400'
+                        : 'bg-slate-100 border-slate-200 text-slate-600'
+                    }`}
+                  >
+                    <th className="py-2.5 pl-3.5 sm:pl-4 pr-2 text-left font-semibold whitespace-nowrap">
+                      {t('dashboard.asset')}
+                    </th>
+                    <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">
+                      {t('dashboard.free_amount')}
+                    </th>
+                    <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">
+                      {t('dashboard.est_value')}
+                    </th>
+                    <th className="py-2.5 pl-2 pr-3.5 sm:pr-4 text-right font-semibold whitespace-nowrap">
+                      {t('dashboard.portfolio_ratio')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700/60">
+                  {sortedCurrencies.length > 0 ? (
+                    sortedCurrencies.map((item) => {
+                      const isStake = item.currency.toUpperCase() === upperStake;
+                      const estValue = item.est_stake ?? (isStake ? item.balance : 0);
+                      const ratio = effectiveTotal > 0 ? ((estValue / effectiveTotal) * 100).toFixed(1) : '0.0';
+                      // Clean futures symbol like PHA/USDT:USDT -> PHA/USDT
+                      const cleanName = item.currency.includes(':')
+                        ? item.currency.split(':')[0]
+                        : item.currency;
 
-            <div className="divide-y divide-slate-200 dark:divide-slate-700/60 max-h-64 overflow-y-auto">
-              {sortedCurrencies.length > 0 ? (
-                sortedCurrencies.map((item) => {
-                  const isStake = item.currency.toUpperCase() === upperStake;
-                  const estValue = item.est_stake ?? (isStake ? item.balance : 0);
-                  const ratio = effectiveTotal > 0 ? ((estValue / effectiveTotal) * 100).toFixed(1) : '0.0';
-                  // Clean futures pair like PHA/USDT:USDT -> PHA/USDT
-                  const cleanName = item.currency.includes(':')
-                    ? item.currency.split(':')[0]
-                    : item.currency;
+                      return (
+                        <tr
+                          key={item.currency}
+                          className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${
+                            isStake ? 'bg-purple-500/5 font-medium' : ''
+                          }`}
+                        >
+                          {/* Asset */}
+                          <td className="py-2.5 pl-3.5 sm:pl-4 pr-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="font-bold font-mono text-xs whitespace-nowrap" title={item.currency}>
+                                {cleanName}
+                              </span>
+                              {isStake && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-sans font-medium bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30 whitespace-nowrap shrink-0">
+                                  {t('dashboard.stake_balance_label')}
+                                </span>
+                              )}
+                              {!isStake && item.is_position && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-sans font-medium bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 whitespace-nowrap shrink-0">
+                                  {t('dashboard.position')}
+                                </span>
+                              )}
+                            </div>
+                          </td>
 
-                  return (
-                    <div
-                      key={item.currency}
-                      className={`px-3 sm:px-4 py-2.5 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${
-                        isStake ? 'bg-purple-500/5 font-medium' : ''
-                      }`}
-                    >
-                      {/* Currency badge - ample width and whitespace-nowrap prevents any wrapping */}
-                      <div className="w-36 sm:w-44 shrink-0 flex items-center gap-1.5 min-w-0 pr-1">
-                        <span className="font-bold font-mono truncate" title={item.currency}>
-                          {cleanName}
-                        </span>
-                        {isStake && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-sans font-medium bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30 whitespace-nowrap shrink-0">
-                            {t('dashboard.stake_balance_label')}
-                          </span>
-                        )}
-                        {!isStake && item.is_position && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-sans font-medium bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 whitespace-nowrap shrink-0">
-                            {t('dashboard.position')}
-                          </span>
-                        )}
-                      </div>
+                          {/* Free amount */}
+                          <td className="py-2.5 px-3 text-right font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                            {item.free > 0
+                              ? item.free >= 1000
+                                ? item.free.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                                : item.free.toLocaleString(undefined, { maximumFractionDigits: 4 })
+                              : '0'}
+                          </td>
 
-                      {/* Free balance */}
-                      <div className="flex-1 text-right font-mono text-slate-600 dark:text-slate-300">
-                        {item.free > 0 ? (
-                          item.free >= 1000
-                            ? item.free.toLocaleString(undefined, { maximumFractionDigits: 2 })
-                            : item.free
-                        ) : (
-                          '0'
-                        )}
-                      </div>
+                          {/* Valuation */}
+                          <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                            {estValue > 0 ? formatCurrency(estValue) : '—'}
+                          </td>
 
-                      {/* Est value */}
-                      <div className="flex-1 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">
-                        {estValue > 0 ? formatCurrency(estValue) : '—'}
-                      </div>
-
-                      {/* Ratio */}
-                      <div className="w-14 sm:w-16 text-right shrink-0 font-mono text-slate-500 dark:text-slate-400">
-                        {ratio}%
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="px-4 py-6 text-center text-xs text-slate-400">
-                  {t('dashboard.no_data')}
-                </div>
-              )}
+                          {/* Portfolio ratio */}
+                          <td className="py-2.5 pl-2 pr-3.5 sm:pr-4 text-right font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                            {ratio}%
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-6 text-center text-xs text-slate-400">
+                        {t('dashboard.no_data')}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
-
-        {/* Modal Footer */}
-        <div
-          className={`px-4 sm:px-5 py-3 border-t flex justify-end shrink-0 ${
-            isDark ? 'border-slate-700/80 bg-slate-900/40' : 'border-slate-200 bg-slate-50'
-          }`}
-        >
-          <button
-            type="button"
-            onClick={onClose}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              isDark
-                ? 'bg-slate-700 hover:bg-slate-600 text-slate-200'
-                : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-            }`}
-          >
-            {t('ui.close')}
-          </button>
         </div>
       </div>
     </div>,
